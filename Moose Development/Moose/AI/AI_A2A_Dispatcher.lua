@@ -2071,15 +2071,18 @@ do -- AI_A2A_DISPATCHER
   -- @param #string SquadronName The squadron name.
   -- @param #number EngageMinSpeed The minimum speed [km/h] at which the GCI can be executed.
   -- @param #number EngageMaxSpeed The maximum speed [km/h] at which the GCI can be executed.
+  -- @param #number CapLimit Maximum Number of allowed flights
+  -- @param #number LowInterval Lowest allowed interval to spawn new GCI Flight
+  -- @param #number HighInterval Highest allowed interval to spawn new GCI Flight
   -- @return #AI_A2A_DISPATCHER
   -- @usage
   --
   --   -- GCI Squadron execution.
-  --   A2ADispatcher:SetSquadronGci( "Mozdok", 900, 1200 )
-  --   A2ADispatcher:SetSquadronGci( "Novo", 900, 2100 )
-  --   A2ADispatcher:SetSquadronGci( "Maykop", 900, 1200 )
+  --   A2ADispatcher:SetSquadronGci( "Mozdok", 900, 1200, 2, 900, 1800 )
+  --   A2ADispatcher:SetSquadronGci( "Novo", 900, 2100, 4, 3600, 6000 )
+  --   A2ADispatcher:SetSquadronGci( "Maykop", 900, 1200, 1, 600, 900 )
   --
-  function AI_A2A_DISPATCHER:SetSquadronGci( SquadronName, EngageMinSpeed, EngageMaxSpeed )
+  function AI_A2A_DISPATCHER:SetSquadronGci( SquadronName, EngageMinSpeed, EngageMaxSpeed, GCILimit, LowInterval, HighInterval )
 
     self.DefenderSquadrons[SquadronName] = self.DefenderSquadrons[SquadronName] or {}
     self.DefenderSquadrons[SquadronName].Gci = self.DefenderSquadrons[SquadronName].Gci or {}
@@ -2088,8 +2091,29 @@ do -- AI_A2A_DISPATCHER
     Intercept.Name = SquadronName
     Intercept.EngageMinSpeed = EngageMinSpeed
     Intercept.EngageMaxSpeed = EngageMaxSpeed
+    Intercept.Limit = GCILimit
+    Intercept.LowInterval = LowInterval or 0
+    Intercept.HighInterval = HighInterval or 0
+  
+    if Intercept.Limit then
+      if Intercept.Scheduler then
+        Intercept.Scheduler:Stop()
+      end
 
-    self:F( { GCI = { SquadronName, EngageMinSpeed, EngageMaxSpeed } } )
+      local Variance = (Intercept.HighInterval - Intercept.LowInterval) / 2
+      local Repeat = Intercept.LowInterval + Variance
+      local Randomization = Variance / Repeat
+
+      Intercept.Scheduler = SCHEDULER:New( self, self.RefreshGciAirborne, { SquadronName }, 0, Repeat, Randomization )
+      Intercept.Scheduler:Start()
+    else
+      if Intercept.Scheduler then
+        Intercept.Scheduler:Stop()
+        Intercept.Scheduler = nil
+      end
+    end
+
+    self:F( { GCI = { SquadronName, EngageMinSpeed, EngageMaxSpeed, GCILimit, LowInterval, HighInterval } } )
   end
 
   --- Defines the default amount of extra planes that will take-off as part of the defense system.
@@ -2914,6 +2938,39 @@ do -- AI_A2A_DISPATCHER
     end
 
     return CapCount
+  end
+
+  --- Get Number of Active GCI Flights
+  -- @param #AI_A2A_DISPATCHER self
+  -- @param #string SquadronName Name of the squadron
+  function AI_A2A_DISPATCHER:RefreshGciAirborne( SquadronName )
+  
+    local DefenderSquadron = self.DefenderSquadrons[SquadronName]
+
+    if DefenderSquadron and DefenderSquadron.Gci then
+      local Count = 0
+      for AIGroup, DefenderTask in pairs( self:GetDefenderTasks() ) do
+        if DefenderTask.SquadronName == SquadronName then
+          if DefenderTask.Type == "GCI" then
+            if AIGroup and AIGroup:IsAlive() then
+              if DefenderTask.Fsm:Is( "Started" ) or
+                 DefenderTask.Fsm:Is( "Patrolling" ) or
+                 DefenderTask.Fsm:Is( "Returning" ) or
+                 DefenderTask.Fsm:Is( "Engaging" ) or
+                 DefenderTask.Fsm:Is( "Fuel" ) or
+                 DefenderTask.Fsm:Is( "RTB" ) or
+                 DefenderTask.Fsm:Is( "Home" ) then
+                Count = Count + AIGroup:GetSize()
+              end
+            end
+          end
+        end
+      end
+      
+      -- env.info( tostring(SquadronName).." DISPATCHED = "..tostring(Count) )
+      DefenderSquadron.Gci.Dispatched = Count
+      self:F( { SquadronDispatched = Count } )
+    end
   end
 
   --- Count number of engaging defender groups.
