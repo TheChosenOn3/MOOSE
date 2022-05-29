@@ -2071,7 +2071,7 @@ do -- AI_A2A_DISPATCHER
   -- @param #string SquadronName The squadron name.
   -- @param #number EngageMinSpeed The minimum speed [km/h] at which the GCI can be executed.
   -- @param #number EngageMaxSpeed The maximum speed [km/h] at which the GCI can be executed.
-  -- @param #number CapLimit Maximum Number of allowed flights
+  -- @param #number GCILimit Maximum Number of allowed flights
   -- @param #number LowInterval Lowest allowed interval to spawn new GCI Flight
   -- @param #number HighInterval Highest allowed interval to spawn new GCI Flight
   -- @return #AI_A2A_DISPATCHER
@@ -2094,6 +2094,7 @@ do -- AI_A2A_DISPATCHER
     Intercept.Limit = GCILimit
     Intercept.LowInterval = LowInterval or 0
     Intercept.HighInterval = HighInterval or 0
+    Intercept.Dispatched = 0
   
     if Intercept.Limit then
       if Intercept.Scheduler then
@@ -2852,8 +2853,13 @@ do -- AI_A2A_DISPATCHER
     self.Defenders = self.Defenders or {}
     local DefenderName = Defender:GetName()
     self.Defenders[DefenderName] = Squadron
+    
     if Squadron.ResourceCount then
       Squadron.ResourceCount = Squadron.ResourceCount - Size
+    end
+    
+    if Squadron.Gci then
+      Squadron.Gci.Dispatched = Squadron.Gci.Dispatched + Size
     end
     self:F( { DefenderName = DefenderName, SquadronResourceCount = Squadron.ResourceCount } )
   end
@@ -3419,11 +3425,17 @@ do -- AI_A2A_DISPATCHER
               local DefenderOverhead = DefenderSquadron.Overhead or self.DefenderDefault.Overhead
               local DefenderGrouping = DefenderSquadron.Grouping or self.DefenderDefault.Grouping
               local DefendersNeeded = math.ceil( DefenderCount * DefenderOverhead )
-
+              
+              self:F( { SquadronGciLimit = Gci.Limit, SquadronGciDispatched = Gci.Dispatched } )
               self:F( { Overhead = DefenderOverhead, SquadronOverhead = DefenderSquadron.Overhead, DefaultOverhead = self.DefenderDefault.Overhead } )
               self:F( { Grouping = DefenderGrouping, SquadronGrouping = DefenderSquadron.Grouping, DefaultGrouping = self.DefenderDefault.Grouping } )
               self:F( { DefendersCount = DefenderCount, DefendersNeeded = DefendersNeeded } )
-
+              
+              if Gci.Limit and DefendersNeeded > Gci.Limit - Gci.Dispatched then
+                DefendersNeeded = Gci.Limit - Gci.Dispatched
+                BreakLoop = true
+              end
+              
               -- DefenderSquadron.ResourceCount can have the value nil, which expresses unlimited resources.
               -- DefendersNeeded cannot exceed DefenderSquadron.ResourceCount!
               if DefenderSquadron.ResourceCount and DefendersNeeded > DefenderSquadron.ResourceCount then
