@@ -492,11 +492,20 @@ end
 
 --- Disable F10 menu for all players.
 -- @param #FOX self
--- @param #boolean switch If true debug mode on. If false/nil debug mode off
 -- @return #FOX self
 function FOX:SetDisableF10Menu()
 
   self.menudisabled=true
+
+  return self
+end
+
+--- Enable F10 menu for all players.
+-- @param #FOX self
+-- @return #FOX self
+function FOX:SetEnableF10Menu()
+
+  self.menudisabled=false
 
   return self
 end
@@ -792,7 +801,7 @@ function FOX:onafterMissileLaunch(From, Event, To, missile)
           local text=string.format("Missile launch detected! Distance %.1f NM, bearing %03d°.", UTILS.MetersToNM(distance), bearing)
           
           -- Say notching headings.
-          BASE:ScheduleOnce(5, FOX._SayNotchingHeadings, self, player, missile.weapon)
+          self:ScheduleOnce(5, FOX._SayNotchingHeadings, self, player, missile.weapon)
                     
           --TODO: ALERT or INFO depending on whether this is a direct target.
           --TODO: lauchalertall option.
@@ -1117,6 +1126,13 @@ end
 --- FOX event handler for event birth.
 -- @param #FOX self
 -- @param Core.Event#EVENTDATA EventData
+function FOX:OnEventPlayerEnterAircraft(EventData)
+
+end
+
+--- FOX event handler for event birth.
+-- @param #FOX self
+-- @param Core.Event#EVENTDATA EventData
 function FOX:OnEventBirth(EventData)
   self:F3({eventbirth = EventData})
   
@@ -1155,7 +1171,7 @@ function FOX:OnEventBirth(EventData)
             
     -- Add F10 radio menu for player.
     if not self.menudisabled then
-      SCHEDULER:New(nil, self._AddF10Commands, {self,_unitName}, 0.1)
+      self:ScheduleOnce(0.1, self._AddF10Commands, self, _unitName)
     end
     
     -- Player data.
@@ -1422,10 +1438,10 @@ function FOX:_AddF10Commands(_unitName)
         
       end
     else
-      self:E(self.lid..string.format("ERROR: Could not find group or group ID in AddF10Menu() function. Unit name: %s.", _unitName))
+      self:E(self.lid..string.format("ERROR: Could not find group or group ID in AddF10Menu() function. Unit name: %s.", _unitName or "unknown"))
     end
   else
-    self:E(self.lid..string.format("ERROR: Player unit does not exist in AddF10Menu() function. Unit name: %s.", _unitName))
+    self:E(self.lid..string.format("ERROR: Player unit does not exist in AddF10Menu() function. Unit name: %s.", _unitName or "unknown"))
   end
 
 end

@@ -29,9 +29,9 @@
 --   * Enquiry methods to check on spawn status.
 --
 -- ===
---
+-- 
 -- ### [Demo Missions](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/SPA%20-%20Spawning)
---
+-- 
 -- ===
 --
 -- ### [YouTube Playlist](https://www.youtube.com/playlist?list=PL7ZUrU4zZUl1jirWIo4t4YxqN-HxjqRkL)
@@ -1418,7 +1418,7 @@ function SPAWN:SpawnWithIndex( SpawnIndex, NoBirth )
       end
       -- TODO: Need to fix this by putting an "R" in the name of the group when the group repeats.
       -- if self.Repeat then
-      --	_DATABASE:SetStatusGroup( SpawnTemplate.name, "ReSpawn" )
+      --  _DATABASE:SetStatusGroup( SpawnTemplate.name, "ReSpawn" )
       -- end
     end
 
@@ -2403,8 +2403,7 @@ end
 -- @param #SPAWN self
 -- @param DCS#Vec3 Vec3 The Vec3 coordinates where to spawn the group.
 -- @param #number SpawnIndex (optional) The index which group to spawn within the given zone.
--- @return Wrapper.Group#GROUP that was spawned.
--- @return #nil Nothing was spawned.
+-- @return Wrapper.Group#GROUP that was spawned or #nil if nothing was spawned.
 function SPAWN:SpawnFromVec3( Vec3, SpawnIndex )
   self:F( { self.SpawnTemplatePrefix, Vec3, SpawnIndex } )
 
@@ -2472,8 +2471,7 @@ end
 -- @param #SPAWN self
 -- @param Core.Point#Coordinate Coordinate The Coordinate coordinates where to spawn the group.
 -- @param #number SpawnIndex (optional) The index which group to spawn within the given zone.
--- @return Wrapper.Group#GROUP that was spawned.
--- @return #nil Nothing was spawned.
+-- @return Wrapper.Group#GROUP that was spawned or #nil if nothing was spawned.
 function SPAWN:SpawnFromCoordinate( Coordinate, SpawnIndex )
   self:F( { self.SpawnTemplatePrefix, SpawnIndex } )
 
@@ -2487,8 +2485,7 @@ end
 -- @param #SPAWN self
 -- @param Core.Point#POINT_VEC3 PointVec3 The PointVec3 coordinates where to spawn the group.
 -- @param #number SpawnIndex (optional) The index which group to spawn within the given zone.
--- @return Wrapper.Group#GROUP that was spawned.
--- @return #nil Nothing was spawned.
+-- @return Wrapper.Group#GROUP that was spawned or #nil if nothing was spawned.
 -- @usage
 --
 --   local SpawnPointVec3 = ZONE:New( ZoneName ):GetPointVec3( 2000 ) -- Get the center of the ZONE object at 2000 meters from the ground.
@@ -2511,8 +2508,7 @@ end
 -- @param #number MinHeight (optional) The minimum height to spawn an airborne group into the zone.
 -- @param #number MaxHeight (optional) The maximum height to spawn an airborne group into the zone.
 -- @param #number SpawnIndex (optional) The index which group to spawn within the given zone.
--- @return Wrapper.Group#GROUP that was spawned.
--- @return #nil Nothing was spawned.
+-- @return Wrapper.Group#GROUP that was spawned or #nil if nothing was spawned.
 -- @usage
 --
 --   local SpawnVec2 = ZONE:New( ZoneName ):GetVec2()
@@ -2544,8 +2540,7 @@ end
 -- @param #number MinHeight (optional) The minimum height to spawn an airborne group into the zone.
 -- @param #number MaxHeight (optional) The maximum height to spawn an airborne group into the zone.
 -- @param #number SpawnIndex (optional) The index which group to spawn within the given zone.
--- @return Wrapper.Group#GROUP that was spawned.
--- @return #nil Nothing was spawned.
+-- @return Wrapper.Group#GROUP that was spawned or #nil if nothing was spawned.
 -- @usage
 --
 --   local SpawnPointVec2 = ZONE:New( ZoneName ):GetPointVec2()
@@ -2599,8 +2594,7 @@ end
 -- @param #number MinHeight (optional) The minimum height to spawn an airborne group into the zone.
 -- @param #number MaxHeight (optional) The maximum height to spawn an airborne group into the zone.
 -- @param #number SpawnIndex (optional) The index which group to spawn within the given zone.
--- @return Wrapper.Group#GROUP that was spawned.
--- @return #nil Nothing was spawned.
+-- @return Wrapper.Group#GROUP that was spawned or #nil if nothing was spawned.
 -- @usage
 --
 --   local SpawnStatic = STATIC:FindByName( StaticName )
@@ -2631,8 +2625,7 @@ end
 -- @param #number MinHeight (optional) The minimum height to spawn an airborne group into the zone.
 -- @param #number MaxHeight (optional) The maximum height to spawn an airborne group into the zone.
 -- @param #number SpawnIndex (optional) The index which group to spawn within the given zone.
--- @return Wrapper.Group#GROUP that was spawned.
--- @return #nil when nothing was spawned.
+-- @return Wrapper.Group#GROUP that was spawned or #nil if nothing was spawned. 
 -- @usage
 --
 --   local SpawnZone = ZONE:New( ZoneName )
@@ -2978,9 +2971,9 @@ end
 function SPAWN:_Prepare( SpawnTemplatePrefix, SpawnIndex ) -- R2.2
   self:F( { self.SpawnTemplatePrefix, self.SpawnAliasPrefix } )
 
-  --	if not self.SpawnTemplate then
-  --	  self.SpawnTemplate = self:_GetTemplate( SpawnTemplatePrefix )
-  --	end
+  --  if not self.SpawnTemplate then
+  --    self.SpawnTemplate = self:_GetTemplate( SpawnTemplatePrefix )
+  --  end
 
   local SpawnTemplate
   if self.TweakedTemplate ~= nil and self.TweakedTemplate == true then
@@ -3372,12 +3365,16 @@ end
 -- @return #boolean True = Continue Scheduler
 function SPAWN:_SpawnCleanUpScheduler()
   self:F( { "CleanUp Scheduler:", self.SpawnTemplatePrefix } )
-
+  
   local SpawnGroup, SpawnCursor = self:GetFirstAliveGroup()
   self:T( { "CleanUp Scheduler:", SpawnGroup, SpawnCursor } )
 
+  local IsHelo = false
+  
   while SpawnGroup do
-
+    
+    IsHelo = SpawnGroup:IsHelicopter()
+    
     local SpawnUnits = SpawnGroup:GetUnits()
 
     for UnitID, UnitData in pairs( SpawnUnits ) do
@@ -3390,8 +3387,8 @@ function SPAWN:_SpawnCleanUpScheduler()
       self:T( { SpawnUnitName, Stamp } )
 
       if Stamp.Vec2 then
-        if SpawnUnit:InAir() == false and SpawnUnit:GetVelocityKMH() < 1 then
-          local NewVec2 = SpawnUnit:GetVec2()
+        if (SpawnUnit:InAir() == false and SpawnUnit:GetVelocityKMH() < 1) or IsHelo then
+          local NewVec2 = SpawnUnit:GetVec2() or {x=0, y=0}
           if (Stamp.Vec2.x == NewVec2.x and Stamp.Vec2.y == NewVec2.y) or (SpawnUnit:GetLife() <= 1) then
             -- If the plane is not moving or dead , and is on the ground, assign it with a timestamp...
             if Stamp.Time + self.SpawnCleanUpInterval < timer.getTime() then
@@ -3409,8 +3406,8 @@ function SPAWN:_SpawnCleanUpScheduler()
           Stamp.Time = nil
         end
       else
-        if SpawnUnit:InAir() == false then
-          Stamp.Vec2 = SpawnUnit:GetVec2()
+        if SpawnUnit:InAir() == false or (IsHelo and SpawnUnit:GetLife() <= 1) then
+          Stamp.Vec2 = SpawnUnit:GetVec2() or {x=0, y=0}
           if (SpawnUnit:GetVelocityKMH() < 1) then
             Stamp.Time = timer.getTime()
           end

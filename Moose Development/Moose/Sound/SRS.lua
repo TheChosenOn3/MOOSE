@@ -52,8 +52,6 @@
 --
 -- ===
 --
--- ![Banner Image](..\Presentations\ATIS\ATIS_Main.png)
---
 -- # The MSRS Concept
 --
 -- This class allows to broadcast sound files or text via Simple Radio Standalone (SRS).
@@ -143,7 +141,108 @@ MSRS = {
 
 --- MSRS class version.
 -- @field #string version
-MSRS.version="0.0.6"
+MSRS.version="0.1.0"
+
+--- Voices
+-- @type Voices
+MSRS.Voices = {
+  Microsoft = {
+    ["Hedda"] = "Microsoft Hedda Desktop", -- de-DE
+    ["Hazel"] = "Microsoft Hazel Desktop", -- en-GB
+    ["David"] = "Microsoft David Desktop", -- en-US
+    ["Zira"] = "Microsoft Zira Desktop", -- en-US
+    ["Hortense"] = "Microsoft Hortense Desktop", --fr-FR
+    },
+  Google = {
+    Standard = {
+       ["en_AU_Standard_A"] = 'en-AU-Standard-A', -- [1] FEMALE
+       ["en_AU_Standard_B"] = 'en-AU-Standard-B', -- [2] MALE
+       ["en_AU_Standard_C"] = 'en-AU-Standard-C', -- [3] FEMALE
+       ["en_AU_Standard_D"] = 'en-AU-Standard-D', -- [4] MALE
+       ["en_IN_Standard_A"] = 'en-IN-Standard-A', -- [5] FEMALE
+       ["en_IN_Standard_B"] = 'en-IN-Standard-B', -- [6] MALE
+       ["en_IN_Standard_C"] = 'en-IN-Standard-C', -- [7] MALE
+       ["en_IN_Standard_D"] = 'en-IN-Standard-D', -- [8] FEMALE
+       ["en_GB_Standard_A"] = 'en-GB-Standard-A', -- [9] FEMALE
+       ["en_GB_Standard_B"] = 'en-GB-Standard-B', -- [10] MALE
+       ["en_GB_Standard_C"] = 'en-GB-Standard-C', -- [11] FEMALE
+       ["en_GB_Standard_D"] = 'en-GB-Standard-D', -- [12] MALE
+       ["en_GB_Standard_F"] = 'en-GB-Standard-F', -- [13] FEMALE
+       ["en_US_Standard_A"] = 'en-US-Standard-A', -- [14] MALE
+       ["en_US_Standard_B"] = 'en-US-Standard-B', -- [15] MALE
+       ["en_US_Standard_C"] = 'en-US-Standard-C', -- [16] FEMALE
+       ["en_US_Standard_D"] = 'en-US-Standard-D', -- [17] MALE
+       ["en_US_Standard_E"] = 'en-US-Standard-E', -- [18] FEMALE
+       ["en_US_Standard_F"] = 'en-US-Standard-F', -- [19] FEMALE
+       ["en_US_Standard_G"] = 'en-US-Standard-G', -- [20] FEMALE
+       ["en_US_Standard_H"] = 'en-US-Standard-H', -- [21] FEMALE
+       ["en_US_Standard_I"] = 'en-US-Standard-I', -- [22] MALE
+       ["en_US_Standard_J"] = 'en-US-Standard-J', -- [23] MALE
+       ["fr_FR_Standard_A"] = "fr-FR-Standard-A", -- Female
+       ["fr_FR_Standard_B"] = "fr-FR-Standard-B", -- Male
+       ["fr_FR_Standard_C"] = "fr-FR-Standard-C", -- Female
+       ["fr_FR_Standard_D"] = "fr-FR-Standard-D", -- Male
+       ["fr_FR_Standard_E"] = "fr-FR-Standard-E", -- Female
+       ["de_DE_Standard_A"] = "de-DE-Standard-A", -- Female
+       ["de_DE_Standard_B"] = "de-DE-Standard-B", -- Male
+       ["de_DE_Standard_C"] = "de-DE-Standard-C", -- Female
+       ["de_DE_Standard_D"] = "de-DE-Standard-D", -- Male
+       ["de_DE_Standard_E"] = "de-DE-Standard-E", -- Male
+       ["de_DE_Standard_F"] = "de-DE-Standard-F", -- Female
+       ["es_ES_Standard_A"] = "es-ES-Standard-A", -- Female
+       ["es_ES_Standard_B"] = "es-ES-Standard-B", -- Male
+       ["es_ES_Standard_C"] = "es-ES-Standard-C", -- Female
+       ["es_ES_Standard_D"] = "es-ES-Standard-D", -- Female
+       ["it_IT_Standard_A"] = "it-IT-Standard-A", -- Female
+       ["it_IT_Standard_B"] = "it-IT-Standard-B", -- Female
+       ["it_IT_Standard_C"] = "it-IT-Standard-C", -- Male
+       ["it_IT_Standard_D"] = "it-IT-Standard-D", -- Male
+      },
+      Wavenet = {
+       ["en_AU_Wavenet_A"] = 'en-AU-Wavenet-A', -- [1] FEMALE
+       ["en_AU_Wavenet_B"] = 'en-AU-Wavenet-B', -- [2] MALE
+       ["en_AU_Wavenet_C"] = 'en-AU-Wavenet-C', -- [3] FEMALE
+       ["en_AU_Wavenet_D"] = 'en-AU-Wavenet-D', -- [4] MALE
+       ["en_IN_Wavenet_A"] = 'en-IN-Wavenet-A', -- [5] FEMALE
+       ["en_IN_Wavenet_B"] = 'en-IN-Wavenet-B', -- [6] MALE
+       ["en_IN_Wavenet_C"] = 'en-IN-Wavenet-C', -- [7] MALE
+       ["en_IN_Wavenet_D"] = 'en-IN-Wavenet-D', -- [8] FEMALE
+       ["en_GB_Wavenet_A"] = 'en-GB-Wavenet-A', -- [9] FEMALE
+       ["en_GB_Wavenet_B"] = 'en-GB-Wavenet-B', -- [10] MALE
+       ["en_GB_Wavenet_C"] = 'en-GB-Wavenet-C', -- [11] FEMALE
+       ["en_GB_Wavenet_D"] = 'en-GB-Wavenet-D', -- [12] MALE
+       ["en_GB_Wavenet_F"] = 'en-GB-Wavenet-F', -- [13] FEMALE
+       ["en_US_Wavenet_A"] = 'en-US-Wavenet-A', -- [14] MALE
+       ["en_US_Wavenet_B"] = 'en-US-Wavenet-B', -- [15] MALE
+       ["en_US_Wavenet_C"] = 'en-US-Wavenet-C', -- [16] FEMALE
+       ["en_US_Wavenet_D"] = 'en-US-Wavenet-D', -- [17] MALE
+       ["en_US_Wavenet_E"] = 'en-US-Wavenet-E', -- [18] FEMALE
+       ["en_US_Wavenet_F"] = 'en-US-Wavenet-F', -- [19] FEMALE
+       ["en_US_Wavenet_G"] = 'en-US-Wavenet-G', -- [20] FEMALE
+       ["en_US_Wavenet_H"] = 'en-US-Wavenet-H', -- [21] FEMALE
+       ["en_US_Wavenet_I"] = 'en-US-Wavenet-I', -- [22] MALE
+       ["en_US_Wavenet_J"] = 'en-US-Wavenet-J', -- [23] MALE
+       ["fr_FR_Wavenet_A"] = "fr-FR-Wavenet-A", -- Female
+       ["fr_FR_Wavenet_B"] = "fr-FR-Wavenet-B", -- Male
+       ["fr_FR_Wavenet_C"] = "fr-FR-Wavenet-C", -- Female
+       ["fr_FR_Wavenet_D"] = "fr-FR-Wavenet-D", -- Male
+       ["fr_FR_Wavenet_E"] = "fr-FR-Wavenet-E", -- Female
+       ["de_DE_Wavenet_A"] = "de-DE-Wavenet-A", -- Female
+       ["de_DE_Wavenet_B"] = "de-DE-Wavenet-B", -- Male
+       ["de_DE_Wavenet_C"] = "de-DE-Wavenet-C", -- Female
+       ["de_DE_Wavenet_D"] = "de-DE-Wavenet-D", -- Male
+       ["de_DE_Wavenet_E"] = "de-DE-Wavenet-E", -- Male
+       ["de_DE_Wavenet_F"] = "de-DE-Wavenet-F", -- Female      
+       ["es_ES_Wavenet_B"] = "es-ES-Wavenet-B", -- Male
+       ["es_ES_Wavenet_C"] = "es-ES-Wavenet-C", -- Female
+       ["es_ES_Wavenet_D"] = "es-ES-Wavenet-D", -- Female
+       ["it_IT_Wavenet_A"] = "it-IT-Wavenet-A", -- Female
+       ["it_IT_Wavenet_B"] = "it-IT-Wavenet-B", -- Female
+       ["it_IT_Wavenet_C"] = "it-IT-Wavenet-C", -- Male
+       ["it_IT_Wavenet_D"] = "it-IT-Wavenet-D", -- Male
+      } , 
+    },
+  }
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- TODO list
@@ -181,7 +280,7 @@ function MSRS:New(PathToSRS, Frequency, Modulation, Volume)
   self:SetCoalition()
   self:SetLabel()
   self:SetVolume()
-  self.lid = string.format("%s-%s | ",self.name,self.version)
+  self.lid = string.format("%s-%s | ", self.name, self.version)
   
   if not io or not os then
     self:E(self.lid.."***** ERROR - io or os NOT desanitized! MSRS will not work!")
@@ -455,19 +554,8 @@ function MSRS:PlaySoundFile(Soundfile, Delay)
     -- Append file.
     command=command..' --file="'..tostring(soundfile)..'"'
     
+    -- Execute command.
     self:_ExecCommand(command)
-    
-    --[[
-    
-    command=command.." > bla.txt"
-    
-    -- Debug output.
-    self:I(string.format("MSRS PlaySoundfile command=%s", command))
-
-    -- Execute SRS command.
-    local x=os.execute(command)
-    
-    ]]
         
   end
 
@@ -493,16 +581,6 @@ function MSRS:PlaySoundText(SoundText, Delay)
     
     -- Execute command.
     self:_ExecCommand(command)
-    
-    --[[
-    command=command.." > bla.txt"
-    
-    -- Debug putput.
-    self:I(string.format("MSRS PlaySoundfile command=%s", command))
-
-    -- Execute SRS command.
-    local x=os.execute(command)
-    ]]
         
   end
 
@@ -529,37 +607,48 @@ function MSRS:PlayText(Text, Delay)
     -- Execute command.
     self:_ExecCommand(command)
     
-    --[[
-    
-    -- Check that length of command is max 255 chars or os.execute() will not work!
-    if string.len(command)>255 then
-    
-      -- Create a tmp file.
-      local filename = os.getenv('TMP') .. "\\MSRS-"..STTS.uuid()..".bat"
-      
-      local script = io.open(filename, "w+")
-      script:write(command.." && exit")
-      script:close()
-    
-      -- Play command.  
-      command=string.format("\"%s\"", filename)
-            
-      -- Play file in 0.05 seconds
-      timer.scheduleFunction(os.execute, command, timer.getTime()+0.05)
-      
-      -- Remove file in 1 second.
-      timer.scheduleFunction(os.remove, filename, timer.getTime()+1)
-    else
-
-      -- Debug output.
-      self:I(string.format("MSRS Text command=%s", command))
+  end
   
-      -- Execute SRS command.
-      local x=os.execute(command)
+  return self
+end
+
+--- Play text message via STTS with explicitly specified options.
+-- @param #MSRS self
+-- @param #string Text Text message.
+-- @param #number Delay Delay in seconds, before the message is played.
+-- @param #table Frequencies Radio frequencies.
+-- @param #table Modulations Radio modulations.
+-- @param #string Gender Gender.
+-- @param #string Culture Culture.
+-- @param #string Voice Voice.
+-- @param #number Volume Volume.
+-- @param #string Label Label.
+-- @return #MSRS self
+function MSRS:PlayTextExt(Text, Delay, Frequencies, Modulations, Gender, Culture, Voice, Volume, Label)
+
+  if Delay and Delay>0 then
+    self:ScheduleOnce(Delay, MSRS.PlayTextExt, self, Text, 0, Frequencies, Modulations, Gender, Culture, Voice, Volume, Label)
+  else
+  
+    -- Ensure table.
+    if Frequencies and type(Frequencies)~="table" then
+      Frequencies={Frequencies}
+    end
+
+    -- Ensure table.
+    if Modulations and type(Modulations)~="table" then
+      Modulations={Modulations}
+    end
+
+    -- Get command line.
+    local command=self:_GetCommand(Frequencies, Modulations, nil, Gender, Voice, Culture, Volume, nil, nil, Label)    
+
+    -- Append text.
+    command=command..string.format(" --text=\"%s\"", tostring(Text))
     
-    end    
+    -- Execute command.
+    self:_ExecCommand(command)
     
-    ]]
   end
   
   return self
@@ -717,16 +806,8 @@ function MSRS:_GetCommand(freqs, modus, coal, gender, voice, culture, volume, sp
   modus=modus:gsub("0", "AM")
   modus=modus:gsub("1", "FM")
   
-  -- This did not work well. Stopped if the transmission was a bit longer with no apparent error.  
-  --local command=string.format("%s --freqs=%s --modulations=%s --coalition=%d --port=%d --volume=%.2f --speed=%d", exe, freqs, modus, coal, port, volume, speed)
-
-  -- Command from orig STTS script. Works better for some unknown reason!
-  --local command=string.format("start /min \"\" /d \"%s\" /b \"%s\" -f %s -m %s -c %s -p %s -n \"%s\" -h", path, exe, freqs, modus, coal, port, "ROBOT")
-  
-  --local command=string.format('start /b "" /d "%s" "%s" -f %s -m %s -c %s -p %s -n "%s" > bla.txt', path, exe, freqs, modus, coal, port, "ROBOT")
-  
   -- Command.
-  local command=string.format('"%s\\%s" -f %s -m %s -c %s -p %s -n "%s" -v "%.1f"', path, exe, freqs, modus, coal, port, label,volume)
+  local command=string.format('"%s\\%s" -f "%s" -m "%s" -c %s -p %s -n "%s" -v "%.1f"', path, exe, freqs, modus, coal, port, label,volume)
 
   -- Set voice or gender/culture.
   if voice then
@@ -758,6 +839,378 @@ function MSRS:_GetCommand(freqs, modus, coal, gender, voice, culture, volume, sp
   self:T("MSRS command="..command)
 
   return command
+end
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+--- Manages radio transmissions.
+-- 
+-- The purpose of the MSRSQUEUE class is to manage SRS text-to-speech (TTS) messages using the MSRS class.
+-- This can be used to submit multiple TTS messages and the class takes care that they are transmitted one after the other (and not overlapping).
+-- 
+-- @type MSRSQUEUE
+-- @field #string ClassName Name of the class "MSRSQUEUE".
+-- @field #string lid ID for dcs.log.
+-- @field #table queue The queue of transmissions.
+-- @field #string alias Name of the radio queue.
+-- @field #number dt Time interval in seconds for checking the radio queue. 
+-- @field #number Tlast Time (abs) when the last transmission finished.
+-- @field #boolean checking If `true`, the queue update function is scheduled to be called again.
+-- @extends Core.Base#BASE
+MSRSQUEUE = {
+  ClassName   = "MSRSQUEUE",
+  Debugmode   = nil,
+  lid         = nil,
+  queue       =  {},
+  alias       = nil,
+  dt          = nil,
+  Tlast       = nil,
+  checking    = nil,
+}
+
+--- Radio queue transmission data.
+-- @type MSRSQUEUE.Transmission
+-- @field #string text Text to be transmitted.
+-- @field Sound.SRS#MSRS msrs MOOSE SRS object.
+-- @field #number duration Duration in seconds.
+-- @field #table subgroups Groups to send subtitle to.
+-- @field #string subtitle Subtitle of the transmission.
+-- @field #number subduration Duration of the subtitle being displayed.
+-- @field #number frequency Frequency.
+-- @field #number modulation Modulation.
+-- @field #number Tstarted Mission time (abs) in seconds when the transmission started.
+-- @field #boolean isplaying If true, transmission is currently playing.
+-- @field #number Tplay Mission time (abs) in seconds when the transmission should be played.
+-- @field #number interval Interval in seconds before next transmission.
+-- @field #boolean TransmitOnlyWithPlayers If true, only transmit if there are alive Players.
+-- @field Core.Set#SET_CLIENT PlayerSet PlayerSet created when TransmitOnlyWithPlayers == true
+
+--- Create a new MSRSQUEUE object for a given radio frequency/modulation.
+-- @param #MSRSQUEUE self
+-- @param #string alias (Optional) Name of the radio queue.
+-- @return #MSRSQUEUE self The MSRSQUEUE object.
+function MSRSQUEUE:New(alias)
+
+  -- Inherit base
+  local self=BASE:Inherit(self, BASE:New()) --#MSRSQUEUE
+  
+  self.alias=alias or "My Radio"
+  
+  self.dt=1.0
+  
+  self.lid=string.format("MSRSQUEUE %s | ", self.alias)
+  
+  return self
+end
+
+--- Clear the radio queue.
+-- @param #MSRSQUEUE self
+-- @return #MSRSQUEUE self The MSRSQUEUE object.
+function MSRSQUEUE:Clear()
+  self:I(self.lid.."Clearning MSRSQUEUE")
+  self.queue={}
+  return self
+end
+
+
+--- Add a transmission to the radio queue.
+-- @param #MSRSQUEUE self
+-- @param #MSRSQUEUE.Transmission transmission The transmission data table. 
+-- @return #MSRSQUEUE self
+function MSRSQUEUE:AddTransmission(transmission)
+  
+  -- Init.
+  transmission.isplaying=false
+  transmission.Tstarted=nil
+
+  -- Add to queue.
+  table.insert(self.queue, transmission)
+  
+  -- Start checking.
+  if not self.checking then
+    self:_CheckRadioQueue()
+  end
+
+  return self
+end
+
+--- Switch to only transmit if there are players on the server.
+-- @param #MSRSQUEUE self
+-- @param #boolean Switch If true, only send SRS if there are alive Players.
+-- @return #MSRSQUEUE self
+function MSRSQUEUE:SetTransmitOnlyWithPlayers(Switch)
+  self.TransmitOnlyWithPlayers = Switch
+  if Switch == false or Switch==nil then
+    if self.PlayerSet then
+      self.PlayerSet:FilterStop()
+    end
+    self.PlayerSet = nil
+  else
+    self.PlayerSet = SET_CLIENT:New():FilterStart()
+  end
+  return self
+end
+
+--- Create a new transmission and add it to the radio queue.
+-- @param #MSRSQUEUE self
+-- @param #string text Text to play.
+-- @param #number duration Duration in seconds the file lasts. Default is determined by number of characters of the text message.
+-- @param Sound.SRS#MSRS msrs MOOSE SRS object.
+-- @param #number tstart Start time (abs) seconds. Default now.
+-- @param #number interval Interval in seconds after the last transmission finished.
+-- @param #table subgroups Groups that should receive the subtiltle.
+-- @param #string subtitle Subtitle displayed when the message is played.
+-- @param #number subduration Duration [sec] of the subtitle being displayed. Default 5 sec.
+-- @param #number frequency Radio frequency if other than MSRS default.
+-- @param #number modulation Radio modulation if other then MSRS default.
+-- @return #MSRSQUEUE.Transmission Radio transmission table.
+function MSRSQUEUE:NewTransmission(text, duration, msrs, tstart, interval, subgroups, subtitle, subduration, frequency, modulation)
+  
+  if self.TransmitOnlyWithPlayers then
+    if self.PlayerSet and self.PlayerSet:CountAlive() == 0 then
+      return self
+    end
+  end
+  
+  -- Sanity checks.
+  if not text then
+    self:E(self.lid.."ERROR: No text specified.")
+    return nil
+  end
+  if type(text)~="string" then
+    self:E(self.lid.."ERROR: Text specified is NOT a string.")
+    return nil    
+  end
+
+  
+  -- Create a new transmission object.
+  local transmission={} --#MSRSQUEUE.Transmission
+  transmission.text=text
+  transmission.duration=duration or STTS.getSpeechTime(text)
+  transmission.msrs=msrs
+  transmission.Tplay=tstart or timer.getAbsTime()
+  transmission.subtitle=subtitle
+  transmission.interval=interval or 0
+  transmission.frequency=frequency
+  transmission.modulation=modulation
+  transmission.subgroups=subgroups
+  if transmission.subtitle then
+    transmission.subduration=subduration or transmission.duration
+  else
+    transmission.subduration=0 --nil
+  end
+  
+  -- Add transmission to queue.  
+  self:AddTransmission(transmission)
+  
+  return transmission
+end
+
+--- Broadcast radio message.
+-- @param #MSRSQUEUE self
+-- @param #MSRSQUEUE.Transmission transmission The transmission.
+function MSRSQUEUE:Broadcast(transmission)
+  
+  if transmission.frequency then
+    transmission.msrs:PlayTextExt(transmission.text, nil, transmission.frequency, transmission.modulation, Gender, Culture, Voice, Volume, Label)
+  else
+    transmission.msrs:PlayText(transmission.text)
+  end
+  
+  local function texttogroup(gid)
+    -- Text to group.
+    trigger.action.outTextForGroup(gid, transmission.subtitle, transmission.subduration, true)  
+  end
+  
+  if transmission.subgroups and #transmission.subgroups>0 then
+    
+    for _,_group in pairs(transmission.subgroups) do
+      local group=_group --Wrapper.Group#GROUP
+      
+      if group and group:IsAlive() then
+        local gid=group:GetID()
+        
+        self:ScheduleOnce(4, texttogroup, gid) 
+      end
+      
+    end
+    
+  end
+  
+end
+
+--- Calculate total transmission duration of all transmission in the queue.
+-- @param #MSRSQUEUE self
+-- @return #number Total transmission duration.
+function MSRSQUEUE:CalcTransmisstionDuration()
+
+  local Tnow=timer.getAbsTime()
+
+  local T=0
+  for _,_transmission in pairs(self.queue) do
+    local transmission=_transmission --#MSRSQUEUE.Transmission
+    
+    if transmission.isplaying then
+    
+      -- Playing for dt seconds.
+      local dt=Tnow-transmission.Tstarted
+      
+      T=T+transmission.duration-dt
+    
+    else
+      T=T+transmission.duration
+    end
+  
+  end
+
+  return T
+end
+
+--- Check radio queue for transmissions to be broadcasted.
+-- @param #MSRSQUEUE self
+-- @param #number delay Delay in seconds before checking.
+function MSRSQUEUE:_CheckRadioQueue(delay)
+
+  -- Transmissions in queue.  
+  local N=#self.queue
+
+  -- Debug info.
+  self:T2(self.lid..string.format("Check radio queue %s: delay=%.3f sec, N=%d, checking=%s", self.alias, delay or 0, N, tostring(self.checking)))
+  
+  if delay and delay>0 then
+  
+    -- Delayed call.
+    self:ScheduleOnce(delay, MSRSQUEUE._CheckRadioQueue, self)
+    
+    -- Checking on.
+    self.checking=true
+  
+  else
+
+    -- Check if queue is empty.
+    if N==0 then
+    
+      -- Debug info.
+      self:T(self.lid..string.format("Check radio queue %s empty ==> disable checking", self.alias))
+    
+      -- Queue is now empty. Nothing to else to do. We start checking again, if a transmission is added.
+      self.checking=false
+      
+      return
+    end
+
+    -- Get current abs time.
+    local time=timer.getAbsTime()
+    
+    -- Checking on.
+    self.checking=true
+    
+    -- Set dt.
+    local dt=self.dt
+      
+    
+    local playing=false
+    local next=nil  --#MSRSQUEUE.Transmission
+    local remove=nil
+    for i,_transmission in ipairs(self.queue) do
+      local transmission=_transmission  --#MSRSQUEUE.Transmission
+      
+      -- Check if transmission time has passed.
+      if time>=transmission.Tplay then 
+        
+        -- Check if transmission is currently playing.
+        if transmission.isplaying then
+        
+          -- Check if transmission is finished.
+          if time>=transmission.Tstarted+transmission.duration then
+            
+            -- Transmission over.
+            transmission.isplaying=false
+            
+            -- Remove ith element in queue.
+            remove=i
+            
+            -- Store time last transmission finished.
+            self.Tlast=time
+                      
+          else -- still playing
+          
+            -- Transmission is still playing.
+            playing=true
+            
+            dt=transmission.duration-(time-transmission.Tstarted)
+            
+          end
+        
+        else -- not playing yet
+        
+          local Tlast=self.Tlast
+        
+          if transmission.interval==nil  then
+        
+            -- Not playing ==> this will be next.
+            if next==nil then
+              next=transmission
+            end
+            
+          else
+          
+            if Tlast==nil or time-Tlast>=transmission.interval then
+              next=transmission            
+            else
+              
+            end
+          end
+          
+          -- We got a transmission or one with an interval that is not due yet. No need for anything else.
+          if next or Tlast then
+            break
+          end
+               
+        end
+        
+      else
+        
+          -- Transmission not due yet.
+        
+      end  
+    end
+    
+    -- Found a new transmission.
+    if next~=nil and not playing then
+      -- Debug info.
+      self:T(self.lid..string.format("Broadcasting text=\"%s\" at T=%.3f", next.text, time))
+      
+      -- Call SRS.
+      self:Broadcast(next)
+      
+      next.isplaying=true
+      next.Tstarted=time
+      dt=next.duration
+    end
+    
+    -- Remove completed call from queue.
+    if remove then
+      -- Remove from queue.
+      table.remove(self.queue, remove)
+      N=N-1
+      
+      -- Check if queue is empty.
+      if #self.queue==0 then
+        -- Debug info.
+        self:T(self.lid..string.format("Check radio queue %s empty ==> disable checking", self.alias))
+              
+        self.checking=false
+        
+        return
+      end
+    end
+    
+    -- Check queue.
+    self:_CheckRadioQueue(dt)
+    
+  end
+  
 end
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

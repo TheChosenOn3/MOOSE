@@ -825,7 +825,11 @@ do -- COORDINATE
   -- @param #COORDINATE TargetCoordinate The target COORDINATE.
   -- @return DCS#Vec3 DirectionVec3 The direction vector in Vec3 format.
   function COORDINATE:GetDirectionVec3( TargetCoordinate )
-    return { x = TargetCoordinate.x - self.x, y = TargetCoordinate.y - self.y, z = TargetCoordinate.z - self.z }
+    if TargetCoordinate then
+      return { x = TargetCoordinate.x - self.x, y = TargetCoordinate.y - self.y, z = TargetCoordinate.z - self.z }
+    else
+      return { x=0,y=0,z=0}
+    end
   end
 
 
@@ -874,6 +878,11 @@ do -- COORDINATE
 
     -- Get the vector from A to B
     local vec=UTILS.VecSubstract(ToCoordinate, self)
+    
+    if f>1 then
+      local norm=UTILS.VecNorm(vec)      
+      f=Fraction/norm
+    end
 
     -- Scale the vector.
     vec.x=f*vec.x
@@ -883,7 +892,9 @@ do -- COORDINATE
     -- Move the vector to start at the end of A.
     vec=UTILS.VecAdd(self, vec)
 
+    -- Create a new coordiante object.
     local coord=COORDINATE:New(vec.x,vec.y,vec.z)
+    
     return coord
   end
 
@@ -2267,7 +2278,7 @@ do -- COORDINATE
     end
 
     --- Creates a free form shape on the F10 map. The first point is the current COORDINATE. The remaining points need to be specified.
-    -- **NOTE**: A free form polygon must have **at least three points** in total and currently only **up to 10 points** in total are supported.
+    -- **NOTE**: A free form polygon must have **at least three points** in total and currently only **up to 15 points** in total are supported.
     -- @param #COORDINATE self
     -- @param #table Coordinates Table of coordinates of the remaining points of the shape.
     -- @param #number Coalition Coalition: All=-1, Neutral=0, Red=1, Blue=2. Default -1=All.
@@ -2320,8 +2331,28 @@ do -- COORDINATE
         trigger.action.markupToAll(7, Coalition, MarkID, vecs[1], vecs[2], vecs[3], vecs[4], vecs[5], vecs[6], vecs[7], vecs[8], vecs[9], Color, FillColor, LineType, ReadOnly, Text or "")
       elseif #vecs==10 then
         trigger.action.markupToAll(7, Coalition, MarkID, vecs[1], vecs[2], vecs[3], vecs[4], vecs[5], vecs[6], vecs[7], vecs[8], vecs[9], vecs[10], Color, FillColor, LineType, ReadOnly, Text or "")
+      elseif #vecs==11 then
+        trigger.action.markupToAll(7, Coalition, MarkID, vecs[1], vecs[2], vecs[3], vecs[4], vecs[5], vecs[6], vecs[7], vecs[8], vecs[9], vecs[10],
+                                                         vecs[11], 
+                                                         Color, FillColor, LineType, ReadOnly, Text or "")        
+      elseif #vecs==12 then
+        trigger.action.markupToAll(7, Coalition, MarkID, vecs[1], vecs[2], vecs[3], vecs[4], vecs[5], vecs[6], vecs[7], vecs[8], vecs[9], vecs[10],
+                                                         vecs[11], vecs[12],
+                                                         Color, FillColor, LineType, ReadOnly, Text or "")
+      elseif #vecs==13 then
+        trigger.action.markupToAll(7, Coalition, MarkID, vecs[1], vecs[2], vecs[3], vecs[4], vecs[5], vecs[6], vecs[7], vecs[8], vecs[9], vecs[10],
+                                                         vecs[11], vecs[12], vecs[13],
+                                                         Color, FillColor, LineType, ReadOnly, Text or "")
+      elseif #vecs==14 then
+        trigger.action.markupToAll(7, Coalition, MarkID, vecs[1], vecs[2], vecs[3], vecs[4], vecs[5], vecs[6], vecs[7], vecs[8], vecs[9], vecs[10],
+                                                         vecs[11], vecs[12], vecs[13], vecs[14],
+                                                         Color, FillColor, LineType, ReadOnly, Text or "")                                                                                                                                                                                                           
+      elseif #vecs==15 then
+        trigger.action.markupToAll(7, Coalition, MarkID, vecs[1], vecs[2], vecs[3], vecs[4], vecs[5], vecs[6], vecs[7], vecs[8], vecs[9], vecs[10],
+                                                         vecs[11], vecs[12], vecs[13], vecs[14], vecs[15],
+                                                         Color, FillColor, LineType, ReadOnly, Text or "")
       else
-        self:E("ERROR: Currently a free form polygon can only have 10 points in total!")
+        self:E("ERROR: Currently a free form polygon can only have 15 points in total!")
         -- Unfortunately, unpack(vecs) does not work! So no idea how to generalize this :(
         trigger.action.markupToAll(7, Coalition, MarkID, unpack(vecs), Color, FillColor, LineType, ReadOnly, Text or "")
       end
@@ -2751,7 +2782,7 @@ do -- COORDINATE
     return "BR, " .. self:GetBRText( AngleRadians, Distance, Settings )
   end
 
-  --- Return a BRAA string from a COORDINATE to the COORDINATE.
+  --- Return a BRA string from a COORDINATE to the COORDINATE.
   -- @param #COORDINATE self
   -- @param #COORDINATE FromCoordinate The coordinate to measure the distance and the bearing from.
   -- @param Core.Settings#SETTINGS Settings (optional) The settings. Can be nil, and in this case the default settings are used. If you want to specify your own settings, use the _SETTINGS object.
@@ -2770,8 +2801,10 @@ do -- COORDINATE
   -- @param #boolean Bogey Add "Bogey" at the end if true (not yet declared hostile or friendly)
   -- @param #boolean Spades Add "Spades" at the end if true (no IFF/VID ID yet known)
   -- @param #boolean SSML Add SSML tags speaking aspect as 0 1 2 and "brah" instead of BRAA
+  -- @param #boolean Angels If true, altitude is e.g. "Angels 25" (i.e., a friendly plane), else "25 thousand"
+  -- @param #boolean Zeros If using SSML, be aware that Google TTS will say "oh" and not "zero" for "0"; if Zeros is set to true, "0" will be replaced with "zero"
   -- @return #string The BRAA text.
-  function COORDINATE:ToStringBRAANATO(FromCoordinate,Bogey,Spades,SSML)
+  function COORDINATE:ToStringBRAANATO(FromCoordinate,Bogey,Spades,SSML,Angels,Zeros)
     
     -- Thanks to @Pikey
     local BRAANATO = "Merged."
@@ -2789,14 +2822,36 @@ do -- COORDINATE
 
     local alt = UTILS.Round(UTILS.MetersToFeet(self.y)/1000,0)--*1000
     
+    local alttext = string.format("%d thousand",alt)
+    
+    if Angels then
+      alttext = string.format("Angels %d",alt)
+    end
+    
+    if alt < 1 then
+      alttext = "very low"
+    end
+    
     local track = UTILS.BearingToCardinal(bearing) or "North"
     
     if rangeNM > 3 then
-      if SSML then
-        if aspect == "" then
-          BRAANATO = string.format("brah <say-as interpret-as='characters'>%03d</say-as>, %d miles, Angels %d, Track %s",bearing, rangeNM, alt, track)
+      if SSML then -- google says "oh" instead of zero, be aware
+        if Zeros then
+          bearing = string.format("%03d",bearing)
+          local AngleDegText = string.gsub(bearing,"%d","%1 ") -- "0 5 1 "
+          AngleDegText = string.gsub(AngleDegText," $","") -- "0 5 1"
+          AngleDegText = string.gsub(AngleDegText,"0","zero")
+          if aspect == "" then
+            BRAANATO = string.format("brah %s, %d miles, %s, Track %s", AngleDegText, rangeNM, alttext, track)
+          else
+            BRAANATO = string.format("brah %s, %d miles, %s, %s, Track %s", AngleDegText, rangeNM, alttext, aspect, track)      
+          end  
         else
-          BRAANATO = string.format("brah <say-as interpret-as='characters'>%03d</say-as>, %d miles, Angels %d, %s, Track %s",bearing, rangeNM, alt, aspect, track)      
+          if aspect == "" then
+            BRAANATO = string.format("brah <say-as interpret-as='characters'>%03d</say-as>, %d miles, %s, Track %s", bearing, rangeNM, alttext, track)
+          else
+            BRAANATO = string.format("brah <say-as interpret-as='characters'>%03d</say-as>, %d miles, %s, %s, Track %s", bearing, rangeNM, alttext, aspect, track)      
+          end
         end
         if Bogey and Spades then
           BRAANATO = BRAANATO..", Bogey, Spades."
@@ -2809,9 +2864,9 @@ do -- COORDINATE
         end
       else
         if aspect == "" then
-          BRAANATO = string.format("BRA %03d, %d miles, Angels %d, Track %s",bearing, rangeNM, alt, track)
+          BRAANATO = string.format("BRA %03d, %d miles, %s, Track %s",bearing, rangeNM, alttext, track)
         else
-          BRAANATO = string.format("BRAA %03d, %d miles, Angels %d, %s, Track %s",bearing, rangeNM, alt, aspect, track)      
+          BRAANATO = string.format("BRAA %03d, %d miles, %s, %s, Track %s",bearing, rangeNM, alttext, aspect, track)      
         end
         if Bogey and Spades then
           BRAANATO = BRAANATO..", Bogey, Spades."
@@ -2915,8 +2970,8 @@ do -- COORDINATE
   --   * Uses default settings in COORDINATE.
   --   * Can be overridden if for a GROUP containing x clients, a menu was selected to override the default.
   -- @param #COORDINATE self
-  -- @param #COORDINATE ReferenceCoord The refrence coordinate.
-  -- @param #string ReferenceName The refrence name.
+  -- @param #COORDINATE ReferenceCoord The reference coordinate.
+  -- @param #string ReferenceName The reference name.
   -- @param Wrapper.Controllable#CONTROLLABLE Controllable
   -- @param Core.Settings#SETTINGS Settings (optional) The settings. Can be nil, and in this case the default settings are used. If you want to specify your own settings, use the _SETTINGS object.
   -- @return #string The coordinate Text in the configured coordinate system.
@@ -2943,7 +2998,40 @@ do -- COORDINATE
     return nil
 
   end
+  
+  --- Provides a coordinate string of the point, based on a coordinate format system:
+  --   * Uses default settings in COORDINATE.
+  --   * Can be overridden if for a GROUP containing x clients, a menu was selected to override the default.
+  -- @param #COORDINATE self
+  -- @param #COORDINATE ReferenceCoord The reference coordinate.
+  -- @param #string ReferenceName The reference name.
+  -- @param Wrapper.Controllable#CONTROLLABLE Controllable
+  -- @param Core.Settings#SETTINGS Settings (optional) The settings. Can be nil, and in this case the default settings are used. If you want to specify your own settings, use the _SETTINGS object.
+  -- @return #string The coordinate Text in the configured coordinate system.
+  function COORDINATE:ToStringFromRPShort( ReferenceCoord, ReferenceName, Controllable, Settings )
 
+    self:F2( { ReferenceCoord = ReferenceCoord, ReferenceName = ReferenceName } )
+
+    local Settings = Settings or ( Controllable and _DATABASE:GetPlayerSettings( Controllable:GetPlayerName() ) ) or _SETTINGS
+
+    local IsAir = Controllable and Controllable:IsAirPlane() or false
+
+    if IsAir then
+      local DirectionVec3 = ReferenceCoord:GetDirectionVec3( self )
+      local AngleRadians =  self:GetAngleRadians( DirectionVec3 )
+      local Distance = self:Get2DDistance( ReferenceCoord )
+      return self:GetBRText( AngleRadians, Distance, Settings ) .. " from " .. ReferenceName
+    else
+      local DirectionVec3 = ReferenceCoord:GetDirectionVec3( self )
+      local AngleRadians =  self:GetAngleRadians( DirectionVec3 )
+      local Distance = self:Get2DDistance( ReferenceCoord )
+      return self:GetBRText( AngleRadians, Distance, Settings ) .. " from " .. ReferenceName
+    end
+
+    return nil
+
+  end
+  
   --- Provides a coordinate string of the point, based on the A2G coordinate format system.
   -- @param #COORDINATE self
   -- @param Wrapper.Controllable#CONTROLLABLE Controllable

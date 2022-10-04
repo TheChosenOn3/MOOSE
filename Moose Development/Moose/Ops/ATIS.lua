@@ -52,7 +52,6 @@
 --- ATIS class.
 -- @type ATIS
 -- @field #string ClassName Name of the class.
--- @field #boolean Debug Debug mode. Messages to all about status.
 -- @field #string lid Class id string for output to DCS log file.
 -- @field #string theatre DCS map name.
 -- @field #string airbasename The name of the airbase.
@@ -92,6 +91,8 @@
 -- @field #boolean useSRS If true, use SRS for transmission.
 -- @field Sound.SRS#MSRS msrs Moose SRS object.
 -- @field #number dTQueueCheck Time interval to check the radio queue. Default 5 sec or 90 sec if SRS is used.
+-- @field #boolean ReportmBar Report mBar/hpa even if not metric, i.e. for Mirage flights
+-- @field #boolean TransmitOnlyWithPlayers For SRS - If true, only transmit if there are alive Players.
 -- @extends Core.Fsm#FSM
 
 --- *It is a very sad thing that nowadays there is so little useless information.* - Oscar Wilde
@@ -309,7 +310,6 @@
 -- @field #ATIS
 ATIS = {
   ClassName      = "ATIS",
-  Debug          = false,
   lid            =   nil,
   theatre        =   nil,
   airbasename    =   nil,
@@ -346,6 +346,8 @@ ATIS = {
   usemarker      =   nil,
   markerid       =   nil,
   relHumidity    =   nil,
+  ReportmBar     =   false,
+  TransmitOnlyWithPlayers = false,
 }
 
 --- NATO alphabet.
@@ -588,15 +590,18 @@ _ATIS = {}
 
 --- ATIS class version.
 -- @field #string version
-ATIS.version = "0.9.6"
+ATIS.version = "0.9.10"
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- TODO list
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
--- TODO: Add new Normany airfields.
+-- TODO: Add new Normandy airfields.
 -- TODO: Zulu time --> Zulu in output.
 -- TODO: Correct fog for elevation.
+-- DONE: Use new AIRBASE system to set start/landing runway
+-- DONE: SetILS doesn't work
+-- DONE: Visibility reported twice over SRS
 -- DONE: Add text report for output.
 -- DONE: Add stop FMS functions.
 -- NOGO: Use local time. Not realisitc!
@@ -613,26 +618,26 @@ ATIS.version = "0.9.6"
 
 --- Create a new ATIS class object for a specific aircraft carrier unit.
 -- @param #ATIS self
--- @param #string airbasename Name of the airbase.
--- @param #number frequency Radio frequency in MHz. Default 143.00 MHz.
--- @param #number modulation Radio modulation: 0=AM, 1=FM. Default 0=AM. See `radio.modulation.AM` and `radio.modulation.FM` enumerators
+-- @param #string AirbaseName Name of the airbase.
+-- @param #number Frequency Radio frequency in MHz. Default 143.00 MHz.
+-- @param #number Modulation Radio modulation: 0=AM, 1=FM. Default 0=AM. See `radio.modulation.AM` and `radio.modulation.FM` enumerators.
 -- @return #ATIS self
-function ATIS:New( airbasename, frequency, modulation )
+function ATIS:New(AirbaseName, Frequency, Modulation)
 
   -- Inherit everything from FSM class.
   local self = BASE:Inherit( self, FSM:New() ) -- #ATIS
 
-  self.airbasename = airbasename
-  self.airbase = AIRBASE:FindByName( airbasename )
+  self.airbasename=AirbaseName
+  self.airbase=AIRBASE:FindByName(AirbaseName)
 
-  if self.airbase == nil then
-    self:E( "ERROR: Airbase %s for ATIS could not be found!", tostring( airbasename ) )
+  if self.airbase==nil then
+    self:E("ERROR: Airbase %s for ATIS could not be found!", tostring(AirbaseName))
     return nil
   end
 
   -- Default freq and modulation.
-  self.frequency = frequency or 143.00
-  self.modulation = modulation or 0
+  self.frequency=Frequency or 143.00
+  self.modulation=Modulation or 0
 
   -- Get map.
   self.theatre = env.mission.theatre
@@ -653,6 +658,7 @@ function ATIS:New( airbasename, frequency, modulation )
   self:SetMapMarks( false )
   self:SetRelativeHumidity()
   self:SetQueueUpdateTime()
+  self:SetReportmBar(false)
 
   -- Start State.
   self:SetStartState( "Stopped" )
@@ -734,14 +740,6 @@ function ATIS:New( airbasename, frequency, modulation )
   -- @param #string To To state.
   -- @param #string Text Report text.
 
-  -- Debug trace.
-  if false then
-    self.Debug = true
-    BASE:TraceOnOff( true )
-    BASE:TraceClass( self.ClassName )
-    BASE:TraceLevel( 1 )
-  end
-
   return self
 end
 
@@ -755,7 +753,7 @@ end
 -- @return #ATIS self
 function ATIS:SetSoundfilesPath( path )
   self.soundpath = tostring( path or "ATIS Soundfiles/" )
-  self:I( self.lid .. string.format( "Setting sound files path to %s", self.soundpath ) )
+  self:T( self.lid .. string.format( "Setting sound files path to %s", self.soundpath ) )
   return self
 end
 
@@ -766,7 +764,7 @@ end
 -- @return #ATIS self
 function ATIS:SetRadioRelayUnitName( unitname )
   self.relayunitname = unitname
-  self:I( self.lid .. string.format( "Setting radio relay unit to %s", self.relayunitname ) )
+  self:T( self.lid .. string.format( "Setting radio relay unit to %s", self.relayunitname ) )
   return self
 end
 
@@ -784,13 +782,52 @@ function ATIS:SetTowerFrequencies( freqs )
   return self
 end
 
---- Set active runway. This can be used if the automatic runway determination via the wind direction gives incorrect results.
+--- For SRS - Switch to only transmit if there are players on the server.
+-- @param #ATIS self
+-- @param #boolean Switch If true, only send SRS if there are alive Players.
+-- @return #ATIS self
+function ATIS:SetTransmitOnlyWithPlayers(Switch)
+  self.TransmitOnlyWithPlayers = Switch
+  if self.msrsQ then
+    self.msrsQ:SetTransmitOnlyWithPlayers(Switch)
+  end
+  return self
+end
+
+--- Set active runway for **landing** operations. This can be used if the automatic runway determination via the wind direction gives incorrect results.
 -- For example, use this if there are two runways with the same directions.
 -- @param #ATIS self
 -- @param #string runway Active runway, *e.g.* "31L".
 -- @return #ATIS self
 function ATIS:SetActiveRunway( runway )
   self.activerunway = tostring( runway )
+  local prefer = nil
+  if string.find(string.lower(runway),"l") then 
+    prefer = true
+  elseif string.find(string.lower(runway),"r") then 
+    prefer = false
+  end
+  self.airbase:SetActiveRunway(runway,prefer)
+  return self
+end
+
+--- Set the active runway for landing.
+-- @param #ATIS self
+-- @param #string runway : Name of the runway, e.g. "31" or "02L" or "90R". If not given, the runway is determined from the wind direction.
+-- @param #boolean preferleft : If true, perfer the left runway. If false, prefer the right runway. If nil (default), do not care about left or right.
+-- @return #ATIS self
+function ATIS:SetActiveRunwayLanding(runway, preferleft)
+  self.airbase:SetActiveRunwayLanding(runway,preferleft)
+  return self
+end
+
+--- Set the active runway for take-off.
+-- @param #ATIS self
+-- @param #string runway : Name of the runway, e.g. "31" or "02L" or "90R". If not given, the runway is determined from the wind direction.
+-- @param #boolean preferleft : If true, perfer the left runway. If false, prefer the right runway. If nil (default), do not care about left or right.
+-- @return #ATIS self
+function ATIS:SetActiveRunwayTakeoff(runway,preferleft)
+  self.airbase:SetActiveRunwayTakeoff(runway,preferleft)
   return self
 end
 
@@ -801,6 +838,15 @@ function ATIS:SetRunwayLength()
   self.rwylength = true
   return self
 end
+
+--- Give information on runway length.
+-- @param #ATIS self
+-- @return #ATIS self
+function ATIS:SetRunwayLength()
+  self.rwylength=true
+  return self
+end
+
 
 --- Give information on airfield elevation
 -- @param #ATIS self
@@ -852,7 +898,7 @@ function ATIS:SetRunwayHeadingsMagnetic( headings )
     end
 
     -- Add runway heading to table.
-    self:I( self.lid .. string.format( "Adding user specified magnetic runway heading %s", heading ) )
+    self:T( self.lid .. string.format( "Adding user specified magnetic runway heading %s", heading ) )
     table.insert( self.runwaymag, heading )
 
     local h = self:GetRunwayWithoutLR( heading )
@@ -874,7 +920,7 @@ function ATIS:SetRunwayHeadingsMagnetic( headings )
     end
 
     -- Add inverse runway heading to table.
-    self:I( self.lid .. string.format( "Adding user specified magnetic runway heading %s (inverse)", head2 ) )
+    self:T( self.lid .. string.format( "Adding user specified magnetic runway heading %s (inverse)", head2 ) )
     table.insert( self.runwaymag, head2 )
   end
 
@@ -945,6 +991,28 @@ function ATIS:SetAltimeterQNH( switch )
     self.altimeterQNH = false
   end
 
+  return self
+end
+
+--- Additionally report altimeter QNH/QFE in hPa, even if not set to metric.
+-- @param #ATIS self
+-- @param #boolean switch If true or nil, report mBar/hPa in addition.
+-- @return #ATIS self
+function ATIS:SetReportmBar(switch)
+  if switch == true or switch == nil then
+    self.ReportmBar = true
+  else
+    self.ReportmBar = false
+  end
+  return self
+end
+
+--- Additionally report free text, only working with SRS(!)
+-- @param #ATIS self
+-- @param #string text The text to report at the end of the ATIS message, e.g. runway closure, warnings, etc.
+-- @return #ATIS self
+function ATIS:SetAdditionalInformation(text)
+  self.AdditionalInformation = text
   return self
 end
 
@@ -1127,17 +1195,26 @@ end
 -- @param #string Culture Culture, e.g. "en-GB" (default).
 -- @param #string Voice Specific voice. Overrides `Gender` and `Culture`.
 -- @param #number Port SRS port. Default 5002.
+-- @param #string GoogleKey Path to Google JSON-Key.
 -- @return #ATIS self
-function ATIS:SetSRS( PathToSRS, Gender, Culture, Voice, Port )
-  self.useSRS = true
-  self.msrs = MSRS:New( PathToSRS, self.frequency, self.modulation )
-  self.msrs:SetGender( Gender )
-  self.msrs:SetCulture( Culture )
-  self.msrs:SetVoice( Voice )
-  self.msrs:SetPort( Port )
-  self.msrs:SetCoalition( self:GetCoalition() )
-  if self.dTQueueCheck <= 10 then
-    self:SetQueueUpdateTime( 90 )
+function ATIS:SetSRS(PathToSRS, Gender, Culture, Voice, Port, GoogleKey)
+  if PathToSRS then
+    self.useSRS=true
+    self.msrs=MSRS:New(PathToSRS, self.frequency, self.modulation)
+    self.msrs:SetGender(Gender)
+    self.msrs:SetCulture(Culture)
+    self.msrs:SetVoice(Voice)
+    self.msrs:SetPort(Port)
+    self.msrs:SetCoalition(self:GetCoalition())
+    self.msrs:SetLabel("ATIS")
+    self.msrs:SetGoogle(GoogleKey)
+    self.msrsQ = MSRSQUEUE:New("ATIS")
+    self.msrsQ:SetTransmitOnlyWithPlayers(self.TransmitOnlyWithPlayers)
+    if self.dTQueueCheck<=10 then
+      self:SetQueueUpdateTime(90)
+    end
+  else
+    self:E(self.lid..string.format("ERROR: No SRS path specified!"))
   end
   return self
 end
@@ -1179,32 +1256,34 @@ function ATIS:onafterStart( From, Event, To )
   self:I( self.lid .. string.format( "Starting ATIS v%s for airbase %s on %.3f MHz Modulation=%d", ATIS.version, self.airbasename, self.frequency, self.modulation ) )
 
   -- Start radio queue.
-  self.radioqueue = RADIOQUEUE:New( self.frequency, self.modulation, string.format( "ATIS %s", self.airbasename ) )
-
-  -- Send coordinate is airbase coord.
-  self.radioqueue:SetSenderCoordinate( self.airbase:GetCoordinate() )
-
-  -- Set relay unit if we have one.
-  self.radioqueue:SetSenderUnitName( self.relayunitname )
-
-  -- Set radio power.
-  self.radioqueue:SetRadioPower( self.power )
-
-  -- Init numbers.
-  self.radioqueue:SetDigit( 0, ATIS.Sound.N0.filename, ATIS.Sound.N0.duration, self.soundpath )
-  self.radioqueue:SetDigit( 1, ATIS.Sound.N1.filename, ATIS.Sound.N1.duration, self.soundpath )
-  self.radioqueue:SetDigit( 2, ATIS.Sound.N2.filename, ATIS.Sound.N2.duration, self.soundpath )
-  self.radioqueue:SetDigit( 3, ATIS.Sound.N3.filename, ATIS.Sound.N3.duration, self.soundpath )
-  self.radioqueue:SetDigit( 4, ATIS.Sound.N4.filename, ATIS.Sound.N4.duration, self.soundpath )
-  self.radioqueue:SetDigit( 5, ATIS.Sound.N5.filename, ATIS.Sound.N5.duration, self.soundpath )
-  self.radioqueue:SetDigit( 6, ATIS.Sound.N6.filename, ATIS.Sound.N6.duration, self.soundpath )
-  self.radioqueue:SetDigit( 7, ATIS.Sound.N7.filename, ATIS.Sound.N7.duration, self.soundpath )
-  self.radioqueue:SetDigit( 8, ATIS.Sound.N8.filename, ATIS.Sound.N8.duration, self.soundpath )
-  self.radioqueue:SetDigit( 9, ATIS.Sound.N9.filename, ATIS.Sound.N9.duration, self.soundpath )
-
-  -- Start radio queue.
-  self.radioqueue:Start( 1, 0.1 )
-
+  if not self.useSRS then
+    self.radioqueue = RADIOQUEUE:New( self.frequency, self.modulation, string.format( "ATIS %s", self.airbasename ) )
+  
+    -- Send coordinate is airbase coord.
+    self.radioqueue:SetSenderCoordinate( self.airbase:GetCoordinate() )
+  
+    -- Set relay unit if we have one.
+    self.radioqueue:SetSenderUnitName( self.relayunitname )
+  
+    -- Set radio power.
+    self.radioqueue:SetRadioPower( self.power )
+  
+    -- Init numbers.
+    self.radioqueue:SetDigit( 0, ATIS.Sound.N0.filename, ATIS.Sound.N0.duration, self.soundpath )
+    self.radioqueue:SetDigit( 1, ATIS.Sound.N1.filename, ATIS.Sound.N1.duration, self.soundpath )
+    self.radioqueue:SetDigit( 2, ATIS.Sound.N2.filename, ATIS.Sound.N2.duration, self.soundpath )
+    self.radioqueue:SetDigit( 3, ATIS.Sound.N3.filename, ATIS.Sound.N3.duration, self.soundpath )
+    self.radioqueue:SetDigit( 4, ATIS.Sound.N4.filename, ATIS.Sound.N4.duration, self.soundpath )
+    self.radioqueue:SetDigit( 5, ATIS.Sound.N5.filename, ATIS.Sound.N5.duration, self.soundpath )
+    self.radioqueue:SetDigit( 6, ATIS.Sound.N6.filename, ATIS.Sound.N6.duration, self.soundpath )
+    self.radioqueue:SetDigit( 7, ATIS.Sound.N7.filename, ATIS.Sound.N7.duration, self.soundpath )
+    self.radioqueue:SetDigit( 8, ATIS.Sound.N8.filename, ATIS.Sound.N8.duration, self.soundpath )
+    self.radioqueue:SetDigit( 9, ATIS.Sound.N9.filename, ATIS.Sound.N9.duration, self.soundpath )
+  
+    -- Start radio queue.
+    self.radioqueue:Start( 1, 0.1 )
+  end
+  
   -- Handle airbase capture
   -- Handle events.
   self:HandleEvent( EVENTS.BaseCaptured )
@@ -1239,7 +1318,7 @@ function ATIS:onafterStatus( From, Event, To )
   else
     text = text .. string.format( ", Relay unit=%s (alive=%s)", tostring( self.relayunitname ), relayunitstatus )
   end
-  self:I( self.lid .. text )
+  self:T( self.lid .. text )
 
   self:__Status( -60 )
 end
@@ -1318,7 +1397,10 @@ function ATIS:onafterBroadcast( From, Event, To )
     qnh = Q / 100
 
   end
-
+  
+  local mBarqnh = qnh
+  local mBarqfe = qfe
+  
   -- Convert to inHg.
   if self.PmmHg then
     qfe = UTILS.hPa2mmHg( qfe )
@@ -1378,7 +1460,8 @@ function ATIS:onafterBroadcast( From, Event, To )
   --- Runway ---
   --------------
 
-  local runway, rwyLeft = self:GetActiveRunway()
+  local runwayLanding, rwyLandingLeft=self:GetActiveRunway()
+  local runwayTakeoff, rwyTakeoffLeft=self:GetActiveRunway(true)
 
   ------------
   --- Time ---
@@ -1444,8 +1527,8 @@ function ATIS:onafterBroadcast( From, Event, To )
 
   -- Convert to °F.
   if self.TDegF then
-    temperature = UTILS.CelsiusToFahrenheit( temperature )
-    dewpoint = UTILS.CelsiusToFahrenheit( dewpoint )
+    temperature=UTILS.CelsiusToFahrenheit(temperature)
+    dewpoint=UTILS.CelsiusToFahrenheit(dewpoint)
   end
 
   local TEMPERATURE = string.format( "%d", math.abs( temperature ) )
@@ -1740,6 +1823,10 @@ function ATIS:onafterBroadcast( From, Event, To )
   end
 
   -- Wind
+   -- Adding a space after each digit of WINDFROM to convert this to aviation-speak for TTS via SRS
+  if self.useSRS then
+    WINDFROM = string.gsub(WINDFROM,".", "%1 ")
+  end 
   if self.metric then
     subtitle = string.format( "Wind from %s at %s m/s", WINDFROM, WINDSPEED )
   else
@@ -1764,7 +1851,9 @@ function ATIS:onafterBroadcast( From, Event, To )
     end
   end
   alltext = alltext .. ";\n" .. subtitle
-
+  --self:I("Line 1811")
+  --self:I(alltext)
+  
   -- Visibility
   if self.metric then
     subtitle = string.format( "Visibility %s km", VISIBILITY )
@@ -1781,7 +1870,10 @@ function ATIS:onafterBroadcast( From, Event, To )
     end
   end
   alltext = alltext .. ";\n" .. subtitle
-
+  --self:I("Line 1830")
+  --self:I(alltext)
+  
+  subtitle = ""
   -- Weather phenomena
   local wp = false
   local wpsub = ""
@@ -1881,8 +1973,11 @@ function ATIS:onafterBroadcast( From, Event, To )
       end
     end
   end
-  alltext = alltext .. ";\n" .. subtitle
+  --self:I("Line 1932")
 
+  alltext = alltext .. ";\n" .. subtitle
+  --self:I(alltext)
+  subtitle = ""
   -- Temperature
   if self.TDegF then
     if temperature < 0 then
@@ -1910,8 +2005,10 @@ function ATIS:onafterBroadcast( From, Event, To )
       self:Transmission( ATIS.Sound.DegreesCelsius, 0.2 )
     end
   end
+  --self:I("Line 1962")
   alltext = alltext .. ";\n" .. subtitle
-
+  --self:I(alltext)
+    
   -- Dew point
   if self.TDegF then
     if dewpoint < 0 then
@@ -1939,6 +2036,8 @@ function ATIS:onafterBroadcast( From, Event, To )
       self:Transmission( ATIS.Sound.DegreesCelsius, 0.2 )
     end
   end
+  --self:I("Line 1992")
+  --self:I(alltext)
   alltext = alltext .. ";\n" .. subtitle
 
   -- Altimeter QNH/QFE.
@@ -1963,6 +2062,15 @@ function ATIS:onafterBroadcast( From, Event, To )
       end
     end
   end
+  
+  if self.ReportmBar and not self.metric then
+    if self.qnhonly then
+      subtitle = string.format( "%s;\nAltimeter %d hPa", subtitle, mBarqnh )
+    else
+      subtitle = string.format( "%s;\nAltimeter: QNH %d, QFE %d hPa", subtitle, mBarqnh, mBarqfe)
+    end
+  end
+  
   local _ALTIMETER = subtitle
   if not self.useSRS then
     self:Transmission( ATIS.Sound.Altimeter, 1.0, subtitle )
@@ -1995,23 +2103,25 @@ function ATIS:onafterBroadcast( From, Event, To )
       end
     end
   end
+  --self:I("Line 2049")
+  --self:I(alltext)
   alltext = alltext .. ";\n" .. subtitle
 
   -- Active runway.
-  local subtitle = string.format( "Active runway %s", runway )
-  if rwyLeft == true then
-    subtitle = subtitle .. " Left"
-  elseif rwyLeft == false then
-    subtitle = subtitle .. " Right"
+  local subtitle=string.format("Active runway %s", runwayLanding)
+  if rwyLandingLeft==true then
+    subtitle=subtitle.." Left"
+  elseif rwyLandingLeft==false then
+    subtitle=subtitle.." Right"
   end
   local _RUNACT = subtitle
   if not self.useSRS then
-    self:Transmission( ATIS.Sound.ActiveRunway, 1.0, subtitle )
-    self.radioqueue:Number2Transmission( runway )
-    if rwyLeft == true then
-      self:Transmission( ATIS.Sound.Left, 0.2 )
-    elseif rwyLeft == false then
-      self:Transmission( ATIS.Sound.Right, 0.2 )
+    self:Transmission(ATIS.Sound.ActiveRunway, 1.0, subtitle)
+    self.radioqueue:Number2Transmission(runwayLanding)
+    if rwyLandingLeft==true then
+      self:Transmission(ATIS.Sound.Left, 0.2)
+    elseif rwyLandingLeft==false then
+      self:Transmission(ATIS.Sound.Right, 0.2)
     end
   end
   alltext = alltext .. ";\n" .. subtitle
@@ -2122,7 +2232,9 @@ function ATIS:onafterBroadcast( From, Event, To )
   end
 
   -- ILS
-  local ils = self:GetNavPoint( self.ils, runway, rwyLeft )
+  --self:I({ils=self.ils})
+  local ils=self:GetNavPoint(self.ils, runwayLanding, rwyLandingLeft)
+  --self:I({ils=ils,runwayLanding=runwayLanding, rwyLandingLeft=rwyLandingLeft})
   if ils then
     subtitle = string.format( "ILS frequency %.2f MHz", ils.frequency )
     if not self.useSRS then
@@ -2137,10 +2249,11 @@ function ATIS:onafterBroadcast( From, Event, To )
       self:Transmission( ATIS.Sound.MegaHertz, 0.2 )
     end
     alltext = alltext .. ";\n" .. subtitle
+    --self:I(alltext)
   end
 
   -- Outer NDB
-  local ndb = self:GetNavPoint( self.ndbouter, runway, rwyLeft )
+  local ndb=self:GetNavPoint(self.ndbouter, runwayLanding, rwyLandingLeft)
   if ndb then
     subtitle = string.format( "Outer NDB frequency %.2f MHz", ndb.frequency )
     if not self.useSRS then
@@ -2158,7 +2271,7 @@ function ATIS:onafterBroadcast( From, Event, To )
   end
 
   -- Inner NDB
-  local ndb = self:GetNavPoint( self.ndbinner, runway, rwyLeft )
+  local ndb=self:GetNavPoint(self.ndbinner, runwayLanding, rwyLandingLeft)
   if ndb then
     subtitle = string.format( "Inner NDB frequency %.2f MHz", ndb.frequency )
     if not self.useSRS then
@@ -2197,7 +2310,7 @@ function ATIS:onafterBroadcast( From, Event, To )
 
   -- TACAN
   if self.tacan then
-    subtitle = string.format( "TACAN channel %dX", self.tacan )
+    subtitle=string.format("TACAN channel %dX Ray", self.tacan)
     if not self.useSRS then
       self:Transmission( ATIS.Sound.TACANChannel, 1.0, subtitle )
       self.radioqueue:Number2Transmission( tostring( self.tacan ), nil, 0.2 )
@@ -2217,7 +2330,7 @@ function ATIS:onafterBroadcast( From, Event, To )
   end
 
   -- PRMG
-  local ndb = self:GetNavPoint( self.prmg, runway, rwyLeft )
+  local ndb=self:GetNavPoint(self.prmg, runwayLanding, rwyLandingLeft)
   if ndb then
     subtitle = string.format( "PRMG channel %d", ndb.frequency )
     if not self.useSRS then
@@ -2226,7 +2339,12 @@ function ATIS:onafterBroadcast( From, Event, To )
     end
     alltext = alltext .. ";\n" .. subtitle
   end
-
+  
+  -- additional info, if any
+  if self.useSRS and self.AdditionalInformation then
+    alltext = alltext .. ";\n"..self.AdditionalInformation
+  end
+  
   -- Advice on initial...
   subtitle = string.format( "Advise on initial contact, you have information %s", NATO )
   if not self.useSRS then
@@ -2274,8 +2392,10 @@ function ATIS:onafterReport( From, Event, To, Text )
     -- Debug output.
     self:T( "SRS TTS: " .. text )
 
-    -- Play text-to-speech report.    
-    self.msrs:PlayText( text )
+    -- Play text-to-speech report.
+    local duration = STTS.getSpeechTime(text,0.95)
+    self.msrsQ:NewTransmission(text,duration,self.msrs,nil,2)    
+    --self.msrs:PlayText( text )
 
   end
 
@@ -2344,39 +2464,19 @@ end
 
 --- Get active runway runway.
 -- @param #ATIS self
+-- @param #boolean Takeoff If `true`, get runway for takeoff. Default is for landing.
 -- @return #string Active runway, e.g. "31" for 310 deg.
 -- @return #boolean Use Left=true, Right=false, or nil.
-function ATIS:GetActiveRunway()
-
-  local coord = self.airbase:GetCoordinate()
-  local height = coord:GetLandHeight()
-
-  -- Get wind direction and speed in m/s.
-  local windFrom, windSpeed = coord:GetWind( height + 10 )
-
-  -- Get active runway data based on wind direction.
-  local runact = self.airbase:GetActiveRunway( self.runwaym2t )
-
-  -- Active runway "31".
-  local runway = self:GetMagneticRunway( windFrom ) or runact.idx
-
-  -- Left or right in case there are two runways with the same heading.
-  local rwyLeft = nil
-
-  -- Check if user explicitly specified a runway.
-  if self.activerunway then
-
-    -- Get explicit runway heading if specified.
-    local runwayno = self:GetRunwayWithoutLR( self.activerunway )
-    if runwayno ~= "" then
-      runway = runwayno
-    end
-
-    -- Was "L"eft or "R"ight given?
-    rwyLeft = self:GetRunwayLR( self.activerunway )
+function ATIS:GetActiveRunway(Takeoff)
+  
+  local runway=nil --Wrapper.Airbase#AIRBASE.Runway
+  if Takeoff then
+    runway=self.airbase:GetActiveRunwayTakeoff()
+  else
+    runway=self.airbase:GetActiveRunwayLanding()
   end
-
-  return runway, rwyLeft
+  
+  return runway.name, runway.isLeft
 end
 
 --- Get runway from user supplied magnetic heading.
@@ -2442,7 +2542,7 @@ end
 -- @return #string Runway heading without left or right, *e.g.* "31".
 function ATIS:GetRunwayWithoutLR( runway )
   local rwywo = runway:gsub( "%D+", "" )
-  -- self:I(string.format("FF runway=%s ==> rwywo=%s", runway, rwywo))
+  -- self:T(string.format("FF runway=%s ==> rwywo=%s", runway, rwywo))
   return rwywo
 end
 

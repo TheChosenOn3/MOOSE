@@ -52,6 +52,7 @@ BIGSMOKEPRESET = {
 -- @field #string TheChannel The Channel map.
 -- @field #string Syria Syria map.
 -- @field #string MarianaIslands Mariana Islands map.
+-- @field #string Falklands South Atlantic map.
 DCSMAP = {
   Caucasus="Caucasus",
   NTTR="Nevada",
@@ -59,7 +60,8 @@ DCSMAP = {
   PersianGulf="PersianGulf",
   TheChannel="TheChannel",
   Syria="Syria",
-  MarianaIslands="MarianaIslands"
+  MarianaIslands="MarianaIslands",
+  Falklands="Falklands",
 }
 
 
@@ -487,7 +489,7 @@ UTILS.hPa2inHg = function( hPa )
   return hPa * 0.0295299830714
 end
 
---- Convert knots to alitude corrected KIAS, e.g. for tankers.
+--- Convert knots to altitude corrected KIAS, e.g. for tankers.
 -- @param #number knots Speed in knots.
 -- @param #number altitude Altitude in feet
 -- @return #number Corrected KIAS
@@ -1153,7 +1155,7 @@ function UTILS.VecHdg(a)
 end
 
 --- Calculate "heading" of a 2D vector in the X-Y plane.
--- @param DCS#Vec2 a Vector in "D with x, y components.
+-- @param DCS#Vec2 a Vector in 2D with x, y components.
 -- @return #number Heading in degrees in [0,360).
 function UTILS.Vec2Hdg(a)
   local h=math.deg(math.atan2(a.y, a.x))
@@ -1347,6 +1349,7 @@ end
 -- * The Cannel Map -10 (West)
 -- * Syria +5 (East)
 -- * Mariana Islands +2 (East)
+-- * Falklands +12 (East) - note there's a LOT of deviation across the map, as we're closer to the South Pole
 -- @param #string map (Optional) Map for which the declination is returned. Default is from env.mission.theatre
 -- @return #number Declination in degrees.
 function UTILS.GetMagneticDeclination(map)
@@ -1369,6 +1372,8 @@ function UTILS.GetMagneticDeclination(map)
     declination=5
   elseif map==DCSMAP.MarianaIslands then
     declination=2
+  elseif map==DCSMAP.Falklands then
+    declination=12
   else
     declination=0
   end
@@ -1720,10 +1725,16 @@ end
 -- @return #number Os time in seconds.
 function UTILS.GetOSTime()
   if os then
-    return os.clock()
+    local ts = 0
+    local t = os.date("*t")
+    local s = t.sec
+    local m = t.min * 60
+    local h = t.hour * 3600
+    ts = s+m+h
+    return ts
+  else
+    return nil
   end
-
-  return nil
 end
 
 --- Shuffle a table accoring to Fisher Yeates algorithm
@@ -1777,71 +1788,73 @@ end
 --@return #boolean Outcome - true if a (loading door) is open, false if not, nil if none exists.
 function UTILS.IsLoadingDoorOpen( unit_name )
 
-  local ret_val = false
   local unit = Unit.getByName(unit_name)
+
   if unit ~= nil then
       local type_name = unit:getTypeName()
+      BASE:T("TypeName = ".. type_name)
 
-      if type_name == "Mi-8MT" and unit:getDrawArgumentValue(38) == 1 or unit:getDrawArgumentValue(86) == 1 or unit:getDrawArgumentValue(250) < 0 then
+      if type_name == "Mi-8MT" and (unit:getDrawArgumentValue(38) == 1 or unit:getDrawArgumentValue(86) == 1 or unit:getDrawArgumentValue(250) < 0) then
           BASE:T(unit_name .. " Cargo doors are open or cargo door not present")
-          ret_val =  true
+          return true
       end
 
-      if type_name == "Mi-24P" and unit:getDrawArgumentValue(38) == 1 or unit:getDrawArgumentValue(86) == 1 then
+      if type_name == "Mi-24P" and (unit:getDrawArgumentValue(38) == 1 or unit:getDrawArgumentValue(86) == 1) then
           BASE:T(unit_name .. " a side door is open")
-          ret_val =  true
+          return true
       end
 
-      if type_name == "UH-1H" and unit:getDrawArgumentValue(43) == 1 or unit:getDrawArgumentValue(44) == 1 then
+      if type_name == "UH-1H" and (unit:getDrawArgumentValue(43) == 1 or unit:getDrawArgumentValue(44) == 1) then
           BASE:T(unit_name .. " a side door is open ")
-          ret_val =  true
+          return true
+      end
+    
+      if string.find(type_name, "SA342" ) and (unit:getDrawArgumentValue(34) == 1) then
+          BASE:T(unit_name .. " front door(s) are open or doors removed")
+          return true
       end
 
-      if string.find(type_name, "SA342" ) and unit:getDrawArgumentValue(34) == 1 or unit:getDrawArgumentValue(38) == 1 then
-          BASE:T(unit_name .. " front door(s) are open")
-          ret_val =  true
-      end
-
-      if string.find(type_name, "Hercules") and unit:getDrawArgumentValue(1215) == 1 and unit:getDrawArgumentValue(1216) == 1 then
+      if string.find(type_name, "Hercules") and (unit:getDrawArgumentValue(1215) == 1 and unit:getDrawArgumentValue(1216) == 1) then
           BASE:T(unit_name .. " rear doors are open")
-          ret_val =  true
+          return true
       end
 
       if string.find(type_name, "Hercules") and (unit:getDrawArgumentValue(1220) == 1 or unit:getDrawArgumentValue(1221) == 1) then
           BASE:T(unit_name .. " para doors are open")
-          ret_val =  true
+          return true
       end
 
-      if string.find(type_name, "Hercules") and unit:getDrawArgumentValue(1217) == 1 then
+      if string.find(type_name, "Hercules") and (unit:getDrawArgumentValue(1217) == 1) then
           BASE:T(unit_name .. " side door is open")
-          ret_val =  true
+          return true
       end
 
       if string.find(type_name, "Bell-47") then -- bell aint got no doors so always ready to load injured soldiers
           BASE:T(unit_name .. " door is open")
-          ret_val =  true
+          return true
       end
       
-      if string.find(type_name, "UH-60L") and (unit:getDrawArgumentValue(401) == 1) or (unit:getDrawArgumentValue(402) == 1) then
+      if string.find(type_name, "UH-60L") and (unit:getDrawArgumentValue(401) == 1 or unit:getDrawArgumentValue(402) == 1) then
           BASE:T(unit_name .. " cargo door is open")
-          ret_val =  true
+          return true
       end
 
-      if string.find(type_name, "UH-60L" ) and unit:getDrawArgumentValue(38) == 1 or unit:getDrawArgumentValue(400) == 1 then
+      if string.find(type_name, "UH-60L" ) and (unit:getDrawArgumentValue(38) == 1 or unit:getDrawArgumentValue(400) == 1 ) then
           BASE:T(unit_name .. " front door(s) are open")
-          ret_val =  true
+          return true
       end
       
       if type_name == "AH-64D_BLK_II" then
          BASE:T(unit_name .. " front door(s) are open")
-         ret_val =  true -- no doors on this one ;)
+         return true -- no doors on this one ;)
       end
       
-      if ret_val == false then
-          BASE:T(unit_name .. " all doors are closed")
+      if type_name == "Bronco-OV-10A" then
+         BASE:T(unit_name .. " front door(s) are open")
+         return true -- no doors on this one ;)
       end
       
-      return ret_val
+      return false
 
   end -- nil
 
@@ -1870,7 +1883,7 @@ function UTILS.GenerateVHFrequencies()
   -- known and sorted map-wise NDBs in kHz
   local _skipFrequencies = {
   214,274,291.5,295,297.5,
-  300.5,304,307,309.5,311,312,312.5,316,
+  300.5,304,305,307,309.5,311,312,312.5,316,
   320,324,328,329,330,332,336,337,
   342,343,348,351,352,353,358,
   363,365,368,372.5,374,
@@ -2293,7 +2306,7 @@ end
 -- @param #string Filename The name of the file.
 -- @param #boolean Spawn If set to false, do not re-spawn the groups loaded in location and reduce to size.
 -- @return Core.Set#SET_GROUP Set of GROUP objects. 
--- Returns nil when file cannot be read. Returns a table of data entries if Spawn is false: `{ groupname=groupname, size=size, coordinate=coordinate }`
+-- Returns nil when file cannot be read. Returns a table of data entries if Spawn is false: `{ groupname=groupname, size=size, coordinate=coordinate, template=template }`
 function UTILS.LoadSetOfGroups(Path,Filename,Spawn)
   local spawn = true
   if Spawn == false then spawn = false end
@@ -2316,10 +2329,10 @@ function UTILS.LoadSetOfGroups(Path,Filename,Spawn)
       local posz = tonumber(dataset[6])
       local coordinate = COORDINATE:NewFromVec3({x=posx, y=posy, z=posz})
       local group=nil
-      local data = { groupname=groupname, size=size, coordinate=coordinate }
+      local data = { groupname=groupname, size=size, coordinate=coordinate, template=template }
       table.insert(datatable,data)
       if spawn then
-        local group = SPAWN:New(groupname)
+        local group = SPAWN:New(template)
           :InitDelayOff()
           :OnSpawnGroup(
             function(spwndgrp)

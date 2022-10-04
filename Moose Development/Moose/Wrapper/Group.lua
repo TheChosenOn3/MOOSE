@@ -187,6 +187,7 @@ GROUPTEMPLATE.Takeoff = {
 -- @field #string GROUND_APC Infantry carriers, in particular Amoured Personell Carrier. This can be used to transport other assets.
 -- @field #string GROUND_TRUCK Unarmed ground vehicles, which has the DCS "Truck" attribute.
 -- @field #string GROUND_INFANTRY Ground infantry assets.
+-- @field #string GROUND_IFV Ground Infantry Fighting Vehicle.
 -- @field #string GROUND_ARTILLERY Artillery assets.
 -- @field #string GROUND_TANK Tanks (modern or old).
 -- @field #string GROUND_TRAIN Trains. Not that trains are **not** yet properly implemented in DCS and cannot be used currently.
@@ -213,6 +214,7 @@ GROUP.Attribute = {
   GROUND_APC="Ground_APC",
   GROUND_TRUCK="Ground_Truck",
   GROUND_INFANTRY="Ground_Infantry",
+  GROUND_IFV="Ground_IFV",
   GROUND_ARTILLERY="Ground_Artillery",
   GROUND_TANK="Ground_Tank",
   GROUND_TRAIN="Ground_Train",
@@ -529,26 +531,32 @@ function GROUP:HasAttribute(attribute, all)
   -- Get all units of the group.
   local _units=self:GetUnits()
   
-  local _allhave=true
-  local _onehas=false
+  if _units then
   
-  for _,_unit in pairs(_units) do
-    local _unit=_unit --Wrapper.Unit#UNIT
-    if _unit then
-      local _hastit=_unit:HasAttribute(attribute)
-      if _hastit==true then
-        _onehas=true
-      else
-        _allhave=false
-      end
-    end 
+    local _allhave=true
+    local _onehas=false
+    
+    for _,_unit in pairs(_units) do
+      local _unit=_unit --Wrapper.Unit#UNIT
+      if _unit then
+        local _hastit=_unit:HasAttribute(attribute)
+        if _hastit==true then
+          _onehas=true
+        else
+          _allhave=false
+        end
+      end 
+    end
+    
+    if all==true then
+      return _allhave
+    else
+      return _onehas
+    end
+    
   end
   
-  if all==true then
-    return _allhave
-  else
-    return _onehas
-  end
+  return nil
 end
 
 --- Returns the maximum speed of the group.
@@ -563,16 +571,19 @@ function GROUP:GetSpeedMax()
   
     local Units=self:GetUnits()
     
-    local speedmax=0
+    local speedmax=nil
     
     for _,unit in pairs(Units) do
       local unit=unit --Wrapper.Unit#UNIT
+      
       local speed=unit:GetSpeedMax()
-      if speedmax==0 then
-        speedmax=speed
-      elseif speed<speedmax then
+      
+      if speedmax==nil or speed<speedmax then
         speedmax=speed
       end
+      
+      --env.info(string.format("FF unit %s: speed=%.1f, speedmax=%.1f", unit:GetName(), speed, speedmax))
+      
     end
     
     return speedmax
@@ -658,6 +669,12 @@ function GROUP:GetPlayerUnits()
   return nil
 end
 
+--- Check if an (air) group is a client or player slot. Information is retrieved from the group template.
+-- @param #GROUP self
+-- @return #boolean If true, group is associated with a client or player slot.
+function GROUP:IsPlayer()
+  return self:GetUnit(1):IsPlayer()
+end
 
 --- Returns the UNIT wrapper class with number UnitNumber.
 -- If the underlying DCS Unit does not exist, the method will return nil. .
@@ -669,40 +686,28 @@ function GROUP:GetUnit( UnitNumber )
   local DCSGroup = self:GetDCSObject()
 
   if DCSGroup then
-  
-    local DCSUnit = DCSGroup:getUnit( UnitNumber )
     
-    local UnitFound = UNIT:Find(DCSUnit)
+    local UnitFound = nil
+    -- 2.7.1 dead event bug, return the first alive unit instead
+    local units = DCSGroup:getUnits() or {}
     
-    return UnitFound
+    for _,_unit in pairs(units) do
+    
+      local UnitFound = UNIT:Find(_unit)
+      
+      if UnitFound then
+      
+        return UnitFound
+    
+      end
+    end
+    
   end
 
   return nil
+  
 end
 
---- Check if an (air) group is a client or player slot. Information is retrieved from the group template.
--- @param #GROUP self
--- @return #boolean If true, group is associated with a client or player slot.
-function GROUP:IsPlayer()
-  
-  -- Get group.
- -- local group=self:GetGroup()
-    
-  -- Units of template group.
-  local units=self:GetTemplate().units
-  
-  -- Get numbers.
-  for _,unit in pairs(units) do
-      
-    -- Check if unit name matach and skill is Client or Player.
-    if unit.name==self:GetName() and (unit.skill=="Client" or unit.skill=="Player") then
-      return true
-    end
-
-  end
-  
-  return false
-end
 
 --- Returns the DCS Unit with number UnitNumber.
 -- If the underlying DCS Unit does not exist, the method will return nil. .
@@ -1055,8 +1060,9 @@ end
 -- @param Wrapper.Group#GROUP self
 -- @return Core.Point#COORDINATE The COORDINATE of the GROUP.
 function GROUP:GetCoordinate()
-
-  local Units = self:GetUnits() or {}
+   
+   
+  local Units = self:GetUnits()  or {}
   
   for _,_unit in pairs(Units) do
     local FirstUnit = _unit -- Wrapper.Unit#UNIT
@@ -1203,7 +1209,8 @@ end
 -- @return #number Number of shells left.
 -- @return #number Number of rockets left.
 -- @return #number Number of bombs left.
--- @return #number Number of missiles left.  
+-- @return #number Number of missiles left. 
+-- @return #number Number of artillery shells left (with explosive mass, included in shells; shells can also be machine gun ammo) 
 function GROUP:GetAmmunition()
   self:F( self.ControllableName )
 
@@ -1214,6 +1221,7 @@ function GROUP:GetAmmunition()
   local Nrockets=0
   local Nmissiles=0
   local Nbombs=0
+  local Narti=0
   
   if DCSControllable then
     
@@ -1222,19 +1230,19 @@ function GROUP:GetAmmunition()
       local Unit = UnitData -- Wrapper.Unit#UNIT
       
       -- Get ammo of the unit
-      local ntot, nshells, nrockets, nbombs, nmissiles = Unit:GetAmmunition()
+      local ntot, nshells, nrockets, nbombs, nmissiles, narti = Unit:GetAmmunition()
       
       Ntot=Ntot+ntot
       Nshells=Nshells+nshells
       Nrockets=Nrockets+nrockets
       Nmissiles=Nmissiles+nmissiles
       Nbombs=Nbombs+nbombs
-      
+      Narti=Narti+narti
     end
     
   end
   
-  return Ntot, Nshells, Nrockets, Nbombs, Nmissiles
+  return Ntot, Nshells, Nrockets, Nbombs, Nmissiles, Narti
 end
 
 
@@ -2372,14 +2380,15 @@ function GROUP:GetAttribute()
     --- Ground ---
     --------------
     -- Ground
-    local apc=self:HasAttribute("Infantry carriers")
+    local apc=self:HasAttribute("APC")
     local truck=self:HasAttribute("Trucks") and self:GetCategory()==Group.Category.GROUND
     local infantry=self:HasAttribute("Infantry")
     local artillery=self:HasAttribute("Artillery")
     local tank=self:HasAttribute("Old Tanks") or self:HasAttribute("Modern Tanks")
-    local aaa=self:HasAttribute("AAA")
+    local aaa=self:HasAttribute("AAA") and (not self:HasAttribute("SAM elements"))
     local ewr=self:HasAttribute("EWR")
-    local sam=self:HasAttribute("SAM elements") and (not self:HasAttribute("AAA"))
+    local ifv=self:HasAttribute("IFV")
+    local sam=self:HasAttribute("SAM elements") or self:HasAttribute("Optical Tracker")
     -- Train
     local train=self:GetCategory()==Group.Category.TRAIN
 
@@ -2422,10 +2431,12 @@ function GROUP:GetAttribute()
       attribute=GROUP.Attribute.GROUND_ARTILLERY         
     elseif tank then
       attribute=GROUP.Attribute.GROUND_TANK 
+    elseif ifv then
+      attribute=GROUP.Attribute.GROUND_IFV   
     elseif apc then
       attribute=GROUP.Attribute.GROUND_APC
     elseif infantry then
-      attribute=GROUP.Attribute.GROUND_INFANTRY
+      attribute=GROUP.Attribute.GROUND_INFANTRY 
     elseif truck then
       attribute=GROUP.Attribute.GROUND_TRUCK
     elseif train then
@@ -2716,94 +2727,85 @@ function GROUP:GetHighestThreat()
   return nil, nil
 end
 
---do -- Smoke
+--- Get TTS friendly, optionally customized callsign mainly for **player groups**. A customized callsign is taken from the #GROUP name, after an optional '#' sign, e.g. "Aerial 1-1#Ghostrider" resulting in "Ghostrider 9", or, 
+-- if that isn't available, from the playername, as set in the mission editor main screen under Logbook, after an optional '|' sign (actually, more of a personal call sign), e.g. "Apple|Moose" results in "Moose 9 1". Options see below.
+-- @param #GROUP self
+-- @param #boolean ShortCallsign Return a shortened customized callsign, i.e. "Ghostrider 9" and not "Ghostrider 9 1"
+-- @param #boolean Keepnumber (Player only) Return customized callsign, incl optional numbers at the end, e.g. "Aerial 1-1#Ghostrider 109" results in "Ghostrider 109", if you want to e.g. use historical US Navy Callsigns
+-- @param #table CallsignTranslations Table to translate between DCS standard callsigns and bespoke ones. Does not apply if using customized
+-- callsigns from playername or group name.
+-- @return #string Callsign
+-- @usage
+--            -- Set Custom CAP Flight Callsigns for use with TTS
+--            mygroup:GetCustomCallSign(true,false,{
+--              Devil = 'Bengal',
+--              Snake = 'Winder',
+--              Colt = 'Camelot',
+--              Enfield = 'Victory',
+--              Uzi = 'Evil Eye'
+--            })
 --
------ Signal a flare at the position of the GROUP.
----- @param #GROUP self
----- @param Utilities.Utils#FLARECOLOR FlareColor
---function GROUP:Flare( FlareColor )
---  self:F2()
---  trigger.action.signalFlare( self:GetVec3(), FlareColor , 0 )
---end
+-- results in this outcome if the group has Callsign "Enfield 9 1" on the 1st #UNIT of the group:
 --
------ Signal a white flare at the position of the GROUP.
----- @param #GROUP self
---function GROUP:FlareWhite()
---  self:F2()
---  trigger.action.signalFlare( self:GetVec3(), trigger.flareColor.White , 0 )
---end
+--      'Victory 9'
 --
------ Signal a yellow flare at the position of the GROUP.
----- @param #GROUP self
---function GROUP:FlareYellow()
---  self:F2()
---  trigger.action.signalFlare( self:GetVec3(), trigger.flareColor.Yellow , 0 )
---end
---
------ Signal a green flare at the position of the GROUP.
----- @param #GROUP self
---function GROUP:FlareGreen()
---  self:F2()
---  trigger.action.signalFlare( self:GetVec3(), trigger.flareColor.Green , 0 )
---end
---
------ Signal a red flare at the position of the GROUP.
----- @param #GROUP self
---function GROUP:FlareRed()
---  self:F2()
---  local Vec3 = self:GetVec3()
---  if Vec3 then
---    trigger.action.signalFlare( Vec3, trigger.flareColor.Red, 0 )
---  end
---end
---
------ Smoke the GROUP.
----- @param #GROUP self
---function GROUP:Smoke( SmokeColor, Range )
---  self:F2()
---  if Range then
---    trigger.action.smoke( self:GetRandomVec3( Range ), SmokeColor )
---  else
---    trigger.action.smoke( self:GetVec3(), SmokeColor )
---  end
---  
---end
---
------ Smoke the GROUP Green.
----- @param #GROUP self
---function GROUP:SmokeGreen()
---  self:F2()
---  trigger.action.smoke( self:GetVec3(), trigger.smokeColor.Green )
---end
---
------ Smoke the GROUP Red.
----- @param #GROUP self
---function GROUP:SmokeRed()
---  self:F2()
---  trigger.action.smoke( self:GetVec3(), trigger.smokeColor.Red )
---end
---
------ Smoke the GROUP White.
----- @param #GROUP self
---function GROUP:SmokeWhite()
---  self:F2()
---  trigger.action.smoke( self:GetVec3(), trigger.smokeColor.White )
---end
---
------ Smoke the GROUP Orange.
----- @param #GROUP self
---function GROUP:SmokeOrange()
---  self:F2()
---  trigger.action.smoke( self:GetVec3(), trigger.smokeColor.Orange )
---end
---
------ Smoke the GROUP Blue.
----- @param #GROUP self
---function GROUP:SmokeBlue()
---  self:F2()
---  trigger.action.smoke( self:GetVec3(), trigger.smokeColor.Blue )
---end
---
---
---
---end
+-- 
+function GROUP:GetCustomCallSign(ShortCallsign,Keepnumber,CallsignTranslations)
+  --self:I("GetCustomCallSign")
+
+  local callsign = "Ghost 1"
+  if self:IsAlive() then
+    local IsPlayer = self:IsPlayer()
+    local shortcallsign = self:GetCallsign() or "unknown91" -- e.g.Uzi91, but we want Uzi 9 1
+    local callsignroot = string.match(shortcallsign, '(%a+)') -- Uzi
+    --self:I("CallSign = " .. callsignroot)
+    local groupname = self:GetName()
+    local callnumber = string.match(shortcallsign, "(%d+)$" ) or "91" -- 91
+    local callnumbermajor = string.char(string.byte(callnumber,1)) -- 9
+    local callnumberminor = string.char(string.byte(callnumber,2)) -- 1
+    local personalized = false
+    if IsPlayer and string.find(groupname,"#") then
+      -- personalized flight name in group naming
+      if Keepnumber then
+        shortcallsign = string.match(groupname,"#(.+)") or "Ghost 111" -- Ghostrider 219
+      else
+        shortcallsign = string.match(groupname,"#%s*([%a]+)") or "Ghost" -- Ghostrider
+      end
+      personalized = true
+    elseif IsPlayer and string.find(self:GetPlayerName(),"|") then
+      -- personalized flight name in group naming
+      shortcallsign = string.match(self:GetPlayerName(),"|%s*([%a]+)") or string.match(self:GetPlayerName(),"|%s*([%d]+)") or "Ghost" -- Ghostrider
+      personalized = true
+    end
+  
+    if (not personalized) and CallsignTranslations and CallsignTranslations[callsignroot] then
+      callsignroot = CallsignTranslations[callsignroot]
+    end
+  
+  if personalized then
+    -- player personalized callsign
+    -- remove trailing/leading spaces
+    shortcallsign=string.gsub(shortcallsign,"^%s*","")
+    shortcallsign=string.gsub(shortcallsign,"%s*$","")
+    if Keepnumber then
+      return shortcallsign -- Ghostrider 219
+    elseif ShortCallsign then
+      callsign = shortcallsign.." "..callnumbermajor -- Ghostrider 9
+    else
+      callsign = shortcallsign.." "..callnumbermajor.." "..callnumberminor -- Ghostrider 9 1
+    end
+    return callsign
+  end
+  
+  -- AI or not personalized
+  if ShortCallsign then
+    callsign = callsignroot.." "..callnumbermajor -- Uzi/Victory 9
+  else
+    callsign = callsignroot.." "..callnumbermajor.." "..callnumberminor -- Uzi/Victory 9 1
+  end
+
+    --self:I("Generated Callsign = " .. callsign)
+  end
+  
+  return callsign
+end
