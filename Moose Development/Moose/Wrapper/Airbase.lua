@@ -504,6 +504,13 @@ AIRBASE.MarianaIslands = {
 -- * AIRBASE.SouthAtlantic.Puerto_Williams
 -- * AIRBASE.SouthAtlantic.Puerto_Natales
 -- * AIRBASE.SouthAtlantic.El_Calafate
+-- * AIRBASE.SouthAtlantic.Puerto_Santa_Cruz
+-- * AIRBASE.SouthAtlantic.Comandante_Luis_Piedrabuena
+-- * AIRBASE.SouthAtlantic.Aerodromo_De_Tolhuin
+-- * AIRBASE.SouthAtlantic.Porvenir_Airfield
+-- * AIRBASE.SouthAtlantic.Almirante_Schroeders
+-- * AIRBASE.SouthAtlantic.Rio_Turbio
+-- * AIRBASE.SouthAtlantic.Rio_Chico_Airfield
 -- 
 --@field MarianaIslands
 AIRBASE.SouthAtlantic={
@@ -520,6 +527,13 @@ AIRBASE.SouthAtlantic={
   ["Puerto_Williams"]="Puerto Williams",
   ["Puerto_Natales"]="Puerto Natales",
   ["El_Calafate"]="El Calafate",
+  ["Puerto_Santa_Cruz"]="Puerto Santa Cruz",
+  ["Comandante_Luis_Piedrabuena"]="Comandante Luis Piedrabuena",
+  ["Aerodromo_De_Tolhuin"]="Aerodromo De Tolhuin",
+  ["Porvenir_Airfield"]="Porvenir Airfield",
+  ["Almirante_Schroeders"]="Almirante Schroeders",
+  ["Rio_Turbio"]="Rio Turbio",
+  ["Rio_Chico"] = "Rio Chico",
 }
 
 --- AIRBASE.ParkingSpot ".Coordinate, ".TerminalID", ".TerminalType", ".TOAC", ".Free", ".TerminalID0", ".DistToRwy".
@@ -673,6 +687,9 @@ function AIRBASE:Register(AirbaseName)
   else
     self:E(string.format("ERROR: Cound not get position Vec2 of airbase %s", AirbaseName))
   end
+  
+  -- Debug info.
+  self:T2(string.format("Registered airbase %s", tostring(self.AirbaseName)))
 
   return self
 end
@@ -824,7 +841,7 @@ end
 -- Black listed spots overrule white listed spots.
 -- **NOTE** that terminal IDs are not necessarily the same as those displayed in the mission editor!
 -- @param #AIRBASE self
--- @param #table TerminalIdBlacklist Table of white listed terminal IDs.
+-- @param #table TerminalIdWhitelist Table of white listed terminal IDs.
 -- @return #AIRBASE self
 -- @usage AIRBASE:FindByName("Batumi"):SetParkingSpotWhitelist({2, 3, 4}) --Only allow terminal IDs 2, 3, 4
 function AIRBASE:SetParkingSpotWhitelist(TerminalIdWhitelist)
@@ -1353,7 +1370,7 @@ function AIRBASE:FindFreeParkingSpotForAircraft(group, terminaltype, scanradius,
   local _nspots=nspots or group:GetSize()
 
   -- Debug info.
-  self:E(string.format("%s: Looking for %d parking spot(s) for aircraft of size %.1f m (x=%.1f,y=%.1f,z=%.1f) at terminal type %s.", airport, _nspots, _aircraftsize, ax, ay, az, tostring(terminaltype)))
+  self:T(string.format("%s: Looking for %d parking spot(s) for aircraft of size %.1f m (x=%.1f,y=%.1f,z=%.1f) at terminal type %s.", airport, _nspots, _aircraftsize, ax, ay, az, tostring(terminaltype)))
 
   -- Table of valid spots.
   local validspots={}

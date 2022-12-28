@@ -62,6 +62,7 @@
 --   * @{#CONTROLLABLE.TaskOrbitCircle}: (AIR) Orbit at the current position of the first unit of the controllable at a specified altitude.
 --   * @{#CONTROLLABLE.TaskOrbitCircleAtVec2}: (AIR) Orbit at a specified position at a specified altitude during a specified duration with a specified speed.
 --   * @{#CONTROLLABLE.TaskRefueling}: (AIR) Refueling from the nearest tanker. No parameters.
+--   * @{#CONTROLLABLE.TaskRecoveryTanker}: (AIR) Set  group to act as recovery tanker for a naval group.
 --   * @{#CONTROLLABLE.TaskRoute}: (AIR + GROUND) Return a Mission task to follow a given route defined by Points.
 --   * @{#CONTROLLABLE.TaskRouteToVec2}: (AIR + GROUND) Make the Controllable move to a given point.
 --   * @{#CONTROLLABLE.TaskRouteToVec3}: (AIR + GROUND) Make the Controllable move to a given point.
@@ -1367,6 +1368,31 @@ function CONTROLLABLE:TaskRefueling()
   return DCSTask
 end
 
+--- (AIR) Act as Recovery Tanker for a naval/carrier group.
+-- @param #CONTROLLABLE self
+-- @param Wrapper.Group#GROUP CarrierGroup
+-- @param #number Speed Speed in meters per second
+-- @param #number Altitude Altitude the tanker orbits at in meters
+-- @param #number LastWptNumber (optional) Waypoint of carrier group that when reached, ends the recovery tanker task
+-- @return DCS#Task The DCS task structure.
+function CONTROLLABLE:TaskRecoveryTanker(CarrierGroup, Speed, Altitude, LastWptNumber)
+  
+  local LastWptFlag = type(LastWptNumber) == "number" and true or false
+  
+  local DCSTask = { 
+   id = "RecoveryTanker",
+   params = {
+       groupId = CarrierGroup:GetID(),
+       speed = Speed, 
+       altitude = Altitude, 
+       lastWptIndexFlag = LastWptFlag, 
+       lastWptIndex = LastWptNumber
+      }
+    }
+  
+  return DCSTask
+end
+
 --- (AIR HELICOPTER) Landing at the ground. For helicopters only.
 -- @param #CONTROLLABLE self
 -- @param DCS#Vec2 Vec2 The point where to land.
@@ -2369,7 +2395,7 @@ do -- Route methods
   -- @return DCS#Task Task.
   -- @return #boolean If true, path on road is possible. If false, task will route the group directly to its destination.
   function CONTROLLABLE:TaskGroundOnRoad( ToCoordinate, Speed, OffRoadFormation, Shortcut, FromCoordinate, WaypointFunction, WaypointFunctionArguments )
-    self:I( { ToCoordinate = ToCoordinate, Speed = Speed, OffRoadFormation = OffRoadFormation, WaypointFunction = WaypointFunction, Args = WaypointFunctionArguments } )
+    self:T( { ToCoordinate = ToCoordinate, Speed = Speed, OffRoadFormation = OffRoadFormation, WaypointFunction = WaypointFunction, Args = WaypointFunctionArguments } )
 
     -- Defaults.
     Speed = Speed or 20
