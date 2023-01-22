@@ -292,7 +292,7 @@ CSAR.AircraftType["Bronco-OV-10A"] = 2
 
 --- CSAR class version.
 -- @field #string version
-CSAR.version="1.0.16"
+CSAR.version="1.0.17"
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- ToDo list
@@ -919,7 +919,7 @@ end
 
 --- (Internal) Function to add a CSAR object into the scene at a Point coordinate (VEC_2). For mission designers wanting to add e.g. casualties to the scene, that don't use beacons.
 -- @param #CSAR self
--- @param #string _Point a POINT_VEC2.
+-- @param Core.Point#COORDINATE _Point
 -- @param #number _coalition Coalition.
 -- @param #string _description (optional) Description.
 -- @param #boolean _nomessage (optional) If true, don\'t send a message to SAR.
@@ -952,7 +952,7 @@ end
 
 --- Function to add a CSAR object into the scene at a zone coordinate. For mission designers wanting to add e.g. PoWs to the scene.
 -- @param #CSAR self
--- @param #string Point a POINT_VEC2.
+-- @param Core.Point#COORDINATE Point
 -- @param #number Coalition Coalition.
 -- @param #string Description (optional) Description.
 -- @param #boolean addBeacon (optional) yes or no.
@@ -962,8 +962,8 @@ end
 -- @param #boolean Forcedesc (optional) Force to use the **description passed only** for the pilot track entry. Use to have fully custom names.
 -- @usage If missions designers want to spawn downed pilots into the field, e.g. at mission begin, to give the helicopter guys work, they can do this like so:
 --      
---        -- Create casualty  "CASEVAC" at Point #POINT_VEC2 for the blue coalition.
---        my_csar:SpawnCASEVAC( POINT_VEC2, coalition.side.BLUE )
+--        -- Create casualty  "CASEVAC" at coordinate Core.Point#COORDINATE for the blue coalition.
+--        my_csar:SpawnCASEVAC( coordinate, coalition.side.BLUE )
 function CSAR:SpawnCASEVAC(Point, Coalition, Description, Nomessage, Unitname, Typename, Forcedesc) 
   self:_SpawnCASEVAC(Point, Coalition, Description, Nomessage, Unitname, Typename, Forcedesc)
   return self
@@ -2177,9 +2177,10 @@ function CSAR:_AddBeaconToGroup(_group, _freq)
       local _radioUnit = _group:GetUnit(1)
       if _radioUnit then    
         local Frequency = _freq -- Freq in Hertz
+        local name = _radioUnit:GetName()
         local Sound =  "l10n/DEFAULT/"..self.radioSound
         local vec3 = _radioUnit:GetVec3() or _radioUnit:GetPositionVec3() or {x=0,y=0,z=0}
-        trigger.action.radioTransmission(Sound, vec3, 0, false, Frequency, self.ADFRadioPwr or 1000) -- Beacon in MP only runs for exactly 30secs straight
+        trigger.action.radioTransmission(Sound, vec3, 0, false, Frequency, self.ADFRadioPwr or 1000,name..math.random(1,10000)) -- Beacon in MP only runs for exactly 30secs straight
       end
     end
     return self

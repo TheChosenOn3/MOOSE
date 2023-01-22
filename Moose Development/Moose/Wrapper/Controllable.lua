@@ -67,7 +67,6 @@
 --   * @{#CONTROLLABLE.TaskRouteToVec2}: (AIR + GROUND) Make the Controllable move to a given point.
 --   * @{#CONTROLLABLE.TaskRouteToVec3}: (AIR + GROUND) Make the Controllable move to a given point.
 --   * @{#CONTROLLABLE.TaskRouteToZone}: (AIR + GROUND) Route the controllable to a given zone.
---   * @{#CONTROLLABLE.TaskReturnToBase}: (AIR) Route the controllable to an airbase.
 --
 -- ## 2.2) EnRoute assignment
 --
@@ -1416,7 +1415,7 @@ end
 -- @param #CONTROLLABLE self
 -- @param Core.Zone#ZONE Zone The zone where to land.
 -- @param #number Duration The duration in seconds to stay on the ground.
--- @return #CONTROLLABLE self
+-- @return DCS#Task The DCS task structure.
 function CONTROLLABLE:TaskLandAtZone( Zone, Duration, RandomPoint )
 
   -- Get landing point
@@ -1665,6 +1664,26 @@ function CONTROLLABLE:EnRouteTaskAntiShip(TargetTypes, Priority)
   return DCSTask
 end
 
+--- (AIR) Enroute SEAD task.
+-- @param #CONTROLLABLE self
+-- @param DCS#AttributeNameArray TargetTypes Array of target categories allowed to engage. Default `{"Air Defence"}`.
+-- @param #number Priority (Optional) All en-route tasks have the priority parameter. This is a number (less value - higher priority) that determines actions related to what task will be performed first. Default 0.
+-- @return DCS#Task The DCS task structure.
+function CONTROLLABLE:EnRouteTaskSEAD(TargetTypes, Priority)
+
+  local DCSTask = {
+    id      = 'EngageTargets',
+    key     = "SEAD",
+    --auto    = false,
+    --enabled = true,    
+    params  = {
+      targetTypes = TargetTypes or {"Air Defence"},
+      priority    = Priority or 0
+    }
+  }
+
+  return DCSTask
+end
 
 --- (AIR) Engaging a controllable. The task does not assign the target controllable to the unit/controllable to attack now; it just allows the unit/controllable to engage the target controllable as well as other assigned targets.
 -- @param #CONTROLLABLE self

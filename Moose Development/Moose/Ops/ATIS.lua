@@ -634,7 +634,7 @@ ATIS.version = "0.9.14"
 -- Constructor
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
---- Create a new ATIS class object for a specific aircraft carrier unit.
+--- Create a new ATIS class object for a specific airbase.
 -- @param #ATIS self
 -- @param #string AirbaseName Name of the airbase.
 -- @param #number Frequency Radio frequency in MHz. Default 143.00 MHz.
@@ -2416,6 +2416,8 @@ function ATIS:onafterReport( From, Event, To, Text )
     local text = string.gsub( text, "mmHg", "millimeters of Mercury" )
     local text = string.gsub( text, "hPa", "hectopascals" )
     local text = string.gsub( text, "m/s", "meters per second" )
+    local text = string.gsub( text, "TACAN", "tackan" )
+    local text = string.gsub( text, "FARP", "farp" )
 
     -- Replace ";" by "."
     local text = string.gsub( text, ";", " . " )
