@@ -473,7 +473,6 @@ function CSAR:New(Coalition, Template, Alias)
   self.enableLoadSave = false
   self.filepath = nil
   self.saveinterval = 600
-  self.eventoninject = true
   
   ------------------------
   --- Pseudo Functions ---
@@ -2606,10 +2605,10 @@ function CSAR:onafterSave(From, Event, To, path, filename)
       local country = group:GetCountry()
       local description = DownedPilot.desc
       local typeName = DownedPilot.typename
-      --local freq = DownedPilot.frequency
+      local freq = DownedPilot.frequency
       local location = group:GetVec3()
       local unitName = DownedPilot.originalUnit
-      local txt = string.format("%s,%d,%d,%d,%s,%s,%s,%s,%s,%d\n",playerName,location.x,location.y,location.z,coalition,country,description,typeName,unitName)
+      local txt = string.format("%s,%d,%d,%d,%s,%s,%s,%s,%s,%d\n",playerName,location.x,location.y,location.z,coalition,country,description,typeName,unitName,freq)
       
       self:I(self.lid.."Saving to CSAR File: " .. txt)
       
@@ -2742,7 +2741,7 @@ function CSAR:onafterLoad(From, Event, To, path, filename)
   
   for _id,_entry in pairs (loadeddata) do
     local dataset = UTILS.Split(_entry,",")
-    -- 1=playerName,2=x,3=y,4=z,5=coalition,6=country,7=description,8=typeName,9=unitName\n
+    -- 1=playerName,2=x,3=y,4=z,5=coalition,6=country,7=description,8=typeName,9=unitName,10=freq\n
     local playerName = dataset[1]
     
     local vec3 = {}
@@ -2756,11 +2755,9 @@ function CSAR:onafterLoad(From, Event, To, path, filename)
     local description = dataset[7]
     local typeName = dataset[8]
     local unitName = dataset[9]
+    local freq = dataset[10]
     
-    if type(playerName) == "string" then
-      -- inject at point
-      self:_AddCsar(coalition, country, point, typeName, unitName, playerName, nil, nil, description, nil)
-    end    
+    self:_AddCsar(coalition, country, point, typeName, unitName, playerName, freq, nil, description, nil)    
   end
   
   return self
