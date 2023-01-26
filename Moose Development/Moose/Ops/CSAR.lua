@@ -198,7 +198,7 @@
 --      --Create a casualty and CASEVAC request from a "Point" (VEC2) for the blue coalition --shagrat
 --      my_csar:SpawnCASEVAC(Point, coalition.side.BLUE)  
 --      
--- ## 6. Save and load downed pilots - persistance
+-- ## 6. Save and load downed pilots - Persistance
 -- 
 -- You can save and later load back downed pilots to make your mission persistent.
 -- For this to work, you need to de-sanitize **io** and **lfs** in your MissionScripting.lua, which is located in your DCS installtion folder under Scripts.
