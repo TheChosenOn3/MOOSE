@@ -26,11 +26,11 @@
 --
 -- ===
 --
--- ### Author: **Applevangelist** (Moose Version), ***Ciribob*** (original), Thanks to: Shadowze, Cammel (testing)
+-- ### Author: **Applevangelist** (Moose Version), ***Ciribob*** (original), Thanks to: Shadowze, Cammel (testing), The Chosen One (Persistence)
 -- @module Ops.CSAR
 -- @image OPS_CSAR.jpg
 
--- Date: November 2022
+-- Date: January 2023
 
 -------------------------------------------------------------------------
 --- **CSAR** class, extends Core.Base#BASE, Core.Fsm#FSM
@@ -216,7 +216,7 @@
 --            mycsar:__Load(10)
 --            
 --  **Caveat:**
--- Dropped troop freq, noMessage and forcedesc isn't saved, a new frequency will be generated on load.       
+-- Dropped troop noMessage and forcedesc parameters aren't saved.      
 --
 -- @field #CSAR
 CSAR = {
