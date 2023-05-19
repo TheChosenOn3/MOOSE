@@ -903,7 +903,9 @@ end
 
 do -- SET_GROUP
 
-  --- @type SET_GROUP
+  --- @type SET_GROUP #SET_GROUP
+  -- @field Core.Timer#TIMER ZoneTimer
+  -- @field #number ZoneTimerInterval
   -- @extends Core.Set#SET_BASE
 
   --- Mission designers can use the @{Core.Set#SET_GROUP} class to build sets of groups belonging to certain:
@@ -1343,6 +1345,25 @@ do -- SET_GROUP
     end
     return self
   end
+  
+  --- [Internal] Private function for use of continous zone filter
+  -- @param #SET_GROUP self
+  -- @return #SET_GROUP self
+  function SET_GROUP:_ContinousZoneFilter()
+    
+    local Database = _DATABASE.GROUPS
+    
+    for ObjectName, Object in pairs( Database ) do
+      if self:IsIncludeObject( Object ) and self:IsNotInSet(Object) then
+        self:Add( ObjectName, Object )
+      elseif (not self:IsIncludeObject( Object )) and self:IsInSet(Object) then
+        self:Remove(ObjectName)
+      end
+    end
+    
+    return self
+    
+  end
 
   --- Builds a set of groups that are only active.
   -- Only the groups that are active will be included within the set.
@@ -1381,10 +1402,46 @@ do -- SET_GROUP
       self:HandleEvent( EVENTS.Dead, self._EventOnDeadOrCrash )
       self:HandleEvent( EVENTS.Crash, self._EventOnDeadOrCrash )
       self:HandleEvent( EVENTS.RemoveUnit, self._EventOnDeadOrCrash )
+      if self.Filter.Zones then
+        self.ZoneTimer = TIMER:New(self._ContinousZoneFilter,self)
+        local timing = self.ZoneTimerInterval or 30
+        self.ZoneTimer:Start(timing,timing)
+      end
     end
 
     return self
   end
+  
+  --- Set filter timer interval for FilterZones if using active filtering with FilterStart().
+  -- @param #SET_GROUP self
+  -- @param #number Seconds Seconds between check intervals, defaults to 30. **Caution** - do not be too agressive with timing! Groups are usually not moving fast enough
+  -- to warrant a check of below 10 seconds.
+  -- @return #SET_GROUP self
+  function SET_GROUP:FilterZoneTimer(Seconds)
+    self.ZoneTimerInterval = Seconds or 30
+    return self
+  end
+  
+  --- Stops the filtering.
+  -- @param #SET_GROUP self
+  -- @return #SET_GROUP self
+  function SET_GROUP:FilterStop()
+
+    if _DATABASE then
+      
+      self:UnHandleEvent(EVENTS.Birth)
+      self:UnHandleEvent(EVENTS.Dead)
+      self:UnHandleEvent(EVENTS.Crash)
+      self:UnHandleEvent(EVENTS.RemoveUnit)
+      
+      if self.Filter.Zones and self.ZoneTimer and self.ZoneTimer:IsRunning() then
+        self.ZoneTimer:Stop()
+      end
+    end
+
+    return self
+  end
+
 
   --- Handles the OnDead or OnCrash event for alive groups set.
   -- Note: The GROUP object in the SET_GROUP collection will only be removed if the last unit is destroyed of the GROUP.
@@ -1888,7 +1945,7 @@ do -- SET_GROUP
     if self.Filter.Zones then
       local MGroupZone = false
       for ZoneName, Zone in pairs( self.Filter.Zones ) do
-        self:T3( "Zone:", ZoneName )
+        --self:I( "Zone:", ZoneName )
         if MGroup:IsInZone(Zone) then
           MGroupZone = true
         end
@@ -1899,24 +1956,6 @@ do -- SET_GROUP
     self:T2( MGroupInclude )
     return MGroupInclude
   end
-
-  --- Iterate the SET_GROUP and set for each unit the default cargo bay weight limit.
-  -- Because within a group, the type of carriers can differ, each cargo bay weight limit is set on @{Wrapper.Unit} level.
-  -- @param #SET_GROUP self
-  -- @usage
-  -- -- Set the default cargo bay weight limits of the carrier units.
-  -- local MySetGroup = SET_GROUP:New()
-  -- MySetGroup:SetCargoBayWeightLimit()
-  function SET_GROUP:SetCargoBayWeightLimit()
-    local Set = self:GetSet()
-    for GroupID, GroupData in pairs( Set ) do -- For each GROUP in SET_GROUP
-      for UnitName, UnitData in pairs( GroupData:GetUnits() ) do
-        -- local UnitData = UnitData -- Wrapper.Unit#UNIT
-        UnitData:SetCargoBayWeightLimit()
-      end
-    end
-  end
-
 
   --- Get the closest group of the set with respect to a given reference coordinate. Optionally, only groups of given coalitions are considered in the search.
   -- @param #SET_GROUP self
@@ -1952,11 +1991,30 @@ do -- SET_GROUP
     return gmin, dmin
   end
 
+  --- Iterate the SET_GROUP and set for each unit the default cargo bay weight limit.
+  -- Because within a group, the type of carriers can differ, each cargo bay weight limit is set on @{Wrapper.Unit} level.
+  -- @param #SET_GROUP self
+  -- @usage
+  -- -- Set the default cargo bay weight limits of the carrier units.
+  -- local MySetGroup = SET_GROUP:New()
+  -- MySetGroup:SetCargoBayWeightLimit()
+  function SET_GROUP:SetCargoBayWeightLimit()
+    local Set = self:GetSet()
+    for GroupID, GroupData in pairs( Set ) do -- For each GROUP in SET_GROUP
+      for UnitName, UnitData in pairs( GroupData:GetUnits() ) do
+        -- local UnitData = UnitData -- Wrapper.Unit#UNIT
+        UnitData:SetCargoBayWeightLimit()
+      end
+    end
+  end
+
 end
 
 do -- SET_UNIT
 
   --- @type SET_UNIT
+  -- @field Core.Timer#TIMER ZoneTimer
+  -- @field #number ZoneTimerInterval
   -- @extends Core.Set#SET_BASE
 
   --- Mission designers can use the SET_UNIT class to build sets of units belonging to certain:
@@ -2114,10 +2172,12 @@ do -- SET_UNIT
     self:F2( Unit:GetName() )
 
     self:Add( Unit:GetName(), Unit )
-
-    -- Set the default cargo bay limit each time a new unit is added to the set.
-    Unit:SetCargoBayWeightLimit()
-
+    
+    if Unit:IsInstanceOf("UNIT") then
+      -- Set the default cargo bay limit each time a new unit is added to the set.
+      Unit:SetCargoBayWeightLimit()
+    end
+    
     return self
   end
 
@@ -2346,7 +2406,56 @@ do -- SET_UNIT
 
     return CountU
   end
+  
+  --- [Internal] Private function for use of continous zone filter
+  -- @param #SET_UNIT self
+  -- @return #SET_UNIT self
+  function SET_UNIT:_ContinousZoneFilter()
+    
+    local Database = _DATABASE.UNITS
+    
+    for ObjectName, Object in pairs( Database ) do
+      if self:IsIncludeObject( Object ) and self:IsNotInSet(Object) then
+        self:Add( ObjectName, Object )
+      elseif (not self:IsIncludeObject( Object )) and self:IsInSet(Object) then
+        self:Remove(ObjectName)
+      end
+    end
+    
+    return self
+    
+  end
+  
+  --- Set filter timer interval for FilterZones if using active filtering with FilterStart().
+  -- @param #SET_UNIT self
+  -- @param #number Seconds Seconds between check intervals, defaults to 30. **Caution** - do not be too agressive with timing! Groups are usually not moving fast enough
+  -- to warrant a check of below 10 seconds.
+  -- @return #SET_UNIT self
+  function SET_UNIT:FilterZoneTimer(Seconds)
+    self.ZoneTimerInterval = Seconds or 30
+    return self
+  end
+  
+  --- Stops the filtering.
+  -- @param #SET_UNIT self
+  -- @return #SET_UNIT self
+  function SET_UNIT:FilterStop()
 
+    if _DATABASE then
+      
+      self:UnHandleEvent(EVENTS.Birth)
+      self:UnHandleEvent(EVENTS.Dead)
+      self:UnHandleEvent(EVENTS.Crash)
+      self:UnHandleEvent(EVENTS.RemoveUnit)
+      
+      if self.Filter.Zones and self.ZoneTimer and self.ZoneTimer:IsRunning() then
+        self.ZoneTimer:Stop()
+      end
+    end
+
+    return self
+  end
+  
   --- Starts the filtering.
   -- @param #SET_UNIT self
   -- @return #SET_UNIT self
@@ -2358,6 +2467,11 @@ do -- SET_UNIT
       self:HandleEvent( EVENTS.Dead, self._EventOnDeadOrCrash )
       self:HandleEvent( EVENTS.Crash, self._EventOnDeadOrCrash )
       self:HandleEvent( EVENTS.RemoveUnit, self._EventOnDeadOrCrash )
+      if self.Filter.Zones then
+        self.ZoneTimer = TIMER:New(self._ContinousZoneFilter,self)
+        local timing = self.ZoneTimerInterval or 30
+        self.ZoneTimer:Start(timing,timing)
+      end
     end
 
     return self
@@ -3794,11 +3908,47 @@ do -- SET_STATIC
     return TypeReport:Text( Delimiter )
   end
 
+  --- Get the closest static of the set with respect to a given reference coordinate. Optionally, only statics of given coalitions are considered in the search.
+  -- @param #SET_STATIC self
+  -- @param Core.Point#COORDINATE Coordinate Reference Coordinate from which the closest static is determined.
+  -- @return Wrapper.Static#STATIC The closest static (if any).
+  -- @return #number Distance in meters to the closest static.
+  function SET_STATIC:GetClosestStatic(Coordinate, Coalitions)
+  
+    local Set = self:GetSet()
+    
+    local dmin=math.huge
+    local gmin=nil
+    
+    for GroupID, GroupData in pairs( Set ) do -- For each STATIC in SET_STATIC
+      local group=GroupData --Wrapper.Static#STATIC
+      
+      if group and group:IsAlive() and (Coalitions==nil or UTILS.IsAnyInTable(Coalitions, group:GetCoalition())) then
+      
+        local coord=group:GetCoord()
+        
+        -- Distance between ref. coordinate and group coordinate.
+        local d=UTILS.VecDist3D(Coordinate, coord)
+      
+        if d<dmin then
+          dmin=d
+          gmin=group
+        end
+        
+      end
+    
+    end
+    
+    return gmin, dmin
+  end
+
 end
 
 do -- SET_CLIENT
 
   --- @type SET_CLIENT
+  -- @field Core.Timer#TIMER ZoneTimer
+  -- @field #number ZoneTimerInterval
   -- @extends Core.Set#SET_BASE
 
   --- Mission designers can use the @{Core.Set#SET_CLIENT} class to build sets of units belonging to certain:
@@ -4106,6 +4256,54 @@ do -- SET_CLIENT
     return self
   end
 
+  --- [Internal] Private function for use of continous zone filter
+  -- @param #SET_CLIENT self
+  -- @return #SET_CLIENT self
+  function SET_CLIENT:_ContinousZoneFilter()
+    
+    local Database = _DATABASE.CLIENTS
+    
+    for ObjectName, Object in pairs( Database ) do
+      if self:IsIncludeObject( Object ) and self:IsNotInSet(Object) then
+        self:Add( ObjectName, Object )
+      elseif (not self:IsIncludeObject( Object )) and self:IsInSet(Object) then
+        self:Remove(ObjectName)
+      end
+    end
+    
+    return self
+    
+  end
+
+  --- Set filter timer interval for FilterZones if using active filtering with FilterStart().
+  -- @param #SET_CLIENT self
+  -- @param #number Seconds Seconds between check intervals, defaults to 30. **Caution** - do not be too agressive with timing! Groups are usually not moving fast enough
+  -- to warrant a check of below 10 seconds.
+  -- @return #SET_CLIENT self
+  function SET_CLIENT:FilterZoneTimer(Seconds)
+    self.ZoneTimerInterval = Seconds or 30
+    return self
+  end
+  
+  --- Stops the filtering.
+  -- @param #SET_CLIENT self
+  -- @return #SET_CLIENT self
+  function SET_CLIENT:FilterStop()
+
+    if _DATABASE then
+      
+      self:UnHandleEvent(EVENTS.Birth)
+      self:UnHandleEvent(EVENTS.Dead)
+      self:UnHandleEvent(EVENTS.Crash)
+      
+      if self.Filter.Zones and self.ZoneTimer and self.ZoneTimer:IsRunning() then
+        self.ZoneTimer:Stop()
+      end
+    end
+
+    return self
+  end
+
   --- Starts the filtering.
   -- @param #SET_CLIENT self
   -- @return #SET_CLIENT self
@@ -4116,6 +4314,11 @@ do -- SET_CLIENT
       self:HandleEvent( EVENTS.Birth, self._EventOnBirth )
       self:HandleEvent( EVENTS.Dead, self._EventOnDeadOrCrash )
       self:HandleEvent( EVENTS.Crash, self._EventOnDeadOrCrash )
+      if self.Filter.Zones then
+        self.ZoneTimer = TIMER:New(self._ContinousZoneFilter,self)
+        local timing = self.ZoneTimerInterval or 30
+        self.ZoneTimer:Start(timing,timing)
+      end
     end
 
     return self
@@ -7594,7 +7797,7 @@ do -- SET_SCENERY
 
   end
 
-  ---
+  --- [Internal] Determine if an object is to be included in the SET
   -- @param #SET_SCENERY self
   -- @param Wrapper.Scenery#SCENERY MScenery
   -- @return #SET_SCENERY self
@@ -7602,4 +7805,47 @@ do -- SET_SCENERY
     self:F2( MScenery )
   return true
   end
+  
+  --- Count overall initial (Life0) lifepoints of the SET objects.
+  -- @param #SET_SCENERY self
+  -- @return #number LIfe0Points
+  function SET_SCENERY:GetLife0()
+    local life0 = 0
+    self:ForEachScenery(
+      function(obj)
+        local Obj = obj -- Wrapper.Scenery#SCENERY
+        life0 = life0 + Obj:GetLife0()
+      end
+    )
+    return life0
+  end
+  
+  --- Count overall current lifepoints of the SET objects.
+  -- @param #SET_SCENERY self
+  -- @return #number LifePoints
+  function SET_SCENERY:GetLife()
+    local life = 0
+    self:ForEachScenery(
+      function(obj)
+        local Obj = obj -- Wrapper.Scenery#SCENERY
+        life = life + Obj:GetLife()
+      end
+    )
+    return life
+  end
+  
+  --- Calculate current relative lifepoints of the SET objects, i.e. Life divided by Life0 as percentage value, eg 75 meaning 75% alive. 
+  -- **CAVEAT**: Some objects change their life value or "hitpoints" **after** the first hit. Hence we will adjust the Life0 value to 120% 
+  -- of the last life value if life exceeds life0 ata any point.
+  -- Thus will will get a smooth percentage decrease, if you use this e.g. as success criteria for a bombing task.
+  -- @param #SET_SCENERY self
+  -- @return #number LifePoints
+  function SET_SCENERY:GetRelativeLife()
+    local life = self:GetLife()
+    local life0 = self:GetLife0()
+    self:T3(string.format("Set Lifepoints: %d life0 | %d life",life0,life))
+    local rlife = math.floor((life / life0) * 100)
+    return rlife
+  end
+  
 end
