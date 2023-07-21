@@ -43,7 +43,7 @@ BIGSMOKEPRESET = {
   HugeSmoke=8,
 }
 
---- DCS map as returned by env.mission.theatre.
+--- DCS map as returned by `env.mission.theatre`.
 -- @type DCSMAP
 -- @field #string Caucasus Caucasus map.
 -- @field #string Normandy Normandy map.
@@ -53,6 +53,7 @@ BIGSMOKEPRESET = {
 -- @field #string Syria Syria map.
 -- @field #string MarianaIslands Mariana Islands map.
 -- @field #string Falklands South Atlantic map.
+-- @field #string Sinai Sinai map.
 DCSMAP = {
   Caucasus="Caucasus",
   NTTR="Nevada",
@@ -62,6 +63,7 @@ DCSMAP = {
   Syria="Syria",
   MarianaIslands="MarianaIslands",
   Falklands="Falklands",
+  Sinai="SinaiMap"
 }
 
 
@@ -297,14 +299,14 @@ end
 -- @param #table tbl Input table.
 UTILS.OneLineSerialize = function( tbl )  -- serialization of a table all on a single line, no comments, made to replace old get_table_string function
 
-  lookup_table = {}
+local  lookup_table = {}
 
   local function _Serialize( tbl )
 
     if type(tbl) == 'table' then --function only works for tables!
 
       if lookup_table[tbl] then
-        return lookup_table[object]
+        return lookup_table[tbl]
       end
 
       local tbl_str = {}
@@ -381,6 +383,23 @@ UTILS.BasicSerialize = function(s)
     elseif type(s) == 'string' then
       s = string.format('%q', s)
       return s
+    end
+  end
+end
+
+function UTILS.PrintTableToLog(table, indent)
+  if not table then
+    BASE:E("No table passed!")
+    return 
+  end
+  if not indent then indent = 0 end
+  for k, v in pairs(table) do
+    if type(v) == "table" then
+      BASE:I(string.rep("  ", indent) .. tostring(k) .. " = {")
+      UTILS.PrintTableToLog(v, indent + 1)
+      BASE:I(string.rep("  ", indent) .. "}")
+    else
+      BASE:I(string.rep("  ", indent) .. tostring(k) .. " = " .. tostring(v))
     end
   end
 end
@@ -1373,7 +1392,7 @@ function UTILS.TACANToFrequency(TACANChannel, TACANMode)
 end
 
 
---- Returns the DCS map/theatre as optained by env.mission.theatre
+--- Returns the DCS map/theatre as optained by `env.mission.theatre`.
 -- @return #string DCS map name.
 function UTILS.GetDCSMap()
   return env.mission.theatre
@@ -1429,6 +1448,7 @@ end
 -- * Syria +5 (East)
 -- * Mariana Islands +2 (East)
 -- * Falklands +12 (East) - note there's a LOT of deviation across the map, as we're closer to the South Pole
+-- * Sinai +4.8 (East)
 -- @param #string map (Optional) Map for which the declination is returned. Default is from env.mission.theatre
 -- @return #number Declination in degrees.
 function UTILS.GetMagneticDeclination(map)
@@ -1453,6 +1473,8 @@ function UTILS.GetMagneticDeclination(map)
     declination=2
   elseif map==DCSMAP.Falklands then
     declination=12
+  elseif map==DCSMAP.Sinai then
+    declination=4.8
   else
     declination=0
   end
@@ -1668,6 +1690,8 @@ function UTILS.GMTToLocalTimeDifference()
     return 10  -- Guam is UTC+10 hours.
   elseif theatre==DCSMAP.Falklands then
     return -3  -- Fireland is UTC-3 hours.
+  elseif theatre==DCSMAP.Sinai then
+    return 2   -- Currently map is +2 but should be +3 (DCS bug?)    
   else
     BASE:E(string.format("ERROR: Unknown Map %s in UTILS.GMTToLocal function. Returning 0", tostring(theatre)))
     return 0
