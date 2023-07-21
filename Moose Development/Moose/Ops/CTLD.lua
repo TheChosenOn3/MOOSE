@@ -22,7 +22,7 @@
 -- @module Ops.CTLD
 -- @image OPS_CTLD.jpg
 
--- Last Update Apr 2023
+-- Last Update June 2023
 
 do 
 
@@ -204,7 +204,7 @@ CTLD_CARGO = {
   -- @param #CTLD_CARGO self
   -- @param #boolean loaded
   function CTLD_CARGO:Isloaded()
-    if self.HasBeenMoved and not self.WasDropped() then
+    if self.HasBeenMoved and not self:WasDropped() then
       return true
     else
      return false
@@ -1221,7 +1221,7 @@ CTLD.UnitTypes = {
 
 --- CTLD class version.
 -- @field #string version
-CTLD.version="1.0.37"
+CTLD.version="1.0.40"
 
 --- Instantiate a new CTLD.
 -- @param #CTLD self
@@ -1390,6 +1390,7 @@ function CTLD:New(Coalition, Prefixes, Alias)
   -- sub categories
   self.usesubcats = false
   self.subcats = {}
+  self.subcatsTroop = {}
   
   -- disallow building in loadzones
   self.nobuildinloadzones = true
@@ -1750,6 +1751,8 @@ function CTLD:_EventHandler(EventData)
     if _coalition ~= self.coalition then
         return --ignore!
     end
+    local unitname = event.IniUnitName or "none"
+    self.MenusDone[unitname] = nil
     -- check is Helicopter
     local _unit = event.IniUnit
     local _group = event.IniGroup
@@ -1770,6 +1773,7 @@ function CTLD:_EventHandler(EventData)
     local unitname = event.IniUnitName or "none"
     self.CtldUnits[unitname] = nil
     self.Loaded_Cargo[unitname] = nil
+    self.MenusDone[unitname] = nil
   end
   return self
 end
@@ -2276,6 +2280,7 @@ function CTLD:_GetCrates(Group, Unit, Cargo, number, drop)
   if not drop then 
     inzone = self:IsUnitInZone(Unit,CTLD.CargoZoneType.LOAD)
     if not inzone then
+---@diagnostic disable-next-line: cast-local-type
       inzone, ship, zone, distance, width  = self:IsUnitInZone(Unit,CTLD.CargoZoneType.SHIP)
     end
   else
@@ -3442,6 +3447,9 @@ function CTLD:_RefreshF10Menus()
         if _unit:IsHelicopter() or (self:IsHercules(_unit) and self.enableHercules) then --ensure no stupid unit entries here
           local unitName = _unit:GetName()
           _UnitList[unitName] = unitName
+        else
+          local unitName = _unit:GetName()
+          _UnitList[unitName] = nil
         end    
       end -- end isAlive
     end -- end if _unit
@@ -3460,6 +3468,12 @@ function CTLD:_RefreshF10Menus()
     local entry = _cargo -- #CTLD_CARGO
     if not self.subcats[entry.Subcategory] then
       self.subcats[entry.Subcategory] = entry.Subcategory
+    end
+   end
+   for _id,_cargo in pairs(self.Cargo_Troops) do
+    local entry = _cargo -- #CTLD_CARGO
+    if not self.subcatsTroop[entry.Subcategory] then
+      self.subcatsTroop[entry.Subcategory] = entry.Subcategory
     end
    end
   end
@@ -3498,15 +3512,28 @@ function CTLD:_RefreshF10Menus()
           local beaconself = MENU_GROUP_COMMAND:New(_group,"Drop beacon now",smoketopmenu, self.DropBeaconNow, self, _unit):Refresh()
           -- sub menus
           -- sub menu troops management
-          if cantroops then 
+          if cantroops then
             local troopsmenu = MENU_GROUP:New(_group,"Load troops",toptroops)
-            for _,_entry in pairs(self.Cargo_Troops) do
-              local entry = _entry -- #CTLD_CARGO
-              menucount = menucount + 1
-              menus[menucount] = MENU_GROUP_COMMAND:New(_group,entry.Name,troopsmenu,self._LoadTroops, self, _group, _unit, entry)
+            if self.usesubcats then
+              local subcatmenus = {}
+              for _name,_entry in pairs(self.subcatsTroop) do
+                subcatmenus[_name] = MENU_GROUP:New(_group,_name,troopsmenu)
+              end
+              for _,_entry in pairs(self.Cargo_Troops) do
+                local entry = _entry -- #CTLD_CARGO
+                local subcat = entry.Subcategory
+                menucount = menucount + 1
+                menus[menucount] = MENU_GROUP_COMMAND:New(_group,entry.Name,subcatmenus[subcat],self._LoadTroops, self, _group, _unit, entry)
+              end
+            else              
+              for _,_entry in pairs(self.Cargo_Troops) do
+                local entry = _entry -- #CTLD_CARGO
+                menucount = menucount + 1
+                menus[menucount] = MENU_GROUP_COMMAND:New(_group,entry.Name,troopsmenu,self._LoadTroops, self, _group, _unit, entry)
+              end
             end
             local unloadmenu1 = MENU_GROUP_COMMAND:New(_group,"Drop troops",toptroops, self._UnloadTroops, self, _group, _unit):Refresh()
-              local extractMenu1 = MENU_GROUP_COMMAND:New(_group, "Extract troops", toptroops, self._ExtractTroops, self, _group, _unit):Refresh()
+            local extractMenu1 = MENU_GROUP_COMMAND:New(_group, "Extract troops", toptroops, self._ExtractTroops, self, _group, _unit):Refresh()
           end
           -- sub menu crates management
           if cancrates then 
@@ -3597,7 +3624,8 @@ end
 -- @param #number NoTroops Size of the group in number of Units across combined templates (for loading).
 -- @param #number PerTroopMass Mass in kg of each soldier
 -- @param #number Stock Number of groups in stock. Nil for unlimited.
-function CTLD:AddTroopsCargo(Name,Templates,Type,NoTroops,PerTroopMass,Stock)
+-- @param #string SubCategory Name of sub-category (optional).
+function CTLD:AddTroopsCargo(Name,Templates,Type,NoTroops,PerTroopMass,Stock,SubCategory)
   self:T(self.lid .. " AddTroopsCargo")
   self:T({Name,Templates,Type,NoTroops,PerTroopMass,Stock})
   if not self:_CheckTemplates(Templates) then
@@ -3606,7 +3634,7 @@ function CTLD:AddTroopsCargo(Name,Templates,Type,NoTroops,PerTroopMass,Stock)
   end
   self.CargoCounter = self.CargoCounter + 1
   -- Troops are directly loadable
-  local cargo = CTLD_CARGO:New(self.CargoCounter,Name,Templates,Type,false,true,NoTroops,nil,nil,PerTroopMass,Stock)
+  local cargo = CTLD_CARGO:New(self.CargoCounter,Name,Templates,Type,false,true,NoTroops,nil,nil,PerTroopMass,Stock, SubCategory)
   table.insert(self.Cargo_Troops,cargo)
   return self
 end
@@ -4308,6 +4336,9 @@ end
       local uspeed = Unit:GetVelocityMPS()
       local uheight = Unit:GetHeight()
       local ucoord = Unit:GetCoordinate()
+      if not ucoord then
+        return false
+      end
       local gheight = ucoord:GetLandHeight()
       local aheight = uheight - gheight -- height above ground
       local maxh = self.maximumHoverHeight -- 15
@@ -4334,6 +4365,9 @@ end
       local uspeed = Unit:GetVelocityMPS()
       local uheight = Unit:GetHeight()
       local ucoord = Unit:GetCoordinate()
+      if not ucoord then
+        return false
+      end
       local gheight = ucoord:GetLandHeight()
       local aheight = uheight - gheight -- height above ground
       local minh = self.HercMinAngels-- 1500m
@@ -4419,6 +4453,9 @@ end
     end
     local uheight = Unit:GetHeight()
     local ucoord = Unit:GetCoordinate()
+    if not ucoord then
+      return false
+    end
     local gheight = ucoord:GetLandHeight()
     local aheight = uheight - gheight -- height above ground
     if aheight >= minheight then

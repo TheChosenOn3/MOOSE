@@ -162,7 +162,17 @@
 -- ### Array formation
 --
 --   * @{#SPAWN.InitArray}(): Make groups visible before they are actually activated, and order these groups like a battalion in an array.
---
+--   
+-- ### Group initial position - if wanted different from template position, for use with e.g. @{#SPAWN.SpawnScheduled}().   
+-- 
+--   * @{#SPAWN.InitPositionCoordinate}(): Set initial position of group via a COORDINATE.
+--   * @{#SPAWN.InitPositionVec2}(): Set initial position of group via a VEC2. 
+--   
+-- ### Set the positions of a group's units to absolute positions, or relative positions to unit No. 1
+-- 
+--   * @{#SPAWN.InitSetUnitRelativePositions}(): Spawn the UNITs of this group with individual relative positions to unit #1 and individual headings.
+--   * @{#SPAWN.InitSetUnitAbsolutePositions}(): Spawn the UNITs of this group with individual absolute positions and individual headings.
+--   
 -- ### Position randomization
 --
 --   * @{#SPAWN.InitRandomizePosition}(): Randomizes the position of @{Wrapper.Group}s that are spawned within a **radius band**, given an Outer and Inner radius, from the point that the spawn happens.
@@ -268,7 +278,7 @@ SPAWN = {
 -- @type SPAWN.Takeoff
 -- @extends Wrapper.Group#GROUP.Takeoff
 
---- @field #SPAWN.Takeoff Takeoff
+-- @field #SPAWN.Takeoff Takeoff
 SPAWN.Takeoff = {
   Air = 1,
   Runway = 2,
@@ -276,7 +286,7 @@ SPAWN.Takeoff = {
   Cold = 4,
 }
 
---- @type SPAWN.SpawnZoneTable
+-- @type SPAWN.SpawnZoneTable
 -- @list <Core.Zone#ZONE_BASE> SpawnZone
 
 --- Creates the main object to spawn a @{Wrapper.Group} defined in the DCS ME.
@@ -335,7 +345,7 @@ end
 -- @param #SPAWN self
 -- @param #string SpawnTemplatePrefix is the name of the Group in the ME that defines the Template.
 -- @param #string SpawnAliasPrefix is the name that will be given to the Group at runtime.
--- @return #SPAWN
+-- @return #SPAWN self
 -- @usage
 -- -- NATO helicopters engaging in the battle field.
 -- Spawn_BE_KA50 = SPAWN:NewWithAlias( 'BE KA-50@RAMP-Ground Defense', 'Helicopter Attacking a City' )
@@ -385,32 +395,129 @@ function SPAWN:NewWithAlias( SpawnTemplatePrefix, SpawnAliasPrefix )
   return self
 end
 
---- Creates a new SPAWN instance to create new groups based on the provided template.
+--- Creates a new SPAWN instance to create new groups based on the provided template. This will also register the template for future use.
 -- @param #SPAWN self
--- @param #table SpawnTemplate is the Template of the Group. This must be a valid Group Template structure!
--- @param #string SpawnTemplatePrefix is the name of the Group that will be given at each spawn.
--- @param #string SpawnAliasPrefix is the name that will be given to the Group at runtime.
--- @return #SPAWN
+-- @param #table SpawnTemplate is the Template of the Group. This must be a valid Group Template structure - see [Hoggit Wiki](https://wiki.hoggitworld.com/view/DCS_func_addGroup)!
+-- @param #string SpawnTemplatePrefix [Mandatory] is the name of the template and the prefix of the GROUP on spawn. The name in the template **will** be overwritten!
+-- @param #string SpawnAliasPrefix [Optional] is the prefix that will be given to the GROUP on spawn.
+-- @param #boolean NoMooseNamingPostfix [Optional] If true, skip the Moose naming additions (like groupname#001-01) - **but** you need to ensure yourself no duplicate group names exist!
+-- @return #SPAWN self
 -- @usage
--- -- Create a new SPAWN object based on a Group Template defined from scratch.
--- Spawn_BE_KA50 = SPAWN:NewWithAlias( 'BE KA-50@RAMP-Ground Defense', 'Helicopter Attacking a City' )
--- @usage
---
---   -- Create a new CSAR_Spawn object based on a normal Group Template to spawn a soldier.
---   local CSAR_Spawn = SPAWN:NewWithFromTemplate( Template, "CSAR", "Pilot" )
---
-function SPAWN:NewFromTemplate( SpawnTemplate, SpawnTemplatePrefix, SpawnAliasPrefix )
-  local self = BASE:Inherit( self, BASE:New() )
-  self:F( { SpawnTemplate, SpawnTemplatePrefix, SpawnAliasPrefix } )
-  if SpawnAliasPrefix == nil or SpawnAliasPrefix == "" then
-    BASE:I( "ERROR: in function NewFromTemplate, required parameter SpawnAliasPrefix is not set" )
+-- -- Spawn a P51 Mustang from scratch
+-- local ttemp =  
+--   {
+--       ["modulation"] = 0,
+--       ["tasks"] = 
+--       {
+--       }, -- end of ["tasks"]
+--       ["task"] = "Reconnaissance",
+--       ["uncontrolled"] = false,
+--       ["route"] = 
+--       {
+--           ["points"] = 
+--           {
+--               [1] = 
+--               {
+--                   ["alt"] = 2000,
+--                   ["action"] = "Turning Point",
+--                   ["alt_type"] = "BARO",
+--                   ["speed"] = 125,
+--                   ["task"] = 
+--                   {
+--                       ["id"] = "ComboTask",
+--                       ["params"] = 
+--                       {
+--                           ["tasks"] = 
+--                           {
+--                           }, -- end of ["tasks"]
+--                       }, -- end of ["params"]
+--                   }, -- end of ["task"]
+--                   ["type"] = "Turning Point",
+--                   ["ETA"] = 0,
+--                   ["ETA_locked"] = true,
+--                   ["y"] = 666285.71428571,
+--                   ["x"] = -312000,
+--                   ["formation_template"] = "",
+--                   ["speed_locked"] = true,
+--               }, -- end of [1]
+--           }, -- end of ["points"]
+--       }, -- end of ["route"]
+--       ["groupId"] = 1,
+--       ["hidden"] = false,
+--       ["units"] = 
+--       {
+--           [1] = 
+--           {
+--               ["alt"] = 2000,
+--               ["alt_type"] = "BARO",
+--               ["livery_id"] = "USAF 364th FS",
+--               ["skill"] = "High",
+--               ["speed"] = 125,
+--               ["type"] = "TF-51D",
+--               ["unitId"] = 1,
+--               ["psi"] = 0,
+--               ["y"] = 666285.71428571,
+--               ["x"] = -312000,
+--               ["name"] = "P51-1-1",
+--               ["payload"] = 
+--               {
+--                   ["pylons"] = 
+--                   {
+--                   }, -- end of ["pylons"]
+--                   ["fuel"] = 340.68,
+--                   ["flare"] = 0,
+--                   ["chaff"] = 0,
+--                   ["gun"] = 100,
+--               }, -- end of ["payload"]
+--               ["heading"] = 0,
+--               ["callsign"] = 
+--               {
+--                   [1] = 1,
+--                   [2] = 1,
+--                   ["name"] = "Enfield11",
+--                   [3] = 1,
+--               }, -- end of ["callsign"]
+--               ["onboard_num"] = "010",
+--           }, -- end of [1]
+--       }, -- end of ["units"]
+--       ["y"] = 666285.71428571,
+--       ["x"] = -312000,
+--       ["name"] = "P51",
+--       ["communication"] = true,
+--       ["start_time"] = 0,
+--       ["frequency"] = 124,
+--   } 
+-- 
+-- 
+-- local mustang = SPAWN:NewFromTemplate(ttemp,"P51D")
+-- -- you MUST set the next three:
+-- mustang:InitCountry(country.id.FRANCE)
+-- mustang:InitCategory(Group.Category.AIRPLANE)
+-- mustang:InitCoalition(coalition.side.BLUE)
+-- mustang:OnSpawnGroup(
+--   function(grp)
+--     MESSAGE:New("Group Spawned: "..grp:GetName(),15,"SPAWN"):ToAll()
+--   end
+-- )
+-- mustang:Spawn()
+-- 
+function SPAWN:NewFromTemplate( SpawnTemplate, SpawnTemplatePrefix, SpawnAliasPrefix, NoMooseNamingPostfix )
+   local self = BASE:Inherit( self, BASE:New() )
+   self:F( { SpawnTemplate, SpawnTemplatePrefix, SpawnAliasPrefix } )
+   --if SpawnAliasPrefix == nil or SpawnAliasPrefix == "" then
+     --BASE:I( "ERROR: in function NewFromTemplate, required parameter SpawnAliasPrefix is not set" )
+     --return nil
+  --end
+  if SpawnTemplatePrefix == nil or SpawnTemplatePrefix == "" then
+    BASE:I( "ERROR: in function NewFromTemplate, required parameter SpawnTemplatePrefix is not set" )
     return nil
   end
 
   if SpawnTemplate then
     self.SpawnTemplate = SpawnTemplate -- Contains the template structure for a Group Spawn from the Mission Editor. Note that this group must have lateActivation always on!!!
     self.SpawnTemplatePrefix = SpawnTemplatePrefix
-    self.SpawnAliasPrefix = SpawnAliasPrefix
+    self.SpawnAliasPrefix = SpawnAliasPrefix or SpawnTemplatePrefix
+    self.SpawnTemplate.name = SpawnTemplatePrefix
     self.SpawnIndex = 0
     self.SpawnCount = 0 -- The internal counter of the amount of spawning the has happened since SpawnStart.
     self.AliveUnits = 0 -- Contains the counter how many units are currently alive
@@ -435,7 +542,11 @@ function SPAWN:NewFromTemplate( SpawnTemplate, SpawnTemplatePrefix, SpawnAliasPr
     self.SpawnInitModex = nil
     self.SpawnInitAirbase = nil
     self.TweakedTemplate = true -- Check if the user is using self made template.
-
+    self.MooseNameing  = true
+    if NoMooseNamingPostfix == true then
+     self.MooseNameing  = false
+    end
+    
     self.SpawnGroups = {} -- Array containing the descriptions of each Group to be Spawned.
   else
     error( "There is no template provided for SpawnTemplatePrefix = '" .. SpawnTemplatePrefix .. "'" )
@@ -946,7 +1057,7 @@ end
 --- This method provides the functionality to randomize the spawning of the Groups at a given list of zones of different types.
 -- @param #SPAWN self
 -- @param #table SpawnZoneTable A table with @{Core.Zone} objects. If this table is given, then each spawn will be executed within the given list of @{Core.Zone}s objects.
--- @return #SPAWN
+-- @return #SPAWN self
 -- @usage
 --
 --    -- Create a zone table of the 2 zones.
@@ -973,6 +1084,31 @@ function SPAWN:InitRandomizeZones( SpawnZoneTable )
     self:_RandomizeZones( SpawnGroupID )
   end
 
+  return self
+end
+
+--- This method sets a spawn position for the group that is different from the location of the template.
+-- @param #SPAWN self
+-- @param Core.Point#COORDINATE Coordinate The position to spawn from
+-- @return #SPAWN self
+function SPAWN:InitPositionCoordinate(Coordinate)
+  self:T( { self.SpawnTemplatePrefix, Coordinate:GetVec2()} )
+  self:InitPositionVec2(Coordinate:GetVec2())
+  return self
+end
+
+--- This method sets a spawn position for the group that is different from the location of the template.
+-- @param #SPAWN self
+-- @param DCS#Vec2 Vec2 The position to spawn from
+-- @return #SPAWN self
+function SPAWN:InitPositionVec2(Vec2)
+  self:T( { self.SpawnTemplatePrefix, Vec2} )
+  self.SpawnInitPosition = Vec2
+  self.SpawnFromNewPosition = true
+  self:I("MaxGroups:"..self.SpawnMaxGroups)
+  for SpawnGroupID = 1, self.SpawnMaxGroups do
+    self:_SetInitialPosition( SpawnGroupID )
+  end
   return self
 end
 
@@ -1275,7 +1411,12 @@ function SPAWN:SpawnWithIndex( SpawnIndex, NoBirth )
   self:F2( { SpawnTemplatePrefix = self.SpawnTemplatePrefix, SpawnIndex = SpawnIndex, AliveUnits = self.AliveUnits, SpawnMaxGroups = self.SpawnMaxGroups } )
 
   if self:_GetSpawnIndex( SpawnIndex ) then
-
+    
+    if self.SpawnFromNewPosition then
+     self:_SetInitialPosition( SpawnIndex )
+    end
+      
+      
     if self.SpawnGroups[self.SpawnIndex].Visible then
       self.SpawnGroups[self.SpawnIndex].Group:Activate()
     else
@@ -1513,7 +1654,7 @@ end
 -- @param #number SpawnTime The time interval defined in seconds between each new spawn of new groups.
 -- @param #number SpawnTimeVariation The variation to be applied on the defined time interval between each new spawn.
 -- The variation is a number between 0 and 1, representing the % of variation to be applied on the time interval.
--- @param #boolen WithDelay Do not spawn the **first** group immediately, but delay the spawn as per the calculation below.
+-- @param #boolean WithDelay Do not spawn the **first** group immediately, but delay the spawn as per the calculation below.
 -- Effectively the same as @{InitDelayOn}().
 -- @return #SPAWN self
 -- @usage
@@ -3026,7 +3167,11 @@ function SPAWN:_GetTemplate( SpawnTemplatePrefix )
   self:F( { self.SpawnTemplatePrefix, self.SpawnAliasPrefix, SpawnTemplatePrefix } )
 
   local SpawnTemplate = nil
-
+  
+  if _DATABASE.Templates.Groups[SpawnTemplatePrefix] == nil then
+    error( 'No Template exists for SpawnTemplatePrefix = ' .. SpawnTemplatePrefix )
+  end
+  
   local Template = _DATABASE.Templates.Groups[SpawnTemplatePrefix].Template
   self:F( { Template = Template } )
 
@@ -3060,6 +3205,11 @@ function SPAWN:_Prepare( SpawnTemplatePrefix, SpawnIndex ) -- R2.2
   if self.TweakedTemplate ~= nil and self.TweakedTemplate == true then
     BASE:I( "WARNING: You are using a tweaked template." )
     SpawnTemplate = self.SpawnTemplate
+    if self.MooseNameing == true then
+      SpawnTemplate.name = self:SpawnGroupName( SpawnIndex )
+    else
+      SpawnTemplate.name = self:SpawnGroupName()
+    end
   else
     SpawnTemplate = self:_GetTemplate( SpawnTemplatePrefix )
     SpawnTemplate.name = self:SpawnGroupName( SpawnIndex )
@@ -3190,6 +3340,57 @@ function SPAWN:_RandomizeTemplate( SpawnIndex )
   return self
 end
 
+--- Private method that sets the DCS#Vec2 where the Group will be spawned.
+-- @param #SPAWN self
+-- @param #number SpawnIndex
+-- @return #SPAWN self
+function SPAWN:_SetInitialPosition( SpawnIndex )
+  self:T( { self.SpawnTemplatePrefix, SpawnIndex, self.SpawnRandomizeZones } )
+  
+  if self.SpawnFromNewPosition then
+    
+    self:T( "Preparing Spawn at Vec2 ", self.SpawnInitPosition )
+
+    local SpawnVec2 = self.SpawnInitPosition
+
+    self:T( { SpawnVec2 = SpawnVec2 } )
+
+    local SpawnTemplate = self.SpawnGroups[SpawnIndex].SpawnTemplate
+
+    SpawnTemplate.route = SpawnTemplate.route or {}
+    SpawnTemplate.route.points = SpawnTemplate.route.points or {}
+    SpawnTemplate.route.points[1] = SpawnTemplate.route.points[1] or {}
+    SpawnTemplate.route.points[1].x = SpawnTemplate.route.points[1].x or 0
+    SpawnTemplate.route.points[1].y = SpawnTemplate.route.points[1].y or 0
+      
+    self:T( { Route = SpawnTemplate.route } )
+
+    for UnitID = 1, #SpawnTemplate.units do
+      local UnitTemplate = SpawnTemplate.units[UnitID]
+      self:T( 'Before Translation SpawnTemplate.units[' .. UnitID .. '].x = ' .. UnitTemplate.x .. ', SpawnTemplate.units[' .. UnitID .. '].y = ' .. UnitTemplate.y )
+      local SX = UnitTemplate.x
+      local SY = UnitTemplate.y
+      local BX = SpawnTemplate.route.points[1].x
+      local BY = SpawnTemplate.route.points[1].y
+      local TX = SpawnVec2.x + (SX - BX)
+      local TY = SpawnVec2.y + (SY - BY)
+      UnitTemplate.x = TX
+      UnitTemplate.y = TY
+      -- TODO: Manage altitude based on landheight...
+      -- SpawnTemplate.units[UnitID].alt = SpawnVec2:
+      self:T( 'After Translation SpawnTemplate.units[' .. UnitID .. '].x = ' .. UnitTemplate.x .. ', SpawnTemplate.units[' .. UnitID .. '].y = ' .. UnitTemplate.y )
+    end
+    
+    SpawnTemplate.route.points[1].x = SpawnVec2.x
+    SpawnTemplate.route.points[1].y = SpawnVec2.y
+    SpawnTemplate.x = SpawnVec2.x
+    SpawnTemplate.y = SpawnVec2.y
+    
+  end
+
+  return self
+end
+
 --- Private method that randomizes the @{Core.Zone}s where the Group will be spawned.
 -- @param #SPAWN self
 -- @param #number SpawnIndex
@@ -3309,7 +3510,7 @@ end
 
 -- TODO Need to delete this... _DATABASE does this now ...
 
---- @param #SPAWN self 
+-- @param #SPAWN self 
 -- @param Core.Event#EVENTDATA EventData
 function SPAWN:_OnBirth( EventData )
   self:F( self.SpawnTemplatePrefix )
@@ -3329,7 +3530,7 @@ function SPAWN:_OnBirth( EventData )
 
 end
 
---- @param #SPAWN self 
+-- @param #SPAWN self 
 -- @param Core.Event#EVENTDATA EventData
 function SPAWN:_OnDeadOrCrash( EventData )
   self:F( self.SpawnTemplatePrefix )
