@@ -35,6 +35,13 @@
 --   * Validate the presence of objects in the SET.
 --   * Trigger events when objects in the SET change a zone presence.
 --
+-- ## Notes on `FilterPrefixes()`:  
+-- 
+-- This filter always looks for a **partial match** somewhere in the given field. LUA regular expression apply here, so special characters in names like minus, dot, hash (#) etc might lead to unexpected results. 
+-- Have a read through the following to understand the application of regular expressions: [LUA regular expressions](https://riptutorial.com/lua/example/20315/lua-pattern-matching).  
+-- For example, setting a filter like so `FilterPrefixes("Huey")` is perfectly all right, whilst `FilterPrefixes("UH-1H Al-Assad")` might not be due to the minus signs. A quick fix here is to use a dot (.) 
+-- in place of the special character, or escape it with a percentage sign (%), i.e. either `FilterPrefixes("UH.1H Al.Assad")` or `FilterPrefixes("UH%-1H Al%-Assad")` will give you the expected results.
+--
 -- ===
 --
 -- ### Author: **FlightControl**
@@ -46,8 +53,9 @@
 -- @image Core_Sets.JPG
 
 do -- SET_BASE
-
-  --- @type SET_BASE
+  
+  ---
+  -- @type SET_BASE
   -- @field #table Filter Table of filters.
   -- @field #table Set Table of objects.
   -- @field #table Index Table of indices.
@@ -242,7 +250,7 @@ do -- SET_BASE
   function SET_BASE:Add( ObjectName, Object )
   
     -- Debug info.
-    self:T( { ObjectName = ObjectName, Object = Object } )
+    self:T2( { ObjectName = ObjectName, Object = Object } )
 
     -- Ensure that the existing element is removed from the Set before a new one is inserted to the Set
     if self.Set[ObjectName] then
@@ -257,6 +265,8 @@ do -- SET_BASE
 
     -- Trigger Added event.
     self:Added( ObjectName, Object )
+    
+    return self
   end
 
   --- Adds a @{Core.Base#BASE} object in the @{Core.Set#SET_BASE}, using the Object Name as the index.
@@ -429,7 +439,7 @@ do -- SET_BASE
   function SET_BASE:SetDatabase( BaseSet )
 
     -- Copy the filter criteria of the BaseSet
-    local OtherFilter = routines.utils.deepCopy( BaseSet.Filter )
+    local OtherFilter = UTILS.DeepCopy( BaseSet.Filter )
     self.Filter = OtherFilter
 
     -- Now base the new Set on the BaseSet
@@ -578,8 +588,8 @@ do -- SET_BASE
   end
 
   ----- Private method that registers all alive players in the mission.
-  ---- @param #SET_BASE self
-  ---- @return #SET_BASE self
+  -- @param #SET_BASE self
+  -- @return #SET_BASE self
   -- function SET_BASE:_RegisterPlayers()
   --
   --  local CoalitionsData = { AlivePlayersRed = coalition.getPlayers( coalition.side.RED ), AlivePlayersBlue = coalition.getPlayers( coalition.side.BLUE ) }
@@ -796,8 +806,8 @@ do -- SET_BASE
 
 
   ----- Iterate the SET_BASE and call an iterator function for each **alive** unit, providing the Unit and optional parameters.
-  ---- @param #SET_BASE self
-  ---- @param #function IteratorFunction The function that will be called when there is an alive unit in the SET_BASE. The function needs to accept a UNIT parameter.
+  -- @param #SET_BASE self
+  -- @param #function IteratorFunction The function that will be called when there is an alive unit in the SET_BASE. The function needs to accept a UNIT parameter.
   ---- @return #SET_BASE self
   -- function SET_BASE:ForEachDCSUnitAlive( IteratorFunction, ... )
   --  self:F3( arg )
@@ -808,8 +818,8 @@ do -- SET_BASE
   -- end
   --
   ----- Iterate the SET_BASE and call an iterator function for each **alive** player, providing the Unit of the player and optional parameters.
-  ---- @param #SET_BASE self
-  ---- @param #function IteratorFunction The function that will be called when there is an alive player in the SET_BASE. The function needs to accept a UNIT parameter.
+  -- @param #SET_BASE self
+  -- @param #function IteratorFunction The function that will be called when there is an alive player in the SET_BASE. The function needs to accept a UNIT parameter.
   ---- @return #SET_BASE self
   -- function SET_BASE:ForEachPlayer( IteratorFunction, ... )
   --  self:F3( arg )
@@ -821,8 +831,8 @@ do -- SET_BASE
   --
   --
   ----- Iterate the SET_BASE and call an iterator function for each client, providing the Client to the function and optional parameters.
-  ---- @param #SET_BASE self
-  ---- @param #function IteratorFunction The function that will be called when there is an alive player in the SET_BASE. The function needs to accept a CLIENT parameter.
+  -- @param #SET_BASE self
+  -- @param #function IteratorFunction The function that will be called when there is an alive player in the SET_BASE. The function needs to accept a CLIENT parameter.
   ---- @return #SET_BASE self
   -- function SET_BASE:ForEachClient( IteratorFunction, ... )
   --  self:F3( arg )
@@ -850,8 +860,10 @@ do -- SET_BASE
     self:F3( Object )
     local outcome = false
     local name = Object:GetName()
+    --self:I("SET_BASE: Objectname = "..name)
     self:ForEach(
       function(object)
+        --self:I("SET_BASE: In set objectname = "..object:GetName())
         if object:GetName() == name then
           outcome = true
         end
@@ -901,9 +913,12 @@ do -- SET_BASE
 
 end
 
-do -- SET_GROUP
+do 
 
-  --- @type SET_GROUP #SET_GROUP
+  -- SET_GROUP
+  
+  ---
+  -- @type SET_GROUP #SET_GROUP
   -- @field Core.Timer#TIMER ZoneTimer
   -- @field #number ZoneTimerInterval
   -- @extends Core.Set#SET_BASE
@@ -934,7 +949,8 @@ do -- SET_GROUP
   --    * @{#SET_GROUP.FilterCoalitions}: Builds the SET_GROUP with the groups belonging to the coalition(s).
   --    * @{#SET_GROUP.FilterCategories}: Builds the SET_GROUP with the groups belonging to the category(ies).
   --    * @{#SET_GROUP.FilterCountries}: Builds the SET_GROUP with the groups belonging to the country(ies).
-  --    * @{#SET_GROUP.FilterPrefixes}: Builds the SET_GROUP with the groups *containing* the given string in the group name. **Attention!** Bad naming convention, as this not really filtering *prefixes*.
+  --    * @{#SET_GROUP.FilterPrefixes}: Builds the SET_GROUP with the groups *containing* the given string in the group name. **Attention!** LUA regular expression apply here, so special characters in names like minus, dot, hash (#) etc might lead to unexpected results. 
+  -- Have a read through here to understand the application of regular expressions: [LUA regular expressions](https://riptutorial.com/lua/example/20315/lua-pattern-matching)
   --    * @{#SET_GROUP.FilterActive}: Builds the SET_GROUP with the groups that are only active. Groups that are inactive (late activation) won't be included in the set!
   --
   -- For the Category Filter, extra methods have been added:
@@ -1568,7 +1584,7 @@ do -- SET_GROUP
     self:F2( arg )
 
     self:ForEach( IteratorFunction, arg, self:GetSet(),
-      --- @param Core.Zone#ZONE_BASE ZoneObject
+      -- @param Core.Zone#ZONE_BASE ZoneObject
       -- @param Wrapper.Group#GROUP GroupObject
       function( ZoneObject, GroupObject )
         if GroupObject:IsCompletelyInZone( ZoneObject ) then
@@ -1590,7 +1606,7 @@ do -- SET_GROUP
     self:F2( arg )
 
     self:ForEach( IteratorFunction, arg, self:GetSet(),
-      --- @param Core.Zone#ZONE_BASE ZoneObject
+      -- @param Core.Zone#ZONE_BASE ZoneObject
       -- @param Wrapper.Group#GROUP GroupObject
       function( ZoneObject, GroupObject )
         if GroupObject:IsPartlyInZone( ZoneObject ) then
@@ -1612,7 +1628,7 @@ do -- SET_GROUP
     self:F2( arg )
 
     self:ForEach( IteratorFunction, arg, self:GetSet(),
-      --- @param Core.Zone#ZONE_BASE ZoneObject
+      -- @param Core.Zone#ZONE_BASE ZoneObject
       -- @param Wrapper.Group#GROUP GroupObject
       function( ZoneObject, GroupObject )
         if GroupObject:IsNotInZone( ZoneObject ) then
@@ -1659,7 +1675,7 @@ do -- SET_GROUP
     self:F2( arg )
 
     self:ForEach( IteratorFunction, arg, self:GetSet(),
-      --- @param Core.Zone#ZONE_BASE ZoneObject
+      -- @param Core.Zone#ZONE_BASE ZoneObject
       -- @param Wrapper.Group#GROUP GroupObject
       function( ZoneObject, GroupObject )
         if GroupObject:IsAnyInZone( ZoneObject ) then
@@ -1857,8 +1873,8 @@ do -- SET_GROUP
   end
 
   ----- Iterate the SET_GROUP and call an iterator function for each **alive** player, providing the Group of the player and optional parameters.
-  ---- @param #SET_GROUP self
-  ---- @param #function IteratorFunction The function that will be called when there is an alive player in the SET_GROUP. The function needs to accept a GROUP parameter.
+  -- @param #SET_GROUP self
+  -- @param #function IteratorFunction The function that will be called when there is an alive player in the SET_GROUP. The function needs to accept a GROUP parameter.
   ---- @return #SET_GROUP self
   -- function SET_GROUP:ForEachPlayer( IteratorFunction, ... )
   --  self:F2( arg )
@@ -1870,8 +1886,8 @@ do -- SET_GROUP
   --
   --
   ----- Iterate the SET_GROUP and call an iterator function for each client, providing the Client to the function and optional parameters.
-  ---- @param #SET_GROUP self
-  ---- @param #function IteratorFunction The function that will be called when there is an alive player in the SET_GROUP. The function needs to accept a CLIENT parameter.
+  -- @param #SET_GROUP self
+  -- @param #function IteratorFunction The function that will be called when there is an alive player in the SET_GROUP. The function needs to accept a CLIENT parameter.
   ---- @return #SET_GROUP self
   -- function SET_GROUP:ForEachClient( IteratorFunction, ... )
   --  self:F2( arg )
@@ -1945,7 +1961,7 @@ do -- SET_GROUP
     if self.Filter.Zones then
       local MGroupZone = false
       for ZoneName, Zone in pairs( self.Filter.Zones ) do
-        --self:I( "Zone:", ZoneName )
+        --self:T( "Zone:", ZoneName )
         if MGroup:IsInZone(Zone) then
           MGroupZone = true
         end
@@ -2011,8 +2027,9 @@ do -- SET_GROUP
 end
 
 do -- SET_UNIT
-
-  --- @type SET_UNIT
+  
+  ---
+  -- @type SET_UNIT
   -- @field Core.Timer#TIMER ZoneTimer
   -- @field #number ZoneTimerInterval
   -- @extends Core.Set#SET_BASE
@@ -2045,7 +2062,8 @@ do -- SET_UNIT
   --    * @{#SET_UNIT.FilterCategories}: Builds the SET_UNIT with the units belonging to the category(ies).
   --    * @{#SET_UNIT.FilterTypes}: Builds the SET_UNIT with the units belonging to the unit type(s).
   --    * @{#SET_UNIT.FilterCountries}: Builds the SET_UNIT with the units belonging to the country(ies).
-  --    * @{#SET_UNIT.FilterPrefixes}: Builds the SET_UNIT with the units sharing the same string(s) in their name. **ATTENTION!** Bad naming convention as this *does not* only filter *prefixes*.
+  --    * @{#SET_UNIT.FilterPrefixes}: Builds the SET_UNIT with the units sharing the same string(s) in their name. **Attention!** LUA regular expression apply here, so special characters in names like minus, dot, hash (#) etc might lead to unexpected results. 
+  -- Have a read through here to understand the application of regular expressions: [LUA regular expressions](https://riptutorial.com/lua/example/20315/lua-pattern-matching)
   --    * @{#SET_UNIT.FilterActive}: Builds the SET_UNIT with the units that are only active. Units that are inactive (late activation) won't be included in the set!
   --    * @{#SET_UNIT.FilterZones}: Builds the SET_UNIT with the units within a @{Core.Zone#ZONE}.
   --    
@@ -2672,7 +2690,7 @@ do -- SET_UNIT
     self:F2( arg )
 
     self:ForEach( IteratorFunction, arg, self:GetSet(),
-      --- @param Core.Zone#ZONE_BASE ZoneObject
+      -- @param Core.Zone#ZONE_BASE ZoneObject
       -- @param Wrapper.Unit#UNIT UnitObject
       function( ZoneObject, UnitObject )
         if UnitObject:IsInZone( ZoneObject ) then
@@ -2694,7 +2712,7 @@ do -- SET_UNIT
     self:F2( arg )
 
     self:ForEach( IteratorFunction, arg, self:GetSet(),
-      --- @param Core.Zone#ZONE_BASE ZoneObject
+      -- @param Core.Zone#ZONE_BASE ZoneObject
       -- @param Wrapper.Unit#UNIT UnitObject
       function( ZoneObject, UnitObject )
         if UnitObject:IsNotInZone( ZoneObject ) then
@@ -3011,8 +3029,8 @@ do -- SET_UNIT
 
 
   ----- Iterate the SET_UNIT and call an iterator function for each **alive** player, providing the Unit of the player and optional parameters.
-  ---- @param #SET_UNIT self
-  ---- @param #function IteratorFunction The function that will be called when there is an alive player in the SET_UNIT. The function needs to accept a UNIT parameter.
+  -- @param #SET_UNIT self
+  -- @param #function IteratorFunction The function that will be called when there is an alive player in the SET_UNIT. The function needs to accept a UNIT parameter.
   ---- @return #SET_UNIT self
   -- function SET_UNIT:ForEachPlayer( IteratorFunction, ... )
   --  self:F2( arg )
@@ -3024,8 +3042,8 @@ do -- SET_UNIT
   --
   --
   ----- Iterate the SET_UNIT and call an iterator function for each client, providing the Client to the function and optional parameters.
-  ---- @param #SET_UNIT self
-  ---- @param #function IteratorFunction The function that will be called when there is an alive player in the SET_UNIT. The function needs to accept a CLIENT parameter.
+  -- @param #SET_UNIT self
+  -- @param #function IteratorFunction The function that will be called when there is an alive player in the SET_UNIT. The function needs to accept a CLIENT parameter.
   ---- @return #SET_UNIT self
   -- function SET_UNIT:ForEachClient( IteratorFunction, ... )
   --  self:F2( arg )
@@ -3040,7 +3058,7 @@ do -- SET_UNIT
   -- @param Wrapper.Unit#UNIT MUnit
   -- @return #SET_UNIT self
   function SET_UNIT:IsIncludeObject( MUnit )
-    self:F2( MUnit )
+    self:F2( {MUnit} )
 
     local MUnitInclude = false
 
@@ -3191,8 +3209,9 @@ do -- SET_UNIT
 end
 
 do -- SET_STATIC
-
-  --- @type SET_STATIC
+  
+  ---
+  -- @type SET_STATIC
   -- @extends Core.Set#SET_BASE
 
   --- Mission designers can use the SET_STATIC class to build sets of Statics belonging to certain:
@@ -3223,7 +3242,8 @@ do -- SET_STATIC
   --    * @{#SET_STATIC.FilterCategories}: Builds the SET_STATIC with the units belonging to the category(ies).
   --    * @{#SET_STATIC.FilterTypes}: Builds the SET_STATIC with the units belonging to the unit type(s).
   --    * @{#SET_STATIC.FilterCountries}: Builds the SET_STATIC with the units belonging to the country(ies).
-  --    * @{#SET_STATIC.FilterPrefixes}: Builds the SET_STATIC with the units containing the same string(s) in their name. **ATTENTION** bad naming convention as this *does not** only filter *prefixes*.
+  --    * @{#SET_STATIC.FilterPrefixes}: Builds the SET_STATIC with the units containing the same string(s) in their name. **Attention!** LUA regular expression apply here, so special characters in names like minus, dot, hash (#) etc might lead to unexpected results. 
+  -- Have a read through here to understand the application of regular expressions: [LUA regular expressions](https://riptutorial.com/lua/example/20315/lua-pattern-matching)
   --    * @{#SET_STATIC.FilterZones}: Builds the SET_STATIC with the units within a @{Core.Zone#ZONE}.
   --    
   -- Once the filter criteria have been set for the SET_STATIC, you can start filtering using:
@@ -3612,7 +3632,7 @@ do -- SET_STATIC
     self:F2( arg )
 
     self:ForEach( IteratorFunction, arg, self:GetSet(),
-      --- @param Core.Zone#ZONE_BASE ZoneObject
+      -- @param Core.Zone#ZONE_BASE ZoneObject
       -- @param Wrapper.Static#STATIC StaticObject
       function( ZoneObject, StaticObject )
         if StaticObject:IsInZone( ZoneObject ) then
@@ -3634,7 +3654,7 @@ do -- SET_STATIC
     self:F2( arg )
 
     self:ForEach( IteratorFunction, arg, self:GetSet(),
-      --- @param Core.Zone#ZONE_BASE ZoneObject
+      -- @param Core.Zone#ZONE_BASE ZoneObject
       -- @param Wrapper.Static#STATIC StaticObject
       function( ZoneObject, StaticObject )
         if StaticObject:IsNotInZone( ZoneObject ) then
@@ -3945,8 +3965,9 @@ do -- SET_STATIC
 end
 
 do -- SET_CLIENT
-
-  --- @type SET_CLIENT
+  
+  ---
+  -- @type SET_CLIENT
   -- @field Core.Timer#TIMER ZoneTimer
   -- @field #number ZoneTimerInterval
   -- @extends Core.Set#SET_BASE
@@ -3979,7 +4000,8 @@ do -- SET_CLIENT
   --    * @{#SET_CLIENT.FilterCategories}: Builds the SET_CLIENT with the clients belonging to the category(ies).
   --    * @{#SET_CLIENT.FilterTypes}: Builds the SET_CLIENT with the clients belonging to the client type(s).
   --    * @{#SET_CLIENT.FilterCountries}: Builds the SET_CLIENT with the clients belonging to the country(ies).
-  --    * @{#SET_CLIENT.FilterPrefixes}: Builds the SET_CLIENT with the clients containing the same string(s) in their unit/pilot name. **ATTENTION!** Bad naming convention as this *does not* only filter *prefixes*.
+  --    * @{#SET_CLIENT.FilterPrefixes}: Builds the SET_CLIENT with the clients containing the same string(s) in their unit/pilot name. **Attention!** LUA regular expression apply here, so special characters in names like minus, dot, hash (#) etc might lead to unexpected results. 
+  -- Have a read through here to understand the application of regular expressions: [LUA regular expressions](https://riptutorial.com/lua/example/20315/lua-pattern-matching)
   --    * @{#SET_CLIENT.FilterActive}: Builds the SET_CLIENT with the units that are only active. Units that are inactive (late activation) won't be included in the set!
   --    * @{#SET_CLIENT.FilterZones}: Builds the SET_CLIENT with the clients within a @{Core.Zone#ZONE}.
   --    
@@ -4059,7 +4081,7 @@ do -- SET_CLIENT
 
   --- Remove CLIENT(s) from SET_CLIENT.
   -- @param Core.Set#SET_CLIENT self
-  -- @param Wrapper.Client#CLIENT RemoveClientNames A single name or an array of CLIENT names.
+  -- @param Wrapper.Client#CLIENT RemoveClientNames A single object or an array of CLIENT objects.
   -- @return self
   function SET_CLIENT:RemoveClientsByName( RemoveClientNames )
 
@@ -4310,7 +4332,6 @@ do -- SET_CLIENT
   function SET_CLIENT:FilterStart()
 
     if _DATABASE then
-      self:_FilterStart()
       self:HandleEvent( EVENTS.Birth, self._EventOnBirth )
       self:HandleEvent( EVENTS.Dead, self._EventOnDeadOrCrash )
       self:HandleEvent( EVENTS.Crash, self._EventOnDeadOrCrash )
@@ -4319,6 +4340,7 @@ do -- SET_CLIENT
         local timing = self.ZoneTimerInterval or 30
         self.ZoneTimer:Start(timing,timing)
       end
+      self:_FilterStart()
     end
 
     return self
@@ -4369,7 +4391,7 @@ do -- SET_CLIENT
     self:F2( arg )
 
     self:ForEach( IteratorFunction, arg, self:GetSet(),
-      --- @param Core.Zone#ZONE_BASE ZoneObject
+      -- @param Core.Zone#ZONE_BASE ZoneObject
       -- @param Wrapper.Client#CLIENT ClientObject
       function( ZoneObject, ClientObject )
         if ClientObject:IsInZone( ZoneObject ) then
@@ -4391,7 +4413,7 @@ do -- SET_CLIENT
     self:F2( arg )
 
     self:ForEach( IteratorFunction, arg, self:GetSet(),
-      --- @param Core.Zone#ZONE_BASE ZoneObject
+      -- @param Core.Zone#ZONE_BASE ZoneObject
       -- @param Wrapper.Client#CLIENT ClientObject
       function( ZoneObject, ClientObject )
         if ClientObject:IsNotInZone( ZoneObject ) then
@@ -4459,7 +4481,7 @@ do -- SET_CLIENT
         if self.Filter.Active == false or (self.Filter.Active == true and MClient:IsActive() == true and MClient:IsAlive() == true) then
           MClientActive = true
         end
-        --self:I( { "Evaluated Active", MClientActive } )
+        --self:T( { "Evaluated Active", MClientActive } )
         MClientInclude = MClientInclude and MClientActive
       end
 
@@ -4541,7 +4563,7 @@ do -- SET_CLIENT
     if self.Filter.Playernames then
       local MClientPlayername = false
       local playername = MClient:GetPlayerName() or "Unknown"
-      --self:I(playername)
+      --self:T(playername)
       for _,_Playername in pairs(self.Filter.Playernames) do
         if playername and string.find(playername,_Playername) then
           MClientPlayername = true
@@ -4556,7 +4578,7 @@ do -- SET_CLIENT
       local callsign = MClient:GetCallsign()
       --self:I(callsign)
       for _,_Callsign in pairs(self.Filter.Callsigns) do
-        if callsign and string.find(callsign,_Callsign) then
+        if callsign and string.find(callsign,_Callsign,1,true) then
           MClientCallsigns = true
         end
       end
@@ -4573,7 +4595,8 @@ end
 
 do -- SET_PLAYER
 
-  --- @type SET_PLAYER
+  ---
+  -- @type SET_PLAYER
   -- @extends Core.Set#SET_BASE
 
   --- Mission designers can use the @{Core.Set#SET_PLAYER} class to build sets of units belonging to alive players:
@@ -4593,7 +4616,8 @@ do -- SET_PLAYER
   --    * @{#SET_PLAYER.FilterCategories}: Builds the SET_PLAYER with the clients belonging to the category(ies).
   --    * @{#SET_PLAYER.FilterTypes}: Builds the SET_PLAYER with the clients belonging to the client type(s).
   --    * @{#SET_PLAYER.FilterCountries}: Builds the SET_PLAYER with the clients belonging to the country(ies).
-  --    * @{#SET_PLAYER.FilterPrefixes}: Builds the SET_PLAYER with the clients sharing the same string(s) in their unit/pilot name. **ATTENTION** Bad naming convention as this *does not* only filter prefixes.
+  --    * @{#SET_PLAYER.FilterPrefixes}: Builds the SET_PLAYER with the clients sharing the same string(s) in their unit/pilot name. **Attention!** LUA regular expression apply here, so special characters in names like minus, dot, hash (#) etc might lead to unexpected results. 
+  -- Have a read through here to understand the application of regular expressions: [LUA regular expressions](https://riptutorial.com/lua/example/20315/lua-pattern-matching)
   --
   -- Once the filter criteria have been set for the SET_PLAYER, you can start filtering using:
   --
@@ -4868,7 +4892,7 @@ do -- SET_PLAYER
     self:F2( arg )
 
     self:ForEach( IteratorFunction, arg, self:GetSet(),
-      --- @param Core.Zone#ZONE_BASE ZoneObject
+      -- @param Core.Zone#ZONE_BASE ZoneObject
       -- @param Wrapper.Client#CLIENT ClientObject
       function( ZoneObject, ClientObject )
         if ClientObject:IsInZone( ZoneObject ) then
@@ -4890,7 +4914,7 @@ do -- SET_PLAYER
     self:F2( arg )
 
     self:ForEach( IteratorFunction, arg, self:GetSet(),
-      --- @param Core.Zone#ZONE_BASE ZoneObject
+      -- @param Core.Zone#ZONE_BASE ZoneObject
       -- @param Wrapper.Client#CLIENT ClientObject
       function( ZoneObject, ClientObject )
         if ClientObject:IsNotInZone( ZoneObject ) then
@@ -4998,8 +5022,9 @@ do -- SET_PLAYER
 end
 
 do -- SET_AIRBASE
-
-  --- @type SET_AIRBASE
+  
+  ---
+  -- @type SET_AIRBASE
   -- @extends Core.Set#SET_BASE
 
   --- Mission designers can use the @{Core.Set#SET_AIRBASE} class to build sets of airbases optionally belonging to certain:
@@ -5341,8 +5366,9 @@ do -- SET_AIRBASE
 end
 
 do -- SET_CARGO
-
-  --- @type SET_CARGO
+  
+  ---
+  -- @type SET_CARGO
   -- @extends Core.Set#SET_BASE
 
   --- Mission designers can use the @{Core.Set#SET_CARGO} class to build sets of cargos optionally belonging to certain:
@@ -5368,7 +5394,8 @@ do -- SET_CARGO
   -- Filter criteria are defined by:
   --
   --    * @{#SET_CARGO.FilterCoalitions}: Builds the SET_CARGO with the cargos belonging to the coalition(s).
-  --    * @{#SET_CARGO.FilterPrefixes}: Builds the SET_CARGO with the cargos containing the same string(s). **ATTENTION** Bad naming convention as this *does not* only filter *prefixes*.
+  --    * @{#SET_CARGO.FilterPrefixes}: Builds the SET_CARGO with the cargos containing the same string(s). **Attention!** LUA regular expression apply here, so special characters in names like minus, dot, hash (#) etc might lead to unexpected results. 
+  -- Have a read through here to understand the application of regular expressions: [LUA regular expressions](https://riptutorial.com/lua/example/20315/lua-pattern-matching)
   --    * @{#SET_CARGO.FilterTypes}: Builds the SET_CARGO with the cargos belonging to the cargo type(s).
   --    * @{#SET_CARGO.FilterCountries}: Builds the SET_CARGO with the cargos belonging to the country(ies).
   --
@@ -5767,8 +5794,9 @@ do -- SET_CARGO
 end
 
 do -- SET_ZONE
-
-  --- @type SET_ZONE
+  
+  ---
+  -- @type SET_ZONE
   -- @extends Core.Set#SET_BASE
 
   --- Mission designers can use the @{Core.Set#SET_ZONE} class to build sets of zones of various types.
@@ -5789,7 +5817,8 @@ do -- SET_ZONE
   -- You can set filter criteria to build the collection of zones in SET_ZONE.
   -- Filter criteria are defined by:
   --
-  --    * @{#SET_ZONE.FilterPrefixes}: Builds the SET_ZONE with the zones having a certain text pattern in their name. **ATTENTION!** Bad naming convention as this *does not* only filter *prefixes*.
+  --    * @{#SET_ZONE.FilterPrefixes}: Builds the SET_ZONE with the zones having a certain text pattern in their name. **Attention!** LUA regular expression apply here, so special characters in names like minus, dot, hash (#) etc might lead to unexpected results. 
+  -- Have a read through here to understand the application of regular expressions: [LUA regular expressions](https://riptutorial.com/lua/example/20315/lua-pattern-matching)
   --
   -- Once the filter criteria have been set for the SET_ZONE, you can start filtering using:
   --
@@ -6135,8 +6164,9 @@ do -- SET_ZONE
 end
 
 do -- SET_ZONE_GOAL
-
-  --- @type SET_ZONE_GOAL
+  
+  ---
+  -- @type SET_ZONE_GOAL
   -- @extends Core.Set#SET_BASE
 
   --- Mission designers can use the @{Core.Set#SET_ZONE_GOAL} class to build sets of zones of various types.
@@ -6157,7 +6187,8 @@ do -- SET_ZONE_GOAL
   -- You can set filter criteria to build the collection of zones in SET_ZONE_GOAL.
   -- Filter criteria are defined by:
   --
-  --    * @{#SET_ZONE_GOAL.FilterPrefixes}: Builds the SET_ZONE_GOAL with the zones having a certain text pattern in their name. **ATTENTION!** Bad naming convention as this *does not* only filter *prefixes*.
+  --    * @{#SET_ZONE_GOAL.FilterPrefixes}: Builds the SET_ZONE_GOAL with the zones having a certain text pattern in their name. **Attention!** LUA regular expression apply here, so special characters in names like minus, dot, hash (#) etc might lead to unexpected results. 
+  -- Have a read through here to understand the application of regular expressions: [LUA regular expressions](https://riptutorial.com/lua/example/20315/lua-pattern-matching)
   --
   -- Once the filter criteria have been set for the SET_ZONE_GOAL, you can start filtering using:
   --
@@ -6446,8 +6477,9 @@ do -- SET_ZONE_GOAL
 end
 
 do -- SET_OPSZONE
-
-  --- @type SET_OPSZONE
+  
+  ---
+  -- @type SET_OPSZONE
   -- @extends Core.Set#SET_BASE
 
   --- Mission designers can use the @{Core.Set#SET_OPSZONE} class to build sets of zones of various types.
@@ -6468,7 +6500,8 @@ do -- SET_OPSZONE
   -- You can set filter criteria to build the collection of zones in SET_OPSZONE.
   -- Filter criteria are defined by:
   --
-  --    * @{#SET_OPSZONE.FilterPrefixes}: Builds the SET_OPSZONE with the zones having a certain text pattern in their name. **ATTENTION!** Bad naming convention as this *does not* only filter *prefixes*.
+  --    * @{#SET_OPSZONE.FilterPrefixes}: Builds the SET_OPSZONE with the zones having a certain text pattern in their name. **Attention!** LUA regular expression apply here, so special characters in names like minus, dot, hash (#) etc might lead to unexpected results. 
+  -- Have a read through here to understand the application of regular expressions: [LUA regular expressions](https://riptutorial.com/lua/example/20315/lua-pattern-matching)
   --
   -- Once the filter criteria have been set for the SET_OPSZONE, you can start filtering using:
   --
@@ -6903,8 +6936,9 @@ end
 
 
 do -- SET_OPSGROUP
-
-  --- @type SET_OPSGROUP
+  
+  ---
+  -- @type SET_OPSGROUP
   -- @extends Core.Set#SET_BASE
 
   --- Mission designers can use the @{Core.Set#SET_OPSGROUP} class to build sets of OPS groups belonging to certain:
@@ -6933,7 +6967,8 @@ do -- SET_OPSGROUP
   --    * @{#SET_OPSGROUP.FilterCoalitions}: Builds the SET_OPSGROUP with the groups belonging to the coalition(s).
   --    * @{#SET_OPSGROUP.FilterCategories}: Builds the SET_OPSGROUP with the groups belonging to the category(ies).
   --    * @{#SET_OPSGROUP.FilterCountries}: Builds the SET_OPSGROUP with the groups belonging to the country(ies).
-  --    * @{#SET_OPSGROUP.FilterPrefixes}: Builds the SET_OPSGROUP with the groups *containing* the given string in the group name. **Attention!** Bad naming convention, as this not really filtering *prefixes*.
+  --    * @{#SET_OPSGROUP.FilterPrefixes}: Builds the SET_OPSGROUP with the groups *containing* the given string in the group name. **Attention!** LUA regular expression apply here, so special characters in names like minus, dot, hash (#) etc might lead to unexpected results. 
+  -- Have a read through here to understand the application of regular expressions: [LUA regular expressions](https://riptutorial.com/lua/example/20315/lua-pattern-matching)
   --    * @{#SET_OPSGROUP.FilterActive}: Builds the SET_OPSGROUP with the groups that are only active. Groups that are inactive (late activation) won't be included in the set!
   --
   -- For the Category Filter, extra methods have been added:
@@ -7571,6 +7606,7 @@ do -- SET_SCENERY
     Scenerys = {},
     Filter = {
       SceneryPrefixes = nil,
+      SceneryRoles = nil,
       Zones = nil,
     },
   }
@@ -7593,7 +7629,7 @@ do -- SET_SCENERY
     
     if ZoneSet then
       for _,_zone in pairs(ZoneSet.Set) do
-         self:T("Zone type handed: "..tostring(_zone.ClassName))
+        self:T("Zone type handed: "..tostring(_zone.ClassName))
         table.insert(zonenames,_zone:GetName())
       end   
       self:AddSceneryByName(zonenames)
@@ -7617,7 +7653,7 @@ do -- SET_SCENERY
   
   --- Add SCENERY(s) to SET_SCENERY.
   -- @param #SET_SCENERY self
-  -- @param #string AddScenery A single SCENERY.
+  -- @param Wrapper.Scenery#SCENERY AddScenery A single SCENERY object.
   -- @return #SET_SCENERY self
   function SET_SCENERY:AddScenery( AddScenery )
     self:F2( AddScenery:GetName() )
@@ -7687,6 +7723,7 @@ do -- SET_SCENERY
     end
     for _,Zone in pairs( zones ) do
       local zonename = Zone:GetName()
+      self:T(zonename)
       self.Filter.Zones[zonename] = Zone
     end
     return self
@@ -7705,11 +7742,30 @@ do -- SET_SCENERY
       Prefixes = { Prefixes }
     end
     for PrefixID, Prefix in pairs( Prefixes ) do
+      --self:T(Prefix)
       self.Filter.SceneryPrefixes[Prefix] = Prefix
     end
     return self
   end
-
+  
+  --- Builds a set of SCENERYs that **contain** an exact match of the "ROLE" property.
+  -- @param #SET_SCENERY self
+  -- @param #string Role The string pattern(s) that needs to exactly match the scenery "ROLE" property from the ME quad-zone properties. Can also be passed as a `#table` of strings.
+  -- @return #SET_SCENERY self
+  function SET_SCENERY:FilterRoles( Role )
+    if not self.Filter.SceneryRoles then
+      self.Filter.SceneryRoles = {}
+    end
+    if type( Role ) ~= "table" then
+      Role = { Role }
+    end
+    for PrefixID, Prefix in pairs( Role ) do
+      --self:T(Prefix)
+      self.Filter.SceneryRoles[Prefix] = Prefix
+    end
+    return self
+  end
+  
   --- Iterate the SET_SCENERY and count how many SCENERYSs are alive.
   -- @param #SET_SCENERY self
   -- @return #number The number of SCENERYSs alive.
@@ -7802,9 +7858,75 @@ do -- SET_SCENERY
   -- @param Wrapper.Scenery#SCENERY MScenery
   -- @return #SET_SCENERY self
   function SET_SCENERY:IsIncludeObject( MScenery )
-    self:F2( MScenery )
-  return true
+    self:T( MScenery.SceneryName )
+
+    local MSceneryInclude = true
+    
+    if MScenery then
+      local MSceneryName = MScenery:GetName()
+      
+      -- Filter Prefixes
+      if self.Filter.Prefixes then
+        local MSceneryPrefix = false
+        for ZonePrefixId, ZonePrefix in pairs( self.Filter.Prefixes ) do
+          self:T( { "Prefix:", string.find( MSceneryName, ZonePrefix, 1 ), ZonePrefix } )
+          if string.find( MSceneryName, ZonePrefix, 1 ) then
+            MSceneryPrefix = true
+          end
+        end
+        self:T( { "Evaluated Prefix", MSceneryPrefix } )
+        MSceneryInclude = MSceneryInclude and MSceneryPrefix
+      end
+      
+      if self.Filter.Zones then
+        local MSceneryZone = false
+        for ZoneName, Zone in pairs( self.Filter.Zones ) do
+          --self:T( "Zone:", ZoneName )
+          local coord = MScenery:GetCoordinate()
+          if coord and Zone:IsCoordinateInZone(coord) then
+            MSceneryZone = true
+          end
+          self:T( { "Evaluated Zone", MSceneryZone } )
+        end
+        MSceneryInclude = MSceneryInclude and MSceneryZone
+      end
+
+      -- Filter Roles
+      if self.Filter.SceneryRoles then
+        local MSceneryRole = false
+        local Role = MScenery:GetProperty("ROLE") or "none"
+        for ZoneRoleId, ZoneRole in pairs( self.Filter.SceneryRoles ) do
+          self:T( { "Role:", ZoneRole, Role } )
+          if ZoneRole == Role then
+            MSceneryRole = true
+          end
+        end
+        self:T( { "Evaluated Role ", MSceneryRole } )
+        MSceneryInclude = MSceneryInclude and MSceneryRole
+      end
+    end
+
+    self:T2( MSceneryInclude )
+    return MSceneryInclude
   end
+  
+  --- Filters for the defined collection.
+  -- @param #SET_SCENERY self
+  -- @return #SET_SCENERY self
+  function SET_SCENERY:FilterOnce()
+
+    for ObjectName, Object in pairs( self:GetSet() ) do
+      self:T(ObjectName)
+      if self:IsIncludeObject( Object ) then
+        self:Add( ObjectName, Object )
+      else
+        self:Remove(ObjectName, true)
+      end
+    end
+
+    return self --FilteredSet
+  end
+  
   
   --- Count overall initial (Life0) lifepoints of the SET objects.
   -- @param #SET_SCENERY self
@@ -7843,7 +7965,7 @@ do -- SET_SCENERY
   function SET_SCENERY:GetRelativeLife()
     local life = self:GetLife()
     local life0 = self:GetLife0()
-    self:T3(string.format("Set Lifepoints: %d life0 | %d life",life0,life))
+    self:T2(string.format("Set Lifepoints: %d life0 | %d life",life0,life))
     local rlife = math.floor((life / life0) * 100)
     return rlife
   end

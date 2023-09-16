@@ -1,5 +1,4 @@
 __Moose.Include( 'Scripts/Moose/Utilities/Enums.lua' )
-__Moose.Include( 'Scripts/Moose/Utilities/Routines.lua' )
 __Moose.Include( 'Scripts/Moose/Utilities/Utils.lua' )
 __Moose.Include( 'Scripts/Moose/Utilities/Profiler.lua' )
 __Moose.Include( 'Scripts/Moose/Utilities/Templates.lua' )
@@ -48,6 +47,7 @@ __Moose.Include( 'Scripts/Moose/Wrapper/Scenery.lua' )
 __Moose.Include( 'Scripts/Moose/Wrapper/Marker.lua' )
 __Moose.Include( 'Scripts/Moose/Wrapper/Weapon.lua' )
 __Moose.Include( 'Scripts/Moose/Wrapper/Net.lua' )
+__Moose.Include( 'Scripts/Moose/Wrapper/Storage.lua' )
 
 __Moose.Include( 'Scripts/Moose/Cargo/Cargo.lua' )
 __Moose.Include( 'Scripts/Moose/Cargo/CargoUnit.lua' )
