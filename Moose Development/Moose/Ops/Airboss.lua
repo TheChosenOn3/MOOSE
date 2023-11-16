@@ -27,17 +27,17 @@
 -- **Supported Carriers:**
 --
 --    * [USS John C. Stennis](https://en.wikipedia.org/wiki/USS_John_C._Stennis) (CVN-74)
---    * [USS Theodore Roosevelt](https://en.wikipedia.org/wiki/USS_Theodore_Roosevelt_(CVN-71\)) (CVN-71) [Super Carrier Module]
---    * [USS Abraham Lincoln](https://en.wikipedia.org/wiki/USS_Abraham_Lincoln_(CVN-72\)) (CVN-72) [Super Carrier Module]
---    * [USS George Washington](https://en.wikipedia.org/wiki/USS_George_Washington_(CVN-73\)) (CVN-73) [Super Carrier Module]
+--    * [USS Theodore Roosevelt](https://en.wikipedia.org/wiki/USS_Theodore_Roosevelt_\(CVN-71\)) (CVN-71) [Super Carrier Module]
+--    * [USS Abraham Lincoln](https://en.wikipedia.org/wiki/USS_Abraham_Lincoln_\(CVN-72\)) (CVN-72) [Super Carrier Module]
+--    * [USS George Washington](https://en.wikipedia.org/wiki/USS_George_Washington_\(CVN-73\)) (CVN-73) [Super Carrier Module]
 --    * [USS Harry S. Truman](https://en.wikipedia.org/wiki/USS_Harry_S._Truman) (CVN-75) [Super Carrier Module]
---    * [USS Forrestal](https://en.wikipedia.org/wiki/USS_Forrestal_(CV-59\)) (CV-59) [Heatblur Carrier Module]
---    * [HMS Hermes](https://en.wikipedia.org/wiki/HMS_Hermes_(R12\)) (R12)
---    * [HMS Invincible](https://en.wikipedia.org/wiki/HMS_Invincible_(R05\)) (R05)
---    * [USS Tarawa](https://en.wikipedia.org/wiki/USS_Tarawa_(LHA-1\)) (LHA-1)
---    * [USS America](https://en.wikipedia.org/wiki/USS_America_(LHA-6\)) (LHA-6)
+--    * [USS Forrestal](https://en.wikipedia.org/wiki/USS_Forrestal_\(CV-59\)) (CV-59) [Heatblur Carrier Module]
+--    * [HMS Hermes](https://en.wikipedia.org/wiki/HMS_Hermes_\(R12\)) (R12)
+--    * [HMS Invincible](https://en.wikipedia.org/wiki/HMS_Invincible_\(R05\)) (R05)
+--    * [USS Tarawa](https://en.wikipedia.org/wiki/USS_Tarawa_\(LHA-1\)) (LHA-1)
+--    * [USS America](https://en.wikipedia.org/wiki/USS_America_\(LHA-6\)) (LHA-6)
 --    * [Juan Carlos I](https://en.wikipedia.org/wiki/Spanish_amphibious_assault_ship_Juan_Carlos_I) (L61)
---    * [HMAS Canberra](https://en.wikipedia.org/wiki/HMAS_Canberra_(L02\)) (L02)
+--    * [HMAS Canberra](https://en.wikipedia.org/wiki/HMAS_Canberra_\(L02\)) (L02)
 --
 -- **Supported Aircraft:**
 --
@@ -45,7 +45,7 @@
 --    * [F-14A/B Tomcat](https://forums.eagle.ru/forumdisplay.php?f=395) (Player & AI)
 --    * [A-4E Skyhawk Community Mod](https://forums.eagle.ru/showthread.php?t=224989) (Player & AI)
 --    * [AV-8B N/A Harrier](https://forums.eagle.ru/forumdisplay.php?f=555) (Player & AI)
---    * [T-45C Goshawk](https://www.vnao-cvw-7.com/t-45-goshawk) (VNAO mod) (Player & AI)
+--    * [T-45C Goshawk](https://forum.dcs.world/topic/203816-vnao-t-45-goshawk/) (VNAO mod) (Player & AI)
 --    * [FE/A-18E/F/G Superhornet](https://forum.dcs.world/topic/316971-cjs-super-hornet-community-mod-v20-official-thread/) (CJS mod) (Player & AI)
 --    * F/A-18C Hornet (AI)
 --    * F-14A Tomcat (AI)
@@ -61,7 +61,7 @@
 --
 -- Heatblur's mighty F-14B Tomcat has been added (March 13th 2019) as well. Same goes for the A version.
 --
--- The [DCS Supercarriers](https://forums.eagle.ru/forum/151-dcs-supercarrier/) are also supported.
+-- The [DCS Supercarriers](https://www.digitalcombatsimulator.com/de/shop/modules/supercarrier/) are also supported.
 --
 -- ## Discussion
 --
@@ -94,11 +94,6 @@
 --    * [[MOOSE] Airboss - New LSO/Marshal Voice Overs by Raynor](https://www.youtube.com/watch?v=_Suo68bRu8k)
 --    * [[MOOSE] Airboss - CASE I, "Until We Go Down" featuring the F-14B by Pikes](https://www.youtube.com/watch?v=ojgHDSw3Doc)
 --    * [[MOOSE] Airboss - Skipper Menu](https://youtu.be/awnecCxRoNQ)
---
--- ### Lex explaining Boat Ops:
---
---    * [( DCS HORNET ) Some boat ops basics VID 1](https://www.youtube.com/watch?v=LvGQS-3AzMc)
---    * [( DCS HORNET ) Some boat ops basics VID 2](https://www.youtube.com/watch?v=bN44wvtRsw0)
 --
 -- ### Jabbers Case I and III Recovery Tutorials:
 --
@@ -4075,7 +4070,7 @@ function AIRBOSS:_CheckRecoveryTimes()
 
         -- Check that wind is blowing from a direction > 5° different from the current heading.
         local hdg = self:GetHeading()
-        local wind = self:GetHeadingIntoWind()
+        local wind = self:GetHeadingIntoWind(nextwindow.SPEED)
         local delta = self:_GetDeltaHeading( hdg, wind )
         local uturn = delta > 5
 
@@ -6728,7 +6723,7 @@ function AIRBOSS:_AddMarshalGroup( flight, stack )
 
   -- If the carrier is supposed to turn into the wind, we take the wind coordinate.
   if self.recoverywindow and self.recoverywindow.WIND then
-    brc = self:GetBRCintoWind()
+    brc = self:GetBRCintoWind(self.recoverywindow.SPEED)
   end
 
   -- Get charlie time estimate.
@@ -11553,7 +11548,7 @@ end
 -- @param #boolean magnetic If true, calculate magnetic heading. By default true heading is returned.
 -- @param Core.Point#COORDINATE coord (Optional) Coordinate from which heading is calculated. Default is current carrier position.
 -- @return #number Carrier heading in degrees.
-function AIRBOSS:GetHeadingIntoWind( magnetic, coord )
+function AIRBOSS:GetHeadingIntoWind_old( magnetic, coord )
 
   local function adjustDegreesForWindSpeed(windSpeed)
     local degreesAdjustment = 0
@@ -11613,13 +11608,108 @@ function AIRBOSS:GetHeadingIntoWind( magnetic, coord )
   return intowind
 end
 
+--- Get true (or magnetic) heading of carrier into the wind. This accounts for the angled runway.
+-- Implementation based on [Mags & Bambi](https://magwo.github.io/carrier-cruise/).
+-- @param #AIRBOSS self
+-- @param #number vdeck Desired wind velocity over deck in knots.
+-- @param #boolean magnetic If true, calculate magnetic heading. By default true heading is returned.
+-- @param Core.Point#COORDINATE coord (Optional) Coordinate from which heading is calculated. Default is current carrier position.
+-- @return #number Carrier heading in degrees.
+-- @return #number Carrier speed in knots to reach desired wind speed on deck.
+function AIRBOSS:GetHeadingIntoWind( vdeck, magnetic, coord )
+
+  -- Default offset angle.
+  local Offset=self.carrierparam.rwyangle or 0
+
+  -- Get direction the wind is blowing from.
+  local windfrom, vwind=self:GetWind(18, nil ,coord)
+
+  -- Ships min/max speed.
+  local Vmin=4
+  local Vmax=UTILS.KmphToKnots(self.carrier:GetSpeedMax())
+
+  -- No wind. will stay on current heading.
+  if vwind<0.1 then
+    local h=self:GetHeading(magnetic)
+    return h, math.min(vdeck, Vmax)
+  end
+  
+  -- Convert wind speed to knots.
+  vwind=UTILS.MpsToKnots(vwind)
+  
+  -- Wind to in knots.
+  local windto=(windfrom+180)%360
+  
+  -- Offset angle in rad. We also define the rotation to be clock-wise, which requires a minus sign.
+  local alpha=math.rad(-Offset)
+    
+  -- Constant.
+  local C = math.sqrt(math.cos(alpha)^2 / math.sin(alpha)^2 + 1)
+  
+
+  -- Upper limit of desired speed due to max boat speed.
+  local vdeckMax=vwind + math.cos(alpha) * Vmax
+  
+  -- Lower limit of desired speed due to min boat speed.
+  local vdeckMin=vwind + math.cos(alpha) * Vmin
+  
+  
+  -- Speed of ship so it matches the desired speed.
+  local v=0
+  
+  -- Angle wrt. to wind TO-direction 
+  local theta=0
+
+  if vdeck>vdeckMax then
+    -- Boat cannot go fast enough
+    
+    -- Set max speed.
+    v=Vmax
+    
+    -- Calculate theta.
+    theta = math.asin(v/(vwind*C)) - math.asin(-1/C)
+  
+  elseif vdeck<vdeckMin then
+    -- Boat cannot go slow enought
+  
+    -- Set min speed.
+    v=Vmin
+    
+    -- Calculatge theta.
+    theta = math.asin(v/(vwind*C)) - math.asin(-1/C)
+  
+  elseif vdeck*math.sin(alpha)>vwind then
+    -- Too little wind
+    
+    -- Set theta to 90°
+    theta=math.pi/2
+    
+    -- Set speed.
+    v = math.sqrt(vdeck^2 - vwind^2)
+  
+  else
+    -- Normal case
+    theta = math.asin(vdeck * math.sin(alpha) / vwind)
+    v = vdeck * math.cos(alpha) - vwind * math.cos(theta)
+  end
+
+  -- Magnetic heading.
+  local magvar= magnetic and self.magvar or 0
+  
+  -- Ship heading so cross wind is min for the given wind.
+  local intowind = (540 + (windto - magvar + math.deg(theta) )) % 360  
+
+  return intowind, v
+end
+
 --- Get base recovery course (BRC) when the carrier would head into the wind.
 -- This includes the current wind direction and accounts for the angled runway.
 -- @param #AIRBOSS self
+-- @param #number vdeck Desired wind velocity over deck in knots.
 -- @return #number BRC into the wind in degrees.
-function AIRBOSS:GetBRCintoWind()
+function AIRBOSS:GetBRCintoWind(vdeck)
   -- BRC is the magnetic heading.
-  return self:GetHeadingIntoWind( true )
+  return self:GetHeadingIntoWind(vdeck, true )
 end
 
 --- Get final bearing (FB) of carrier.
@@ -13525,21 +13615,20 @@ function AIRBOSS:CarrierTurnIntoWind( time, vdeck, uturn )
   -- Wind speed.
   local _, vwind = self:GetWind()
 
+  -- Desired wind on deck in knots.
+  local vdeck=UTILS.MpsToKnots(vdeck)
+
+  -- Get heading into the wind accounting for angled runway.
+  local hiw, speedknots = self:GetHeadingIntoWind(vdeck)
+
   -- Speed of carrier in m/s but at least 4 knots.
-  local vtot = math.max( vdeck - vwind, UTILS.KnotsToMps( 4 ) )
+  local vtot = UTILS.KnotsToMps(speedknots)
 
   -- Distance to travel
   local dist = vtot * time
 
-  -- Speed in knots
-  local speedknots = UTILS.MpsToKnots( vtot )
+  -- Distance in NM.
   local distNM = UTILS.MetersToNM( dist )
-
-  -- Debug output
-  self:I( self.lid .. string.format( "Carrier steaming into the wind (%.1f kts). Distance=%.1f NM, Speed=%.1f knots, Time=%d sec.", UTILS.MpsToKnots( vwind ), distNM, speedknots, time ) )
-
-  -- Get heading into the wind accounting for angled runway.
-  local hiw = self:GetHeadingIntoWind()
 
   -- Current heading.
   local hdg = self:GetHeading()
@@ -13547,6 +13636,11 @@ function AIRBOSS:CarrierTurnIntoWind( time, vdeck, uturn )
   -- Heading difference.
   local deltaH = self:_GetDeltaHeading( hdg, hiw )
 
+  -- Debug output
+  self:I( self.lid .. string.format( "Carrier steaming into the wind (%.1f kts). Heading=%03d-->%03d (Delta=%.1f), Speed=%.1f knots, Distance=%.1f NM, Time=%d sec", 
+  UTILS.MpsToKnots( vwind ), hdg, hiw, deltaH, speedknots, distNM, speedknots, time ) )
+
+  -- Current coordinate.
   local Cv = self:GetCoordinate()
 
   local Ctiw = nil -- Core.Point#COORDINATE
@@ -13560,7 +13654,7 @@ function AIRBOSS:CarrierTurnIntoWind( time, vdeck, uturn )
     Csoo = Cv:Translate( 750, hdg ):Translate( 750, hiw )
 
     -- Heading into wind from Csoo.
-    local hsw = self:GetHeadingIntoWind( false, Csoo )
+    local hsw = self:GetHeadingIntoWind(vdeck, false, Csoo )
 
     -- Into the wind coord.
     Ctiw = Csoo:Translate( dist, hsw )
@@ -13572,7 +13666,7 @@ function AIRBOSS:CarrierTurnIntoWind( time, vdeck, uturn )
     Csoo = Cv:Translate( 900, hdg ):Translate( 900, hiw )
 
     -- Heading into wind from Csoo.
-    local hsw = self:GetHeadingIntoWind( false, Csoo )
+    local hsw = self:GetHeadingIntoWind(vdeck, false, Csoo )
 
     -- Into the wind coord.
     Ctiw = Csoo:Translate( dist, hsw )
@@ -13584,7 +13678,7 @@ function AIRBOSS:CarrierTurnIntoWind( time, vdeck, uturn )
     Csoo = Cv:Translate( 1100, hdg - 90 ):Translate( 1000, hiw )
 
     -- Heading into wind from Csoo.
-    local hsw = self:GetHeadingIntoWind( false, Csoo )
+    local hsw = self:GetHeadingIntoWind(vdeck, false, Csoo )
 
     -- Into the wind coord.
     Ctiw = Csoo:Translate( dist, hsw )
@@ -13596,7 +13690,7 @@ function AIRBOSS:CarrierTurnIntoWind( time, vdeck, uturn )
     Csoo = Cv:Translate( 1200, hdg - 90 ):Translate( 1000, hiw )
 
     -- Heading into wind from Csoo.
-    local hsw = self:GetHeadingIntoWind( false, Csoo )
+    local hsw = self:GetHeadingIntoWind(vdeck, false, Csoo )
 
     -- Into the wind coord.
     Ctiw = Csoo:Translate( dist, hsw )
@@ -13809,7 +13903,8 @@ function AIRBOSS:_CheckCarrierTurning()
     local hdg
     if self.turnintowind then
       -- We are now steaming into the wind.
-      hdg = self:GetHeadingIntoWind( false )
+      local vdeck=self.recoverywindow and self.recoverywindow.SPEED or 20
+      hdg = self:GetHeadingIntoWind(vdeck, false)
     else
       -- We turn towards the next waypoint.
       hdg = self:GetCoordinate():HeadingTo( self:_GetNextWaypoint() )
