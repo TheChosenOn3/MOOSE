@@ -13,15 +13,15 @@
 -- 
 -- ### Author: **FlightControl**
 -- 
--- ### Contributions: **funkyfranky**
+-- ### Contributions: **funkyfranky**, **Applevangelist**
 -- 
 -- ===
 -- 
 -- @module Wrapper.Unit
 -- @image Wrapper_Unit.JPG
 
-
---- @type UNIT
+---
+-- @type UNIT
 -- @field #string ClassName Name of the class.
 -- @field #string UnitName Name of the unit.
 -- @field #string GroupName Name of the group the unit belongs to.
@@ -42,6 +42,8 @@
 -- 
 --  * @{#UNIT.Find}(): Find a UNIT instance from the global _DATABASE object (an instance of @{Core.Database#DATABASE}) using a DCS Unit object.
 --  * @{#UNIT.FindByName}(): Find a UNIT instance from the global _DATABASE object (an instance of @{Core.Database#DATABASE}) using a DCS Unit name.
+--  * @{#UNIT.FindByMatching}(): Find a UNIT instance from the global _DATABASE object (an instance of @{Core.Database#DATABASE}) using a pattern.
+--  * @{#UNIT.FindAllByMatching}(): Find all UNIT instances from the global _DATABASE object (an instance of @{Core.Database#DATABASE}) using a pattern.
 --  
 -- IMPORTANT: ONE SHOULD NEVER SANITIZE these UNIT OBJECT REFERENCES! (make the UNIT object references nil).
 -- 
@@ -160,6 +162,55 @@ function UNIT:FindByName( UnitName )
   return UnitFound
 end
 
+--- Find the first(!) UNIT matching using patterns. Note that this is **a lot** slower than `:FindByName()`!
+-- @param #UNIT self
+-- @param #string Pattern The pattern to look for. Refer to [LUA patterns](http://www.easyuo.com/openeuo/wiki/index.php/Lua_Patterns_and_Captures_(Regular_Expressions)) for regular expressions in LUA.
+-- @return #UNIT The UNIT.
+-- @usage
+--          -- Find a group with a partial group name
+--          local unit = UNIT:FindByMatching( "Apple" )
+--          -- will return e.g. a group named "Apple-1-1"
+--          
+--          -- using a pattern
+--          local unit = UNIT:FindByMatching( ".%d.%d$" )
+--          -- will return the first group found ending in "-1-1" to "-9-9", but not e.g. "-10-1"
+function UNIT:FindByMatching( Pattern )
+  local GroupFound = nil
+  
+  for name,group in pairs(_DATABASE.UNITS) do
+    if string.match(name, Pattern ) then
+      GroupFound = group
+      break
+    end
+  end
+  
+  return GroupFound
+end
+
+--- Find all UNIT objects matching using patterns. Note that this is **a lot** slower than `:FindByName()`!
+-- @param #UNIT self
+-- @param #string Pattern The pattern to look for. Refer to [LUA patterns](http://www.easyuo.com/openeuo/wiki/index.php/Lua_Patterns_and_Captures_(Regular_Expressions)) for regular expressions in LUA.
+-- @return #table Units Table of matching #UNIT objects found
+-- @usage
+--          -- Find all group with a partial group name
+--          local unittable = UNIT:FindAllByMatching( "Apple" )
+--          -- will return all units with "Apple" in the name
+--          
+--          -- using a pattern
+--          local unittable = UNIT:FindAllByMatching( ".%d.%d$" )
+--          -- will return the all units found ending in "-1-1" to "-9-9", but not e.g. "-10-1" or "-1-10"
+function UNIT:FindAllByMatching( Pattern )
+  local GroupsFound = {}
+  
+  for name,group in pairs(_DATABASE.UNITS) do
+    if string.match(name, Pattern ) then
+      GroupsFound[#GroupsFound+1] = group
+    end
+  end
+  
+  return GroupsFound
+end
+
 --- Return the name of the UNIT.
 -- @param #UNIT self
 -- @return #string The UNIT name.
@@ -179,9 +230,9 @@ function UNIT:GetDCSObject()
     return DCSUnit
   end
   
-  if self.DCSUnit then
-    return self.DCSUnit
-  end
+  --if self.DCSUnit then
+    --return self.DCSUnit
+  --end
   
   return nil
 end
@@ -561,7 +612,7 @@ end
 
 --- Check if the unit is a tanker. Also retrieves the refuelling system (boom or probe) if applicable.
 -- @param #UNIT self
--- @return #boolean If true, unit is refuelable (checks for the attribute "Refuelable").
+-- @return #boolean If true, unit is a tanker (checks for the attribute "Tankers").
 -- @return #number Refueling system (if any): 0=boom, 1=probe.
 function UNIT:IsTanker()
   self:F2( self.UnitName )
@@ -582,7 +633,7 @@ function UNIT:IsTanker()
     -- Some hard coded data as this is not in the descriptors...
     if typename=="IL-78M" then
       system=1 --probe
-    elseif typename=="KC130" then
+    elseif typename=="KC130" or typename=="KC130J" then
       system=1 --probe
     elseif typename=="KC135BDA" then
       system=1 --probe
@@ -590,6 +641,10 @@ function UNIT:IsTanker()
       system=1 --probe
     elseif typename=="S-3B Tanker" then
       system=1 --probe
+    elseif typename=="KC_10_Extender" then
+      system=1 --probe
+    elseif typename=="KC_10_Extender_D" then
+      system=0 --boom
     end
     
   end

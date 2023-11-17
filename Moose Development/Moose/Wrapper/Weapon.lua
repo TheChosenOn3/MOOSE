@@ -14,7 +14,7 @@
 --
 -- ## Example Missions:
 --
--- Demo missions can be found on [github](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/develop/Wrapper%20-%20Weapon).
+-- Demo missions can be found on [github](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/develop/WRAPPER%20-%20Weapon).
 --
 -- ===
 --
@@ -367,7 +367,7 @@ function WEAPON:GetTarget()
     if object then
     
       -- Get object category.
-      local category=object:getCategory()
+      local category=Object.getCategory(object)
       
       --Target name
       local name=object:getName()

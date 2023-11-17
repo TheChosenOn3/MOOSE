@@ -253,8 +253,7 @@
 -- # Sound Files
 --
 -- More than 180 individual sound files have been created using a text-to-speech program. All ATIS information is given with en-US accent.
---
--- Check out the pinned messages in the Moose discord #ops-atis channel.
+-- You can find the sound files [here](https://github.com/FlightControl-Master/MOOSE_SOUND/releases). Also check out the pinned messages in the Moose discord #ops-atis channel.
 --
 -- To include the files, open the mission (.miz) file with, *e.g.*, 7-zip. Then just drag-n-drop the file into the miz.
 --
@@ -354,6 +353,7 @@
 --              DEWPOINT = "Taupunkt",
 --              ALTIMETER = "Hoehenmesser",
 --              ACTIVERUN = "Aktive Startbahn",
+--              ACTIVELANDING = "Aktive Landebahn",
 --              LEFT = "Links",
 --              RIGHT = "Rechts",
 --              RWYLENGTH = "Startbahn",
@@ -722,7 +722,8 @@ ATIS.Messages = {
     TEMPERATURE = "Temperature",
     DEWPOINT = "Dew point",
     ALTIMETER = "Altimeter",
-    ACTIVERUN = "Active runway",
+    ACTIVERUN = "Active runway departure",
+    ACTIVELANDING = "Active runway arrival",
     LEFT = "Left",
     RIGHT = "Right",
     RWYLENGTH = "Runway length",
@@ -782,6 +783,7 @@ ATIS.Messages = {
     DEWPOINT = "Taupunkt",
     ALTIMETER = "Hoehenmesser",
     ACTIVERUN = "Aktive Startbahn",
+    ACTIVELANDING = "Aktive Landebahn",
     LEFT = "Links",
     RIGHT = "Rechts",
     RWYLENGTH = "Startbahn",
@@ -842,6 +844,7 @@ ATIS.Messages = {
     DEWPOINT = "Punto de rocio",
     ALTIMETER = "Altímetro",
     ACTIVERUN = "Pista activa",
+    ACTIVELANDING = "Pista de aterrizaje activa",
     LEFT = "Izquierda",
     RIGHT = "Derecha",
     RWYLENGTH = "Longitud de pista",
@@ -881,7 +884,7 @@ _ATIS = {}
 
 --- ATIS class version.
 -- @field #string version
-ATIS.version = "0.10.2"
+ATIS.version = "0.10.3"
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- TODO list
@@ -903,6 +906,7 @@ ATIS.version = "0.10.2"
 -- DONE: Set magnetic variation.
 -- DONE: New DCS 2.7 weather presets.
 -- DONE: Added TextAndSound localization
+-- DONE: Added SRS spelling out both take off and landing runway
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Constructor
@@ -1525,7 +1529,7 @@ end
 -- @param #string GoogleKey Path to Google JSON-Key.
 -- @return #ATIS self
 function ATIS:SetSRS(PathToSRS, Gender, Culture, Voice, Port, GoogleKey)
-  if PathToSRS then
+  if PathToSRS or MSRS.path then
     self.useSRS=true
     self.msrs=MSRS:New(PathToSRS, self.frequency, self.modulation)
     self.msrs:SetGender(Gender)
@@ -1535,6 +1539,7 @@ function ATIS:SetSRS(PathToSRS, Gender, Culture, Voice, Port, GoogleKey)
     self.msrs:SetCoalition(self:GetCoalition())
     self.msrs:SetLabel("ATIS")
     self.msrs:SetGoogle(GoogleKey)
+    self.msrs:SetCoordinate(self.airbase:GetCoordinate())
     self.msrsQ = MSRSQUEUE:New("ATIS")
     self.msrsQ:SetTransmitOnlyWithPlayers(self.TransmitOnlyWithPlayers)
     if self.dTQueueCheck<=10 then
@@ -1556,7 +1561,7 @@ end
 
 --- Get the coalition of the associated airbase.
 -- @param #ATIS self
--- @return #number Coalition of the associcated airbase.
+-- @return #number Coalition of the associated airbase.
 function ATIS:GetCoalition()
   local coal = self.airbase and self.airbase:GetCoalition() or nil
   return coal
@@ -2507,15 +2512,28 @@ function ATIS:onafterBroadcast( From, Event, To )
 
   if not self.ATISforFARPs then
     -- Active runway.
-    local subtitle
+    local subtitle = ""
     if runwayLanding then
-      local actrun = self.gettext:GetEntry("ACTIVERUN",self.locale)
-      --subtitle=string.format("Active runway %s", runwayLanding)
+      local actrun = self.gettext:GetEntry("ACTIVELANDING",self.locale)
+      --subtitle=string.format("Active runway landing %s", runwayLanding)
       subtitle=string.format("%s %s", actrun, runwayLanding)
       if rwyLandingLeft==true then
         --subtitle=subtitle.." Left"
         subtitle=subtitle.." "..self.gettext:GetEntry("LEFT",self.locale)
       elseif rwyLandingLeft==false then
+        --subtitle=subtitle.." Right"
+        subtitle=subtitle.." "..self.gettext:GetEntry("RIGHT",self.locale)
+      end
+      alltext = alltext .. ";\n" .. subtitle
+    end    
+    if runwayTakeoff then
+      local actrun = self.gettext:GetEntry("ACTIVERUN",self.locale)
+      --subtitle=string.format("Active runway %s", runwayLanding)
+      subtitle=string.format("%s %s", actrun, runwayTakeoff)
+      if rwyTakeoffLeft==true then
+        --subtitle=subtitle.." Left"
+        subtitle=subtitle.." "..self.gettext:GetEntry("LEFT",self.locale)
+      elseif rwyTakeoffLeft==false then
         --subtitle=subtitle.." Right"
         subtitle=subtitle.." "..self.gettext:GetEntry("RIGHT",self.locale)
       end
