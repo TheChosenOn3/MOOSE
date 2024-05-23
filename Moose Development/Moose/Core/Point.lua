@@ -181,7 +181,7 @@ do -- COORDINATE
   --   * @{#COORDINATE.ToStringBR}(): Generates a Bearing & Range text in the format of DDD for DI where DDD is degrees and DI is distance.
   --   * @{#COORDINATE.ToStringBRA}(): Generates a Bearing, Range & Altitude text.
   --   * @{#COORDINATE.ToStringBRAANATO}(): Generates a Generates a Bearing, Range, Aspect & Altitude text in NATOPS.
-  --   * @{#COORDINATE.ToStringLL}(): Generates a Latutide & Longitude text.
+  --   * @{#COORDINATE.ToStringLL}(): Generates a Latitude & Longitude text.
   --   * @{#COORDINATE.ToStringLLDMS}(): Generates a Lat, Lon, Degree, Minute, Second text.
   --   * @{#COORDINATE.ToStringLLDDM}(): Generates a Lat, Lon, Degree, decimal Minute text.
   --   * @{#COORDINATE.ToStringMGRS}(): Generates a MGRS grid coordinate text.
@@ -702,8 +702,9 @@ do -- COORDINATE
   -- @param #COORDINATE PointVec2Reference The reference @{#COORDINATE}.
   -- @return DCS#Distance The distance from the reference @{#COORDINATE} in meters.
   function COORDINATE:DistanceFromPointVec2( PointVec2Reference )
-    self:F2( PointVec2Reference )
-
+    self:F2( PointVec2Reference )  
+    if not PointVec2Reference then return math.huge end
+    
     local Distance = ( ( PointVec2Reference.x - self.x ) ^ 2 + ( PointVec2Reference.z - self.z ) ^2 ) ^ 0.5
 
     self:T2( Distance )
@@ -2456,14 +2457,17 @@ do -- COORDINATE
         -- Write command as string and execute that. Idea by Grimes https://forum.dcs.world/topic/324201-mark-to-all-function/#comment-5273793
         local s=string.format("trigger.action.markupToAll(7, %d, %d,", Coalition, MarkID)
         for _,vec in pairs(vecs) do
-          s=s..string.format("%s,", UTILS._OneLineSerialize(vec))
+          --s=s..string.format("%s,", UTILS._OneLineSerialize(vec))
+          s=s..string.format("{x=%.1f, y=%.1f, z=%.1f},", vec.x, vec.y, vec.z)
         end
-        s=s..string.format("%s, %s, %s, %s", UTILS._OneLineSerialize(Color), UTILS._OneLineSerialize(FillColor), tostring(LineType), tostring(ReadOnly))
-        if Text and Text~="" then
-          s=s..string.format(", \"%s\"", Text)
+        s=s..string.format("{%.3f, %.3f, %.3f, %.3f},", Color[1], Color[2], Color[3], Color[4])
+        s=s..string.format("{%.3f, %.3f, %.3f, %.3f},", FillColor[1], FillColor[2], FillColor[3], FillColor[4])
+        s=s..string.format("%d,", LineType or 1)
+        s=s..string.format("%s", tostring(ReadOnly))
+        if Text and type(Text)=="string" and string.len(Text)>0 then
+          s=s..string.format(", \"%s\"", tostring(Text))
         end
         s=s..")"
-        
         
         -- Execute string command
         local success=UTILS.DoString(s)
@@ -3068,6 +3072,18 @@ do -- COORDINATE
     return coord.LOtoLL( self:GetVec3() )
   end
 
+  --- Get Latitude & Longitude text.
+  -- @param #COORDINATE self
+  -- @param Core.Settings#SETTINGS Settings (optional) The settings. Can be nil, and in this case the default settings are used. If you want to specify your own settings, use the _SETTINGS object.
+  -- @return #string LLText
+  function COORDINATE:ToStringLL( Settings )
+  
+    local LL_Accuracy = Settings and Settings.LL_Accuracy or _SETTINGS.LL_Accuracy
+    local lat, lon = coord.LOtoLL( self:GetVec3() )
+    return string.format('%f', lat) .. ' ' .. string.format('%f', lon)
+  end
+
+  
   --- Provides a Lat Lon string in Degree Minute Second format.
   -- @param #COORDINATE self
   -- @param Core.Settings#SETTINGS Settings (optional) The settings. Can be nil, and in this case the default settings are used. If you want to specify your own settings, use the _SETTINGS object.
@@ -3132,17 +3148,18 @@ do -- COORDINATE
   -- @param #string Northing Meters northing - string in order to allow for leading zeros, e.g. "12340". Should be 5 digits.
   -- @return #COORDINATE self
   function COORDINATE:NewFromMGRS( UTMZone, MGRSDigraph, Easting, Northing )
-    if string.len(Easting) < 5 then Easting = Easting..string.rep("0",5-string.len(Easting) )end  
-    if string.len(Northing) < 5 then Northing = Northing..string.rep("0",5-string.len(Northing) )end
+    if string.len(Easting) < 5 then Easting = tostring(Easting..string.rep("0",5-string.len(Easting) )) end  
+    if string.len(Northing) < 5 then Northing = tostring(Northing..string.rep("0",5-string.len(Northing) )) end
     local MGRS = {
             UTMZone = UTMZone,
             MGRSDigraph = MGRSDigraph,
-            Easting = Easting,
-            Northing = Northing,
+            Easting = tostring(Easting),
+            Northing = tostring(Northing),
           }
     local lat, lon = coord.MGRStoLL(MGRS)
     local point = coord.LLtoLO(lat, lon, 0)
     local coord = COORDINATE:NewFromVec2({x=point.x,y=point.z})
+    return coord
   end
 
   --- Provides a coordinate string of the point, based on a coordinate format system:

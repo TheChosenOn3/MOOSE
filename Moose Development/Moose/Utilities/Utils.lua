@@ -55,6 +55,7 @@ BIGSMOKEPRESET = {
 -- @field #string MarianaIslands Mariana Islands map.
 -- @field #string Falklands South Atlantic map.
 -- @field #string Sinai Sinai map.
+-- @field #string Kola Kola map.
 DCSMAP = {
   Caucasus="Caucasus",
   NTTR="Nevada",
@@ -64,7 +65,8 @@ DCSMAP = {
   Syria="Syria",
   MarianaIslands="MarianaIslands",
   Falklands="Falklands",
-  Sinai="SinaiMap"
+  Sinai="SinaiMap",
+  Kola="Kola"
 }
 
 
@@ -444,10 +446,11 @@ end
 --- Print a table to log in a nice format
 -- @param #table table The table to print
 -- @param #number indent Number of indents
+-- @param #boolean noprint Don't log but return text
 -- @return #string text Text created on the fly of the log output
-function UTILS.PrintTableToLog(table, indent)
+function UTILS.PrintTableToLog(table, indent, noprint)
   local text = "\n"
-  if not table then
+  if not table or type(table) ~= "table" then
     env.warning("No table passed!")
     return nil
   end
@@ -455,11 +458,16 @@ function UTILS.PrintTableToLog(table, indent)
   for k, v in pairs(table) do
     if string.find(k," ") then k='"'..k..'"'end
     if type(v) == "table" then
-      env.info(string.rep("  ", indent) .. tostring(k) .. " = {")
+      if not noprint then
+        env.info(string.rep("  ", indent) .. tostring(k) .. " = {")
+      end
       text = text ..string.rep("  ", indent) .. tostring(k) .. " = {\n"
       text = text .. tostring(UTILS.PrintTableToLog(v, indent + 1)).."\n"
-      env.info(string.rep("  ", indent) .. "},")
+      if not noprint then
+        env.info(string.rep("  ", indent) .. "},")
+      end
       text = text .. string.rep("  ", indent) .. "},\n"
+    elseif type(v) == "function" then
     else
       local value
       if tostring(v) == "true" or tostring(v) == "false" or tonumber(v) ~= nil then
@@ -467,7 +475,9 @@ function UTILS.PrintTableToLog(table, indent)
       else
         value = '"'..tostring(v)..'"'
       end
-      env.info(string.rep("  ", indent) .. tostring(k) .. " = " .. tostring(value)..",\n")
+      if not noprint then
+        env.info(string.rep("  ", indent) .. tostring(k) .. " = " .. tostring(value)..",\n")
+      end
       text = text .. string.rep("  ", indent) .. tostring(k) .. " = " .. tostring(value)..",\n"
     end
   end
@@ -823,6 +833,64 @@ UTILS.tostringLL = function( lat, lon, acc, DMS)
         .. string.format('%03d°', lonDeg) .. ' ' .. string.format(minFrmtStr, lonMin) .. '\'' .. lonHemi
 
   end
+end
+
+--[[acc:
+in DM: decimal point of minutes.
+In DMS: decimal point of seconds.
+position after the decimal of the least significant digit:
+So:
+42.32 - acc of 2.
+]]
+UTILS.tostringLLM2KData = function( lat, lon, acc)
+
+  local latHemi, lonHemi
+  if lat > 0 then
+    latHemi = 'N'
+  else
+    latHemi = 'S'
+  end
+
+  if lon > 0 then
+    lonHemi = 'E'
+  else
+    lonHemi = 'W'
+  end
+
+  lat = math.abs(lat)
+  lon = math.abs(lon)
+
+  local latDeg = math.floor(lat)
+  local latMin = (lat - latDeg)*60
+
+  local lonDeg = math.floor(lon)
+  local lonMin = (lon - lonDeg)*60
+
+  -- degrees, decimal minutes.
+  latMin = UTILS.Round(latMin, acc)
+  lonMin = UTILS.Round(lonMin, acc)
+  
+  if latMin == 60 then
+    latMin = 0
+    latDeg = latDeg + 1
+  end
+  
+  if lonMin == 60 then
+    lonMin = 0
+    lonDeg = lonDeg + 1
+  end
+  
+  local minFrmtStr -- create the formatting string for the minutes place
+  if acc <= 0 then  -- no decimal place.
+    minFrmtStr = '%02d'
+  else
+    local width = 3 + acc  -- 01.310 - that's a width of 6, for example.
+    minFrmtStr = '%0' .. width .. '.' .. acc .. 'f'
+  end
+  
+  -- 024 23'N or 024 23.123'N
+  return latHemi..string.format('%02d:', latDeg) .. string.format(minFrmtStr, latMin), lonHemi..string.format('%02d:', lonDeg) .. string.format(minFrmtStr, lonMin)
+
 end
 
 -- acc- the accuracy of each easting/northing.  0, 1, 2, 3, 4, or 5.
@@ -1637,6 +1705,7 @@ end
 -- * Mariana Islands +2 (East)
 -- * Falklands +12 (East) - note there's a LOT of deviation across the map, as we're closer to the South Pole
 -- * Sinai +4.8 (East)
+-- * Kola +15 (East) - not there is a lot of deviation across the map (-1° to +24°), as we are close to the North pole
 -- @param #string map (Optional) Map for which the declination is returned. Default is from env.mission.theatre
 -- @return #number Declination in degrees.
 function UTILS.GetMagneticDeclination(map)
@@ -1663,6 +1732,8 @@ function UTILS.GetMagneticDeclination(map)
     declination=12
   elseif map==DCSMAP.Sinai then
     declination=4.8
+  elseif map==DCSMAP.Kola then
+    declination=15
   else
     declination=0
   end
@@ -1879,7 +1950,9 @@ function UTILS.GMTToLocalTimeDifference()
   elseif theatre==DCSMAP.Falklands then
     return -3  -- Fireland is UTC-3 hours.
   elseif theatre==DCSMAP.Sinai then
-    return 2   -- Currently map is +2 but should be +3 (DCS bug?)    
+    return 2   -- Currently map is +2 but should be +3 (DCS bug?)
+  elseif theatre==DCSMAP.Kola then
+    return 3   -- Currently map is +2 but should be +3 (DCS bug?)     
   else
     BASE:E(string.format("ERROR: Unknown Map %s in UTILS.GMTToLocal function. Returning 0", tostring(theatre)))
     return 0
@@ -2171,6 +2244,11 @@ function UTILS.IsLoadingDoorOpen( unit_name )
          return true -- no doors on this one ;)
       end
       
+      if type_name == "MH-60R" and (unit:getDrawArgumentValue(403) > 0 or unit:getDrawArgumentValue(403) == -1) then
+        BASE:T(unit_name .. " cargo door is open")
+        return true
+      end
+      
       return false
 
   end -- nil
@@ -2271,20 +2349,37 @@ function UTILS.GenerateVHFrequencies()
   return FreeVHFFrequencies
 end
 
---- Function to generate valid UHF Frequencies in mHz (AM).
+--- Function to generate valid UHF Frequencies in mHz (AM). Can be between 220 and 399 mHz. 243 is auto-excluded.
+-- @param Start (Optional) Avoid frequencies between Start and End in mHz, e.g. 244
+-- @param End (Optional) Avoid frequencies between Start and End in mHz, e.g. 320
 -- @return #table UHF Frequencies
-function UTILS.GenerateUHFrequencies()
+function UTILS.GenerateUHFrequencies(Start,End)
 
     local FreeUHFFrequencies = {}
     local _start = 220000000
-
-    while _start < 399000000 do
-    if _start ~= 243000000 then
-      table.insert(FreeUHFFrequencies, _start)
+    
+    if not Start then
+      while _start < 399000000 do
+      if _start ~= 243000000 then
+        table.insert(FreeUHFFrequencies, _start)
+      end
+          _start = _start + 500000
+      end
+    else
+      local myend = End*1000000 or 399000000
+      local mystart = Start*1000000 or 220000000
+      
+      while _start < 399000000 do
+      if _start ~= 243000000 and (_start < mystart or _start > myend) then
+        print(_start)
+        table.insert(FreeUHFFrequencies, _start)
+      end
+          _start = _start + 500000
+      end
+      
     end
-        _start = _start + 500000
-    end
-
+    
+    
     return FreeUHFFrequencies
 end
 
@@ -2561,6 +2656,9 @@ function UTILS.SaveSetOfGroups(Set,Path,Filename,Structured)
     if group and group:IsAlive() then
       local name = group:GetName()
       local template = string.gsub(name,"-(.+)$","")
+      if string.find(name,"AID") then
+        template = string.gsub(name,"(.AID.%d+$","")
+      end
       if string.find(template,"#") then
        template = string.gsub(name,"#(%d+)$","")
       end 
@@ -3425,6 +3523,25 @@ function string.contains(str, value)
     return string.match(str, value)
 end
 
+
+--- Moves an object from one table to another
+-- @param #obj object to move
+-- @param #from_table table to move from
+-- @param #to_table table to move to
+function table.move_object(obj, from_table, to_table)
+    local index
+    for i, v in pairs(from_table) do
+        if v == obj then
+            index = i
+        end
+    end
+
+    if index then
+        local moved = table.remove(from_table, index)
+        table.insert_unique(to_table, moved)
+    end
+end
+
 --- Given tbl is a indexed table ({"hello", "dcs", "world"}), checks if element exists in the table.
 --- The table can be made up out of complex tables or values as well
 -- @param #table tbl
@@ -3641,4 +3758,179 @@ end
 -- @return #number Decimal
 function UTILS.OctalToDecimal(Number)
   return tonumber(Number,8)
+end
+
+
+--- HexToRGBA
+-- @param hex_string table
+-- @return #table R, G, B, A
+function UTILS.HexToRGBA(hex_string)
+    local hexNumber = tonumber(string.sub(hex_string, 3), 16) -- convert the string to a number
+    -- extract RGBA components
+    local alpha = hexNumber % 256
+    hexNumber = (hexNumber - alpha) / 256
+    local blue = hexNumber % 256
+    hexNumber = (hexNumber - blue) / 256
+    local green = hexNumber % 256
+    hexNumber = (hexNumber - green) / 256
+    local red = hexNumber % 256
+
+    return {R = red, G = green, B = blue, A = alpha}
+end
+
+
+--- Function to save the position of a set of #OPSGROUP (ARMYGROUP) objects.
+-- @param Core.Set#SET_OPSGROUP Set of ops objects to save
+-- @param #string Path The path to use. Use double backslashes \\\\ on Windows filesystems.
+-- @param #string Filename The name of the file.
+-- @param #boolean Structured Append the data with a list of typenames in the group plus their count.
+-- @return #boolean outcome True if saving is successful, else false.
+function UTILS.SaveSetOfOpsGroups(Set,Path,Filename,Structured)
+  local filename = Filename or "SetOfGroups"
+  local data = "--Save SET of groups: (name,legion,template,alttemplate,units,position.x,position.y,position.z,strucdata) "..Filename .."\n"
+  local List = Set:GetSetObjects()
+  for _,_group in pairs (List) do
+    local group = _group:GetGroup() -- Wrapper.Group#GROUP
+    if group and group:IsAlive() then
+      local name = group:GetName()
+      local template = string.gsub(name,"(.AID.%d+$","")
+      if string.find(template,"#") then
+       template = string.gsub(name,"#(%d+)$","")
+      end
+      local alttemplate = _group.templatename or "none"
+      local legiono = _group.legion -- Ops.Legion#LEGION
+      local legion = "none"
+      if legiono and type(legiono) == "table" and legiono.ClassName then
+        legion = legiono:GetName()
+        local asset = legiono:GetAssetByName(name) -- Functional.Warehouse#WAREHOUSE.Assetitem
+        alttemplate=asset.templatename
+      end
+      local units = group:CountAliveUnits()
+      local position = group:GetVec3()
+      if Structured then
+        local structure = UTILS.GetCountPerTypeName(group)
+        local strucdata =  ""
+        for typen,anzahl in pairs (structure) do
+          strucdata = strucdata .. typen .. "=="..anzahl..";"
+        end
+        data = string.format("%s%s,%s,%s,%s,%d,%d,%d,%d,%s\n",data,name,legion,template,alttemplate,units,position.x,position.y,position.z,strucdata)
+      else
+        data = string.format("%s%s,%s,%s,%s,%d,%d,%d,%d\n",data,name,legion,template,alttemplate,units,position.x,position.y,position.z)
+      end
+    end
+  end
+  -- save the data
+  local outcome = UTILS.SaveToFile(Path,Filename,data)
+  return outcome
+end
+
+--- Load back a #OPSGROUP (ARMYGROUP) data from file for use with @{Ops.Brigade#BRIGADE.LoadBackAssetInPosition}()
+-- @param #string Path The path to use. Use double backslashes \\\\ on Windows filesystems.
+-- @param #string Filename The name of the file.
+-- @return #table Returns a table of data entries: `{ groupname=groupname, size=size, coordinate=coordinate, template=template, structure=structure, legion=legion, alttemplate=alttemplate }`
+-- Returns nil when the file cannot be read.
+function UTILS.LoadSetOfOpsGroups(Path,Filename)
+
+  local filename = Filename or "SetOfGroups"
+  local datatable = {}
+
+  if UTILS.CheckFileExists(Path,filename) then
+    local outcome,loadeddata = UTILS.LoadFromFile(Path,Filename)
+    -- remove header
+    table.remove(loadeddata, 1)
+    for _id,_entry in pairs (loadeddata) do
+      local dataset = UTILS.Split(_entry,",")
+      -- 1name,2legion,3template,4alttemplate,5units,6position.x,7position.y,8position.z,9strucdata
+      local groupname = dataset[1]
+      local legion = dataset[2]
+      local template = dataset[3]
+      local alttemplate = dataset[4]
+      local size = tonumber(dataset[5])
+      local posx = tonumber(dataset[6])
+      local posy = tonumber(dataset[7])
+      local posz = tonumber(dataset[8])
+      local structure = dataset[9]
+      local coordinate = COORDINATE:NewFromVec3({x=posx, y=posy, z=posz})
+      if size > 0 then
+        local data = { groupname=groupname, size=size, coordinate=coordinate, template=template, structure=structure, legion=legion, alttemplate=alttemplate }
+        table.insert(datatable,data)
+      end
+    end
+  else
+    return nil
+  end
+
+  return datatable
+end
+
+--- Get the clock position from a relative heading
+-- @param #number refHdg The heading of the reference object (such as a Wrapper.UNIT) in 0-360
+-- @param #number tgtHdg The absolute heading from the reference object to the target object/point in 0-360
+-- @return #string text Text in clock heading such as "4 O'CLOCK"
+-- @usage Display the range and clock distance of a BTR in relation to REAPER 1-1's heading:
+--
+--          myUnit = UNIT:FindByName( "REAPER 1-1" )
+--          myTarget = GROUP:FindByName( "BTR-1" )
+--
+--          coordUnit = myUnit:GetCoordinate()
+--          coordTarget = myTarget:GetCoordinate()
+--
+--          hdgUnit = myUnit:GetHeading()
+--          hdgTarget = coordUnit:HeadingTo( coordTarget )
+--          distTarget = coordUnit:Get3DDistance( coordTarget )
+--
+--          clockString = UTILS.ClockHeadingString( hdgUnit, hdgTarget )
+--
+--          -- Will show this message to REAPER 1-1 in-game: Contact BTR at 3 o'clock for 1134m!
+--          MESSAGE:New("Contact BTR at " .. clockString .. " for " .. distTarget  .. "m!):ToUnit( myUnit )
+function UTILS.ClockHeadingString(refHdg,tgtHdg)
+    local relativeAngle = tgtHdg - refHdg
+    if relativeAngle < 0 then
+        relativeAngle = relativeAngle + 360
+    end
+    local clockPos = math.ceil((relativeAngle % 360) / 30)
+    return clockPos.." o'clock"
+end
+
+--- Get a NATO abbreviated MGRS text for SRS use, optionally with prosody slow tag
+-- @param #string Text The input string, e.g. "MGRS 4Q FJ 12345 67890"
+-- @param #boolean Slow Optional - add slow tags
+-- @return #string Output for (Slow) spelling in SRS TTS e.g. "MGRS;<prosody rate="slow">4;Quebec;Foxtrot;Juliett;1;2;3;4;5;6;7;8;niner;zero;</prosody>"
+function UTILS.MGRSStringToSRSFriendly(Text,Slow)
+    local Text = string.gsub(Text,"MGRS ","")
+    Text = string.gsub(Text,"%s+","")
+    Text = string.gsub(Text,"([%a%d])","%1;") -- "0;5;1;"
+    Text = string.gsub(Text,"A","Alpha")
+    Text = string.gsub(Text,"B","Bravo")
+    Text = string.gsub(Text,"C","Charlie")
+    Text = string.gsub(Text,"D","Delta")
+    Text = string.gsub(Text,"E","Echo")
+    Text = string.gsub(Text,"F","Foxtrot")
+    Text = string.gsub(Text,"G","Golf")
+    Text = string.gsub(Text,"H","Hotel")
+    Text = string.gsub(Text,"I","India")
+    Text = string.gsub(Text,"J","Juliett")
+    Text = string.gsub(Text,"K","Kilo")
+    Text = string.gsub(Text,"L","Lima")
+    Text = string.gsub(Text,"M","Mike")
+    Text = string.gsub(Text,"N","November")
+    Text = string.gsub(Text,"O","Oscar")
+    Text = string.gsub(Text,"P","Papa")
+    Text = string.gsub(Text,"Q","Quebec")
+    Text = string.gsub(Text,"R","Romeo")
+    Text = string.gsub(Text,"S","Sierra")
+    Text = string.gsub(Text,"T","Tango")
+    Text = string.gsub(Text,"U","Uniform")
+    Text = string.gsub(Text,"V","Victor")
+    Text = string.gsub(Text,"W","Whiskey")
+    Text = string.gsub(Text,"X","Xray")
+    Text = string.gsub(Text,"Y","Yankee")
+    Text = string.gsub(Text,"Z","Zulu")
+    Text = string.gsub(Text,"0","zero")
+    Text = string.gsub(Text,"9","niner")
+    if Slow then
+      Text = '<prosody rate="slow">'..Text..'</prosody>'
+    end 
+    Text = "MGRS;"..Text
+    return Text
 end

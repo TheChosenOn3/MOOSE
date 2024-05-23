@@ -46,6 +46,10 @@
 --
 -- ===
 --
+-- ### [Demo Missions](https://github.com/FlightControl-Master/MOOSE_Demos/tree/master/Core/Zone)
+--
+-- ===
+--
 -- ### Author: **FlightControl**
 -- ### Contributions: **Applevangelist**, **FunkyFranky**, **coconutcockpit**
 --
@@ -326,14 +330,14 @@ function ZONE_BASE:GetRandomVec2()
   return nil
 end
 
---- Define a random @{Core.Point#POINT_VEC2} within the zone.
+--- Define a random @{Core.Point#POINT_VEC2} within the zone. Note that this is actually a @{Core.Point#COORDINATE} type object, and not a simple Vec2 table.
 -- @param #ZONE_BASE self
 -- @return Core.Point#POINT_VEC2 The PointVec2 coordinates.
 function ZONE_BASE:GetRandomPointVec2()
   return nil
 end
 
---- Define a random @{Core.Point#POINT_VEC3} within the zone.
+--- Define a random @{Core.Point#POINT_VEC3} within the zone. Note that this is actually a @{Core.Point#COORDINATE} type object, and not a simple Vec3 table.
 -- @param #ZONE_BASE self
 -- @return Core.Point#POINT_VEC3 The PointVec3 coordinates.
 function ZONE_BASE:GetRandomPointVec3()
@@ -899,7 +903,8 @@ function ZONE_RADIUS:BoundZone( Points, CountryID, UnBound )
 
   local Point = {}
   local Vec2 = self:GetVec2()
-
+  local countryID = CountryID or country.id.USA
+  
   Points = Points and Points or 360
 
   local Angle
@@ -910,7 +915,7 @@ function ZONE_RADIUS:BoundZone( Points, CountryID, UnBound )
     Point.x = Vec2.x + math.cos( Radial ) * self:GetRadius()
     Point.y = Vec2.y + math.sin( Radial ) * self:GetRadius()
 
-    local CountryName = _DATABASE.COUNTRY_NAME[CountryID]
+    local CountryName = _DATABASE.COUNTRY_NAME[countryID]
 
     local Tire = {
         ["country"] = CountryName,
@@ -925,7 +930,7 @@ function ZONE_RADIUS:BoundZone( Points, CountryID, UnBound )
         ["heading"] = 0,
     } -- end of ["group"]
 
-    local Group = coalition.addStaticObject( CountryID, Tire )
+    local Group = coalition.addStaticObject( countryID, Tire )
     if UnBound and UnBound == true then
       Group:destroy()
     end
@@ -1175,7 +1180,7 @@ function ZONE_RADIUS:RemoveJunk()
   return n
 end
 
---- Count the number of different coalitions inside the zone.
+--- Get a table  of scanned units.
 -- @param #ZONE_RADIUS self
 -- @return #table Table of DCS units and DCS statics inside the zone.
 function ZONE_RADIUS:GetScannedUnits()
@@ -1210,7 +1215,7 @@ function ZONE_RADIUS:GetScannedSetUnit()
   return SetUnit
 end
 
---- Get a set of scanned units.
+--- Get a set of scanned groups.
 -- @param #ZONE_RADIUS self
 -- @return Core.Set#SET_GROUP Set of groups.
 function ZONE_RADIUS:GetScannedSetGroup()
@@ -1510,7 +1515,7 @@ function ZONE_RADIUS:GetRandomVec2(inner, outer, surfacetypes)
   return point
 end
 
---- Returns a @{Core.Point#POINT_VEC2} object reflecting a random 2D location within the zone.
+--- Returns a @{Core.Point#POINT_VEC2} object reflecting a random 2D location within the zone. Note that this is actually a @{Core.Point#COORDINATE} type object, and not a simple Vec2 table.
 -- @param #ZONE_RADIUS self
 -- @param #number inner (optional) Minimal distance from the center of the zone. Default is 0.
 -- @param #number outer (optional) Maximal distance from the outer edge of the zone. Default is the radius of the zone.
@@ -1541,7 +1546,7 @@ function ZONE_RADIUS:GetRandomVec3( inner, outer )
 end
 
 
---- Returns a @{Core.Point#POINT_VEC3} object reflecting a random 3D location within the zone.
+--- Returns a @{Core.Point#POINT_VEC3} object reflecting a random 3D location within the zone. Note that this is actually a @{Core.Point#COORDINATE} type object, and not a simple Vec3 table.
 -- @param #ZONE_RADIUS self
 -- @param #number inner (optional) Minimal distance from the center of the zone. Default is 0.
 -- @param #number outer (optional) Maximal distance from the outer edge of the zone. Default is the radius of the zone.
@@ -1985,7 +1990,7 @@ function ZONE_GROUP:GetRandomVec2()
   return Point
 end
 
---- Returns a @{Core.Point#POINT_VEC2} object reflecting a random 2D location within the zone.
+--- Returns a @{Core.Point#POINT_VEC2} object reflecting a random 2D location within the zone. Note that this is actually a @{Core.Point#COORDINATE} type object, and not a simple Vec2 table.
 -- @param #ZONE_GROUP self
 -- @param #number inner (optional) Minimal distance from the center of the zone. Default is 0.
 -- @param #number outer (optional) Maximal distance from the outer edge of the zone. Default is the radius of the zone.
@@ -2114,7 +2119,7 @@ end
 function _ZONE_TRIANGLE:Fill(Coalition, FillColor, FillAlpha, ReadOnly)
     Coalition=Coalition or -1
     FillColor = FillColor
-    FillAlpha = FillAlpha 
+    FillAlpha = FillAlpha
     local newID = self.Coords[1]:MarkupToAllFreeForm({self.Coords[2],self.Coords[3]},Coalition,nil,nil,FillColor,FillAlpha,0,nil)
     self.DrawID[#self.DrawID+1] = newID
     return self.DrawID
@@ -2194,7 +2199,7 @@ function ZONE_POLYGON_BASE:New( ZoneName, PointsArray )
     self._Triangles = self:_Triangulate()
     -- set the polygon's surface area
     self.SurfaceArea = self:_CalculateSurfaceArea()
-    
+
   end
 
   return self
@@ -2495,6 +2500,7 @@ end
 -- @param #boolean ReadOnly (Optional) Mark is readonly and cannot be removed by users. Default false.s
 -- @return #ZONE_POLYGON_BASE self
 function ZONE_POLYGON_BASE:DrawZone(Coalition, Color, Alpha, FillColor, FillAlpha, LineType, ReadOnly, IncludeTriangles)
+
   
   if self._.Polygon and #self._.Polygon >= 3 then
     Coalition = Coalition or self:GetDrawCoalition()
@@ -2516,7 +2522,22 @@ function ZONE_POLYGON_BASE:DrawZone(Coalition, Color, Alpha, FillColor, FillAlph
         self:ReDrawBorderline(Color,Alpha,LineType)
     end
   end
-  
+
+
+  if false then
+    local coords = self:GetVerticiesCoordinates()
+
+    local coord=coords[1] --Core.Point#COORDINATE
+
+    table.remove(coords, 1)
+
+    coord:MarkupToAllFreeForm(coords, Coalition, Color, Alpha, FillColor, FillAlpha, LineType, ReadOnly, "Drew Polygon")
+
+    if true then
+      return
+    end
+  end
+
   return self
 end
 
@@ -2813,7 +2834,7 @@ function ZONE_POLYGON_BASE:GetRandomVec2()
     end
 end
 
---- Return a @{Core.Point#POINT_VEC2} object representing a random 2D point at landheight within the zone.
+--- Return a @{Core.Point#POINT_VEC2} object representing a random 2D point at landheight within the zone. Note that this is actually a @{Core.Point#COORDINATE} type object, and not a simple Vec2 table.
 -- @param #ZONE_POLYGON_BASE self
 -- @return @{Core.Point#POINT_VEC2}
 function ZONE_POLYGON_BASE:GetRandomPointVec2()
@@ -2826,7 +2847,7 @@ function ZONE_POLYGON_BASE:GetRandomPointVec2()
   return PointVec2
 end
 
---- Return a @{Core.Point#POINT_VEC3} object representing a random 3D point at landheight within the zone.
+--- Return a @{Core.Point#POINT_VEC3} object representing a random 3D point at landheight within the zone. Note that this is actually a @{Core.Point#COORDINATE} type object, and not a simple Vec3 table.
 -- @param #ZONE_POLYGON_BASE self
 -- @return @{Core.Point#POINT_VEC3}
 function ZONE_POLYGON_BASE:GetRandomPointVec3()
@@ -3055,9 +3076,25 @@ function ZONE_POLYGON:NewFromDrawing(DrawingName)
                     -- points for the drawings are saved in local space, so add the object's map x and y coordinates to get
                     -- world space points we can use
                     for _, point in UTILS.spairs(object["points"]) do
+                        -- check if we want to skip adding a point
+                        local skip = false
                         local p = {x = object["mapX"] + point["x"],
                                    y = object["mapY"] + point["y"] }
-                        table.add(points, p)
+
+                        -- Check if the same coordinates already exist in the list, skip if they do
+                        -- This can happen when drawing a Polygon in Free mode, DCS adds points on
+                        -- top of each other that are in the `mission` file, but not visible in the
+                        -- Mission Editor
+                        for _, pt in pairs(points) do
+                            if pt.x == p.x and pt.y == p.y then
+                                skip = true
+                            end
+                        end
+
+                        -- if it's a unique point, add it
+                        if not skip then
+                            table.add(points, p)
+                        end
                     end
                 elseif object["polygonMode"] == "rect" then
                     -- the points for a rect are saved as local coordinates with an angle. To get the world space points from this
@@ -3075,6 +3112,7 @@ function ZONE_POLYGON:NewFromDrawing(DrawingName)
 
                     points = {p1, p2, p3, p4}
                 else
+                    -- bring the Arrow code over from Shape/Polygon
                     -- something else that might be added in the future
                 end
             end
@@ -3117,18 +3155,18 @@ function ZONE_POLYGON:Scan( ObjectCategories, UnitCategories )
   self.ScanData.Scenery = {}
   self.ScanData.SceneryTable = {}
   self.ScanData.Units = {}
-  
+
   local vectors = self:GetBoundingSquare()
-  
+
   local minVec3 = {x=vectors.x1, y=0, z=vectors.y1}
   local maxVec3 = {x=vectors.x2, y=0, z=vectors.y2}
-  
+
   local minmarkcoord = COORDINATE:NewFromVec3(minVec3)
   local maxmarkcoord = COORDINATE:NewFromVec3(maxVec3)
   local ZoneRadius = minmarkcoord:Get2DDistance(maxmarkcoord)/2
 --  self:I("Scan Radius:" ..ZoneRadius)
   local CenterVec3 = self:GetCoordinate():GetVec3()
-  
+
  --[[ this a bit shaky in functionality it seems
   local VolumeBox = {
    id = world.VolumeType.BOX,
@@ -3138,7 +3176,7 @@ function ZONE_POLYGON:Scan( ObjectCategories, UnitCategories )
    }
   }
   --]]
-  
+
   local SphereSearch = {
   id = world.VolumeType.SPHERE,
     params = {
@@ -3146,13 +3184,13 @@ function ZONE_POLYGON:Scan( ObjectCategories, UnitCategories )
     radius = ZoneRadius,
     }
   }
-    
+
   local function EvaluateZone( ZoneObject )
 
     if ZoneObject then
 
       local ObjectCategory = Object.getCategory(ZoneObject)
-      
+
       if ( ObjectCategory == Object.Category.UNIT and ZoneObject:isExist() and ZoneObject:isActive() ) or (ObjectCategory == Object.Category.STATIC and ZoneObject:isExist()) then
 
         local CoalitionDCSUnit = ZoneObject:getCoalition()
@@ -3186,7 +3224,7 @@ function ZONE_POLYGON:Scan( ObjectCategories, UnitCategories )
           self:F2( { Name = ZoneObject:getName(), Coalition = CoalitionDCSUnit } )
         end
       end
-      
+
       -- trying with box search
       if ObjectCategory == Object.Category.SCENERY and self:IsVec3InZone(ZoneObject:getPoint()) then
         local SceneryType = ZoneObject:getTypeName()
@@ -3205,7 +3243,7 @@ function ZONE_POLYGON:Scan( ObjectCategories, UnitCategories )
   -- Search objects.
   local inzoneunits = SET_UNIT:New():FilterZones({self}):FilterOnce()
   local inzonestatics = SET_STATIC:New():FilterZones({self}):FilterOnce()
-  
+
   inzoneunits:ForEach(
     function(unit)
       local Unit = unit --Wrapper.Unit#UNIT
@@ -3213,7 +3251,7 @@ function ZONE_POLYGON:Scan( ObjectCategories, UnitCategories )
       EvaluateZone(DCS)
     end
   )
-  
+
   inzonestatics:ForEach(
     function(static)
       local Static = static --Wrapper.Static#STATIC
@@ -3221,19 +3259,19 @@ function ZONE_POLYGON:Scan( ObjectCategories, UnitCategories )
       EvaluateZone(DCS)
     end
   )
-  
+
   local searchscenery = false
   for _,_type in pairs(ObjectCategories) do
     if _type == Object.Category.SCENERY then
       searchscenery = true
     end
   end
-  
+
   if searchscenery then
     -- Search objects.
     world.searchObjects({Object.Category.SCENERY}, SphereSearch, EvaluateZone )
   end
-  
+
 end
 
 --- Count the number of different coalitions inside the zone.
@@ -3449,7 +3487,7 @@ end
 end
 
 do -- ZONE_ELASTIC
-  
+
   ---
   -- @type ZONE_ELASTIC
   -- @field #table points Points in 2D.
@@ -3476,14 +3514,14 @@ do -- ZONE_ELASTIC
   function ZONE_ELASTIC:New(ZoneName, Points)
 
     local self=BASE:Inherit(self, ZONE_POLYGON_BASE:New(ZoneName, Points)) --#ZONE_ELASTIC
-  
+
     -- Zone objects are added to the _DATABASE and SET_ZONE objects.
     _EVENTDISPATCHER:CreateEventNewZone( self )
-  
+
     if Points then
       self.points=Points
     end
-  
+
     return self
   end
 
@@ -3492,10 +3530,10 @@ do -- ZONE_ELASTIC
   -- @param DCS#Vec2 Vec2 Point in 2D (with x and y coordinates).
   -- @return #ZONE_ELASTIC self
   function ZONE_ELASTIC:AddVertex2D(Vec2)
-  
+
     -- Add vec2 to points.
     table.insert(self.points, Vec2)
-  
+
     return self
   end
 
@@ -3505,10 +3543,10 @@ do -- ZONE_ELASTIC
   -- @param DCS#Vec3 Vec3 Point in 3D (with x, y and z coordinates). Only the x and z coordinates are used.
   -- @return #ZONE_ELASTIC self
   function ZONE_ELASTIC:AddVertex3D(Vec3)
-    
+
     -- Add vec2 from vec3 to points.
     table.insert(self.points, {x=Vec3.x, y=Vec3.z})
-  
+
     return self
   end
 
@@ -3518,10 +3556,10 @@ do -- ZONE_ELASTIC
   -- @param Core.Set#SET_GROUP GroupSet Set of groups.
   -- @return #ZONE_ELASTIC self
   function ZONE_ELASTIC:AddSetGroup(GroupSet)
-  
+
     -- Add set to table.
     table.insert(self.setGroups, GroupSet)
-    
+
     return self
   end
 
@@ -3533,13 +3571,13 @@ do -- ZONE_ELASTIC
   -- @param #boolean Draw Draw the zone. Default `nil`.
   -- @return #ZONE_ELASTIC self
   function ZONE_ELASTIC:Update(Delay, Draw)
-    
+
     -- Debug info.
     self:T(string.format("Updating ZONE_ELASTIC %s", tostring(self.ZoneName)))
-  
+
     -- Copy all points.
     local points=UTILS.DeepCopy(self.points or {})
-    
+
     if self.setGroups then
       for _,_setGroup in pairs(self.setGroups) do
         local setGroup=_setGroup --Core.Set#SET_GROUP
@@ -3554,7 +3592,7 @@ do -- ZONE_ELASTIC
 
     -- Update polygon verticies from points.
     self._.Polygon=self:_ConvexHull(points)
-    
+
     if Draw~=false then
       if self.DrawID or Draw==true then
         self:UndrawZone()
@@ -3564,7 +3602,7 @@ do -- ZONE_ELASTIC
 
     return self
   end
-  
+
   --- Start the updating scheduler.
   -- @param #ZONE_ELASTIC self
   -- @param #number Tstart Time in seconds before the updating starts.
@@ -3573,9 +3611,9 @@ do -- ZONE_ELASTIC
   -- @param #boolean Draw Draw the zone. Default `nil`.
   -- @return #ZONE_ELASTIC self
   function ZONE_ELASTIC:StartUpdate(Tstart, dT, Tstop, Draw)
-  
+
     self.updateID=self:ScheduleRepeat(Tstart, dT, 0, Tstop, ZONE_ELASTIC.Update, self, 0, Draw)
-  
+
     return self
   end
 
@@ -3584,46 +3622,46 @@ do -- ZONE_ELASTIC
   -- @param #number Delay Delay in seconds before the scheduler will be stopped. Default 0.
   -- @return #ZONE_ELASTIC self
   function ZONE_ELASTIC:StopUpdate(Delay)
-  
+
     if Delay and Delay>0 then
       self:ScheduleOnce(Delay, ZONE_ELASTIC.StopUpdate, self)
     else
-  
+
       if self.updateID then
-      
+
         self:ScheduleStop(self.updateID)
-        
+
         self.updateID=nil
-        
+
       end
-      
+
     end
-  
+
     return self
   end
-  
+
 
   --- Create a convec hull.
   -- @param #ZONE_ELASTIC self
   -- @param #table pl Points
   -- @return #table Points
   function ZONE_ELASTIC:_ConvexHull(pl)
-  
+
     if #pl == 0 then
       return {}
     end
-    
+
     table.sort(pl, function(left,right)
       return left.x < right.x
     end)
- 
+
     local h = {}
-    
+
     -- Function: ccw > 0 if three points make a counter-clockwise turn, clockwise if ccw < 0, and collinear if ccw = 0.
     local function ccw(a,b,c)
       return (b.x - a.x) * (c.y - a.y) > (b.y - a.y) * (c.x - a.x)
     end
- 
+
     -- lower hull
     for i,pt in pairs(pl) do
       while #h >= 2 and not ccw(h[#h-1], h[#h], pt) do
@@ -3631,7 +3669,7 @@ do -- ZONE_ELASTIC
       end
       table.insert(h,pt)
     end
- 
+
     -- upper hull
     local t = #h + 1
     for i=#pl, 1, -1 do
@@ -3641,12 +3679,12 @@ do -- ZONE_ELASTIC
       end
       table.insert(h, pt)
     end
- 
+
     table.remove(h, #h)
-    
+
     return h
-  end  
-  
+  end
+
 end
 
 
@@ -3673,13 +3711,17 @@ ZONE_OVAL = {
 
 --- Creates a new ZONE_OVAL from a center point, major axis, minor axis, and angle.
 --- ported from https://github.com/nielsvaes/CCMOOSE/blob/master/Moose%20Development/Moose/Shapes/Oval.lua
+-- @param #ZONE_OVAL self
+-- @param #string name Name of the zone.
 -- @param #table vec2 The center point of the oval
 -- @param #number major_axis The major axis of the oval
 -- @param #number minor_axis The minor axis of the oval
 -- @param #number angle The angle of the oval
 -- @return #ZONE_OVAL The new oval
 function ZONE_OVAL:New(name, vec2, major_axis, minor_axis, angle)
+
     self = BASE:Inherit(self, ZONE_BASE:New())
+
     self.ZoneName = name
     self.CenterVec2 = vec2
     self.MajorAxis = major_axis
@@ -3717,7 +3759,7 @@ function ZONE_OVAL:NewFromDrawing(DrawingName)
     return self
 end
 
---- Gets the major axis of the oval. 
+--- Gets the major axis of the oval.
 -- @param #ZONE_OVAL self
 -- @return #number The major axis of the oval
 function ZONE_OVAL:GetMajorAxis()
@@ -3810,18 +3852,18 @@ function ZONE_OVAL:GetRandomVec2()
     return {x=rx, y=ry}
 end
 
---- Define a random @{Core.Point#POINT_VEC2} within the zone.
+--- Define a random @{Core.Point#POINT_VEC2} within the zone. Note that this is actually a @{Core.Point#COORDINATE} type object, and not a simple Vec2 table.
 -- @param #ZONE_OVAL self
 -- @return Core.Point#POINT_VEC2 The PointVec2 coordinates.
 function ZONE_OVAL:GetRandomPointVec2()
     return POINT_VEC2:NewFromVec2(self:GetRandomVec2())
 end
 
---- Define a random @{Core.Point#POINT_VEC2} within the zone.
+--- Define a random @{Core.Point#POINT_VEC2} within the zone. Note that this is actually a @{Core.Point#COORDINATE} type object, and not a simple Vec3 table.
 -- @param #ZONE_OVAL self
 -- @return Core.Point#POINT_VEC2 The PointVec2 coordinates.
 function ZONE_OVAL:GetRandomPointVec3()
-    return POINT_VEC2:NewFromVec3(self:GetRandomVec2())
+    return POINT_VEC3:NewFromVec3(self:GetRandomVec2())
 end
 
 --- Draw the zone on the F10 map.
@@ -3913,7 +3955,7 @@ do -- ZONE_AIRBASE
 
     self._.ZoneAirbase = Airbase
     self._.ZoneVec2Cache = self._.ZoneAirbase:GetVec2()
-    
+
     if Airbase:IsShip() then
       self.isShip=true
       self.isHelipad=false
@@ -3921,11 +3963,11 @@ do -- ZONE_AIRBASE
     elseif Airbase:IsHelipad() then
       self.isShip=false
       self.isHelipad=true
-      self.isAirdrome=false    
+      self.isAirdrome=false
     elseif Airbase:IsAirdrome() then
       self.isShip=false
       self.isHelipad=false
-      self.isAirdrome=true    
+      self.isAirdrome=true
     end
 
     -- Zone objects are added to the _DATABASE and SET_ZONE objects.
@@ -3961,7 +4003,7 @@ do -- ZONE_AIRBASE
     return ZoneVec2
   end
 
-  --- Returns a @{Core.Point#POINT_VEC2} object reflecting a random 2D location within the zone.
+  --- Returns a @{Core.Point#POINT_VEC2} object reflecting a random 2D location within the zone. Note that this is actually a @{Core.Point#COORDINATE} type object, and not a simple Vec2 table.
   -- @param #ZONE_AIRBASE self
   -- @param #number inner (optional) Minimal distance from the center of the zone. Default is 0.
   -- @param #number outer (optional) Maximal distance from the outer edge of the zone. Default is the radius of the zone.
