@@ -106,6 +106,7 @@
 -- @field Sound.SRS#MSRS instructmsrs SRS wrapper for range instructor.
 -- @field Sound.SRS#MSRSQUEUE instructsrsQ SRS queue for range instructor.
 -- @field #number Coalition Coalition side for the menu, if any.
+-- @field Core.Menu#MENU_MISSION menuF10root Specific user defined root F10 menu.
 -- @extends Core.Fsm#FSM
 
 --- *Don't only practice your art, but force your way into its secrets; art deserves that, for it and knowledge can raise man to the Divine.* - Ludwig van Beethoven
@@ -593,13 +594,14 @@ RANGE.MenuF10Root = nil
 
 --- Range script version.
 -- @field #string version
-RANGE.version = "2.7.3"
+RANGE.version = "2.8.0"
 
 -- TODO list:
 -- TODO: Verbosity level for messages.
 -- TODO: Add option for default settings such as smoke off.
 -- TODO: Add custom weapons, which can be specified by the user.
 -- TODO: Check if units are still alive.
+-- TODO: Option for custom sound files.
 -- DONE: Scenery as targets.
 -- DONE: Add statics for strafe pits.
 -- DONE: Add missiles.
@@ -858,16 +860,16 @@ function RANGE:onafterStart()
     self.rangecontrol.schedonce = true
 
     -- Init numbers.
-    self.rangecontrol:SetDigit( 0, RANGE.Sound.RC0.filename, RANGE.Sound.RC0.duration, self.soundpath )
-    self.rangecontrol:SetDigit( 1, RANGE.Sound.RC1.filename, RANGE.Sound.RC1.duration, self.soundpath )
-    self.rangecontrol:SetDigit( 2, RANGE.Sound.RC2.filename, RANGE.Sound.RC2.duration, self.soundpath )
-    self.rangecontrol:SetDigit( 3, RANGE.Sound.RC3.filename, RANGE.Sound.RC3.duration, self.soundpath )
-    self.rangecontrol:SetDigit( 4, RANGE.Sound.RC4.filename, RANGE.Sound.RC4.duration, self.soundpath )
-    self.rangecontrol:SetDigit( 5, RANGE.Sound.RC5.filename, RANGE.Sound.RC5.duration, self.soundpath )
-    self.rangecontrol:SetDigit( 6, RANGE.Sound.RC6.filename, RANGE.Sound.RC6.duration, self.soundpath )
-    self.rangecontrol:SetDigit( 7, RANGE.Sound.RC7.filename, RANGE.Sound.RC7.duration, self.soundpath )
-    self.rangecontrol:SetDigit( 8, RANGE.Sound.RC8.filename, RANGE.Sound.RC8.duration, self.soundpath )
-    self.rangecontrol:SetDigit( 9, RANGE.Sound.RC9.filename, RANGE.Sound.RC9.duration, self.soundpath )
+    self.rangecontrol:SetDigit( 0, self.Sound.RC0.filename, self.Sound.RC0.duration, self.soundpath )
+    self.rangecontrol:SetDigit( 1, self.Sound.RC1.filename, self.Sound.RC1.duration, self.soundpath )
+    self.rangecontrol:SetDigit( 2, self.Sound.RC2.filename, self.Sound.RC2.duration, self.soundpath )
+    self.rangecontrol:SetDigit( 3, self.Sound.RC3.filename, self.Sound.RC3.duration, self.soundpath )
+    self.rangecontrol:SetDigit( 4, self.Sound.RC4.filename, self.Sound.RC4.duration, self.soundpath )
+    self.rangecontrol:SetDigit( 5, self.Sound.RC5.filename, self.Sound.RC5.duration, self.soundpath )
+    self.rangecontrol:SetDigit( 6, self.Sound.RC6.filename, self.Sound.RC6.duration, self.soundpath )
+    self.rangecontrol:SetDigit( 7, self.Sound.RC7.filename, self.Sound.RC7.duration, self.soundpath )
+    self.rangecontrol:SetDigit( 8, self.Sound.RC8.filename, self.Sound.RC8.duration, self.soundpath )
+    self.rangecontrol:SetDigit( 9, self.Sound.RC9.filename, self.Sound.RC9.duration, self.soundpath )
 
     -- Set location where the messages are transmitted from.
     self.rangecontrol:SetSenderCoordinate( self.location )
@@ -884,16 +886,16 @@ function RANGE:onafterStart()
       self.instructor.schedonce = true
 
       -- Init numbers.
-      self.instructor:SetDigit( 0, RANGE.Sound.IR0.filename, RANGE.Sound.IR0.duration, self.soundpath )
-      self.instructor:SetDigit( 1, RANGE.Sound.IR1.filename, RANGE.Sound.IR1.duration, self.soundpath )
-      self.instructor:SetDigit( 2, RANGE.Sound.IR2.filename, RANGE.Sound.IR2.duration, self.soundpath )
-      self.instructor:SetDigit( 3, RANGE.Sound.IR3.filename, RANGE.Sound.IR3.duration, self.soundpath )
-      self.instructor:SetDigit( 4, RANGE.Sound.IR4.filename, RANGE.Sound.IR4.duration, self.soundpath )
-      self.instructor:SetDigit( 5, RANGE.Sound.IR5.filename, RANGE.Sound.IR5.duration, self.soundpath )
-      self.instructor:SetDigit( 6, RANGE.Sound.IR6.filename, RANGE.Sound.IR6.duration, self.soundpath )
-      self.instructor:SetDigit( 7, RANGE.Sound.IR7.filename, RANGE.Sound.IR7.duration, self.soundpath )
-      self.instructor:SetDigit( 8, RANGE.Sound.IR8.filename, RANGE.Sound.IR8.duration, self.soundpath )
-      self.instructor:SetDigit( 9, RANGE.Sound.IR9.filename, RANGE.Sound.IR9.duration, self.soundpath )
+      self.instructor:SetDigit( 0, self.Sound.IR0.filename, self.Sound.IR0.duration, self.soundpath )
+      self.instructor:SetDigit( 1, self.Sound.IR1.filename, self.Sound.IR1.duration, self.soundpath )
+      self.instructor:SetDigit( 2, self.Sound.IR2.filename, self.Sound.IR2.duration, self.soundpath )
+      self.instructor:SetDigit( 3, self.Sound.IR3.filename, self.Sound.IR3.duration, self.soundpath )
+      self.instructor:SetDigit( 4, self.Sound.IR4.filename, self.Sound.IR4.duration, self.soundpath )
+      self.instructor:SetDigit( 5, self.Sound.IR5.filename, self.Sound.IR5.duration, self.soundpath )
+      self.instructor:SetDigit( 6, self.Sound.IR6.filename, self.Sound.IR6.duration, self.soundpath )
+      self.instructor:SetDigit( 7, self.Sound.IR7.filename, self.Sound.IR7.duration, self.soundpath )
+      self.instructor:SetDigit( 8, self.Sound.IR8.filename, self.Sound.IR8.duration, self.soundpath )
+      self.instructor:SetDigit( 9, self.Sound.IR9.filename, self.Sound.IR9.duration, self.soundpath )
 
       -- Set location where the messages are transmitted from.
       self.instructor:SetSenderCoordinate( self.location )
@@ -920,12 +922,22 @@ function RANGE:onafterStart()
     self.rangezone:SmokeZone( SMOKECOLOR.White )
   end
 
-  self:__Status( -60 )
+  self:__Status( -10 )
 end
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- User Functions
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+--- Set the root F10 menu under which the range F10 menu is created.
+-- @param #RANGE self
+-- @param Core.Menu#MENU_MISSION menu The root F10 menu.
+-- @return #RANGE self
+function RANGE:SetMenuRoot(menu)
+  self.menuF10root=menu
+  return self
+end
+
 
 --- Set maximal strafing altitude. Player entering a strafe pit above that altitude are not registered for a valid pass.
 -- @param #RANGE self
@@ -1066,6 +1078,9 @@ end
 -- @param Core.Zone#ZONE zone MOOSE zone defining the range perimeters.
 -- @return #RANGE self
 function RANGE:SetRangeZone( zone )
+  if zone and type(zone)=="string" then
+    zone=ZONE:FindByName(zone)
+  end
   self.rangezone = zone
   return self
 end
@@ -1224,10 +1239,12 @@ function RANGE:SetSRS(PathToSRS, Port, Coalition, Frequency, Modulation, Volume,
     self.instructmsrs:SetLabel("RANGEI")
     self.instructmsrs:SetVolume(Volume or 1.0)
     self.instructsrsQ = MSRSQUEUE:New("INSTRUCT")
-
-    if PathToGoogleKey then
-      self.controlmsrs:SetGoogle(PathToGoogleKey)
-      self.instructmsrs:SetGoogle(PathToGoogleKey)
+    
+    if PathToGoogleKey then 
+      self.controlmsrs:SetProviderOptionsGoogle(PathToGoogleKey,PathToGoogleKey)
+      self.controlmsrs:SetProvider(MSRS.Provider.GOOGLE)
+      self.instructmsrs:SetProviderOptionsGoogle(PathToGoogleKey,PathToGoogleKey)
+      self.instructmsrs:SetProvider(MSRS.Provider.GOOGLE)
     end
 
   else
@@ -1323,9 +1340,56 @@ end
 -- @return #RANGE self
 function RANGE:SetSoundfilesPath( path )
   self.soundpath = tostring( path or "Range Soundfiles/" )
-  self:I( self.lid .. string.format( "Setting sound files path to %s", self.soundpath ) )
+  self:T2( self.lid .. string.format( "Setting sound files path to %s", self.soundpath ) )
   return self
 end
+
+--- Set the path to the csv file that contains information about the used sound files.
+-- The parameter file has to be located on your local disk (**not** inside the miz file).
+-- @param #RANGE self
+-- @param #string csvfile Full path to the csv file on your local disk.
+-- @return #RANGE self
+function RANGE:SetSoundfilesInfo( csvfile )
+
+  --- Local function to return the ATIS.Soundfile for a given file name
+  local function getSound(filename)
+    for key,_soundfile in pairs(self.Sound) do
+      local soundfile=_soundfile --#RANGE.Soundfile
+      if filename==soundfile.filename then
+        return soundfile
+      end
+    end
+    return nil
+  end
+
+  -- Read csv file
+  local data=UTILS.ReadCSV(csvfile)
+
+  if data then
+
+    for i,sound in pairs(data) do
+
+      -- Get the ATIS.Soundfile
+      local soundfile=getSound(sound.filename..".ogg") --#RANGE.Soundfile
+
+      if soundfile then
+
+        -- Set duration
+        soundfile.duration=tonumber(sound.duration)
+
+      else
+        self:E(string.format("ERROR: Could not get info for sound file %s", sound.filename))
+      end
+
+    end
+  else
+    self:E(string.format("ERROR: Could not read sound csv file!"))
+  end
+
+
+  return self
+end
+
 
 --- Add new strafe pit. For a strafe pit, hits from guns are counted. One pit can consist of several units.
 -- A strafe run approach is only valid if the player enters via a zone in front of the pit, which is defined by boxlength, boxwidth, and heading.
@@ -1572,9 +1636,9 @@ function RANGE:AddBombingTargetUnit( unit, goodhitrange, randommove )
 
   -- Debug or error output.
   if _isstatic == true then
-    self:I( self.lid .. string.format( "Adding STATIC bombing target %s with good hit range %d. Random move = %s.", name, goodhitrange, tostring( randommove ) ) )
+    self:T( self.lid .. string.format( "Adding STATIC bombing target %s with good hit range %d. Random move = %s.", name, goodhitrange, tostring( randommove ) ) )
   elseif _isstatic == false then
-    self:I( self.lid .. string.format( "Adding UNIT bombing target %s with good hit range %d. Random move = %s.", name, goodhitrange, tostring( randommove ) ) )
+    self:T( self.lid .. string.format( "Adding UNIT bombing target %s with good hit range %d. Random move = %s.", name, goodhitrange, tostring( randommove ) ) )
   else
     self:E( self.lid .. string.format( "ERROR! No bombing target with name %s could be found. Carefully check all UNIT and STATIC names defined in the mission editor!", name ) )
   end
@@ -1642,7 +1706,7 @@ function RANGE:AddBombingTargetScenery( scenery, goodhitrange)
 
   -- Debug or error output.
   if name then
-    self:I( self.lid .. string.format( "Adding SCENERY bombing target %s with good hit range %d", name, goodhitrange) )
+    self:T( self.lid .. string.format( "Adding SCENERY bombing target %s with good hit range %d", name, goodhitrange) )
   else
     self:E( self.lid .. string.format( "ERROR! No bombing target with name %s could be found!", name ) )
   end
@@ -1665,12 +1729,16 @@ end
 
 --- Add all units of a group as bombing targets.
 -- @param #RANGE self
--- @param Wrapper.Group#GROUP group Group of bombing targets.
+-- @param Wrapper.Group#GROUP group Group of bombing targets. Can also be given as group name.
 -- @param #number goodhitrange Max distance from unit which is considered as a good hit.
 -- @param #boolean randommove If true, unit will move randomly within the range. Default is false.
 -- @return #RANGE self
 function RANGE:AddBombingTargetGroup( group, goodhitrange, randommove )
   self:F( { group = group, goodhitrange = goodhitrange, randommove = randommove } )
+  
+  if group and type(group)=="string" then
+    group=GROUP:FindByName(group)
+  end
 
   if group then
 
@@ -1743,7 +1811,7 @@ function RANGE:OnEventBirth( EventData )
   if not EventData.IniPlayerName then return end
 
   local _unitName = EventData.IniUnitName
-  local _unit, _playername = self:_GetPlayerUnitAndName( _unitName )
+  local _unit, _playername = self:_GetPlayerUnitAndName( _unitName, EventData.IniPlayerName )
 
   self:T3( self.lid .. "BIRTH: unit   = " .. tostring( EventData.IniUnitName ) )
   self:T3( self.lid .. "BIRTH: group  = " .. tostring( EventData.IniGroupName ) )
@@ -1899,7 +1967,9 @@ end
 -- @param #number attackAlt Attack altitude.
 -- @param #number attackVel Attack velocity.
 function RANGE._OnImpact(weapon, self, playerData, attackHdg, attackAlt, attackVel)
-
+  
+  if not playerData then return end
+  
   -- Get closet target to last position.
   local _closetTarget = nil -- #RANGE.BombTarget
   local _distance = nil
@@ -1916,13 +1986,13 @@ function RANGE._OnImpact(weapon, self, playerData, attackHdg, attackAlt, attackV
   -- Coordinate of impact point.
   local impactcoord = weapon:GetImpactCoordinate()
 
-  -- Check if impact happened in range zone.
+  -- Check if impact happened in range zone.+
   local insidezone = self.rangezone:IsCoordinateInZone( impactcoord )
 
 
   -- Smoke impact point of bomb.
-  if playerData.smokebombimpact and insidezone then
-    if playerData.delaysmoke then
+  if playerData and playerData.smokebombimpact and insidezone then
+    if playerData and playerData.delaysmoke then
       timer.scheduleFunction( self._DelayedSmoke, { coord = impactcoord, color = playerData.smokecolor }, timer.getTime() + self.TdelaySmoke )
     else
       impactcoord:Smoke( playerData.smokecolor )
@@ -2016,7 +2086,7 @@ function RANGE._OnImpact(weapon, self, playerData, attackHdg, attackAlt, attackV
       if self.useSRS then
         self.controlsrsQ:NewTransmission(_message,nil,self.controlmsrs,nil,1)
       else
-        self.rangecontrol:NewTransmission( RANGE.Sound.RCWeaponImpactedTooFar.filename, RANGE.Sound.RCWeaponImpactedTooFar.duration, self.soundpath, nil, nil, _message, self.subduration )
+        self.rangecontrol:NewTransmission( self.Sound.RCWeaponImpactedTooFar.filename, self.Sound.RCWeaponImpactedTooFar.duration, self.soundpath, nil, nil, _message, self.subduration )
       end
     end
 
@@ -2047,7 +2117,7 @@ function RANGE:OnEventShot( EventData )
   local _unitName = EventData.IniUnitName
 
   -- Get player unit and name.
-  local _unit, _playername = self:_GetPlayerUnitAndName( _unitName )
+  local _unit, _playername = self:_GetPlayerUnitAndName( _unitName, EventData.IniPlayerName )
 
   -- Distance Player-to-Range. Set this to larger value than the threshold.
   local dPR = self.BombtrackThreshold * 2
@@ -2059,11 +2129,13 @@ function RANGE:OnEventShot( EventData )
   end
 
   -- Only track if distance player to range is < 25 km. Also check that a player shot. No need to track AI weapons.
-  if _track and dPR <= self.BombtrackThreshold and _unit and _playername then
+  if _track and dPR <= self.BombtrackThreshold and _unit and _playername and self.PlayerSettings[_playername] then
 
     -- Player data.
     local playerData = self.PlayerSettings[_playername] -- #RANGE.PlayerData
-
+    
+    if not playerData then return end
+    
     -- Attack parameters.
     local attackHdg=_unit:GetHeading()
     local attackAlt=_unit:GetHeight()
@@ -2124,7 +2196,7 @@ function RANGE:onafterStatus( From, Event, To )
     end
 
     -- Check range status.
-    self:I( self.lid .. text )
+    self:T( self.lid .. text )
 
   end
 
@@ -2163,15 +2235,15 @@ function RANGE:onafterEnterRange( From, Event, To, player )
       -- Radio message that player entered the range
 
       -- You entered the bombing range. For hit assessment, contact the range controller at xy MHz
-      self.instructor:NewTransmission( RANGE.Sound.IREnterRange.filename, RANGE.Sound.IREnterRange.duration, self.soundpath )
+      self.instructor:NewTransmission( self.Sound.IREnterRange.filename, self.Sound.IREnterRange.duration, self.soundpath )
       self.instructor:Number2Transmission( RF[1] )
 
       if tonumber( RF[2] ) > 0 then
-        self.instructor:NewTransmission( RANGE.Sound.IRDecimal.filename, RANGE.Sound.IRDecimal.duration, self.soundpath )
+        self.instructor:NewTransmission( self.Sound.IRDecimal.filename, self.Sound.IRDecimal.duration, self.soundpath )
         self.instructor:Number2Transmission( RF[2] )
       end
 
-      self.instructor:NewTransmission( RANGE.Sound.IRMegaHertz.filename, RANGE.Sound.IRMegaHertz.duration, self.soundpath )
+      self.instructor:NewTransmission( self.Sound.IRMegaHertz.filename, self.Sound.IRMegaHertz.duration, self.soundpath )
     end
   end
 
@@ -2207,7 +2279,7 @@ function RANGE:onafterExitRange( From, Event, To, player )
 
       self.instructsrsQ:NewTransmission(text, nil, self.instructmsrs, nil, 1, {player.client:GetGroup()}, text, 10)
     else
-      self.instructor:NewTransmission( RANGE.Sound.IRExitRange.filename, RANGE.Sound.IRExitRange.duration, self.soundpath )
+      self.instructor:NewTransmission( self.Sound.IRExitRange.filename, self.Sound.IRExitRange.duration, self.soundpath )
     end
   end
 
@@ -2243,20 +2315,20 @@ function RANGE:onafterImpact( From, Event, To, result, player )
       local group = player.client:GetGroup()
       self.controlsrsQ:NewTransmission(text,nil,self.controlmsrs,nil,1,{group},text,10)
     else
-      self.rangecontrol:NewTransmission( RANGE.Sound.RCImpact.filename, RANGE.Sound.RCImpact.duration, self.soundpath, nil, nil, text, self.subduration )
+      self.rangecontrol:NewTransmission( self.Sound.RCImpact.filename, self.Sound.RCImpact.duration, self.soundpath, nil, nil, text, self.subduration )
       self.rangecontrol:Number2Transmission( string.format( "%03d", result.radial ), nil, 0.1 )
-      self.rangecontrol:NewTransmission( RANGE.Sound.RCDegrees.filename, RANGE.Sound.RCDegrees.duration, self.soundpath )
-      self.rangecontrol:NewTransmission( RANGE.Sound.RCFor.filename, RANGE.Sound.RCFor.duration, self.soundpath )
+      self.rangecontrol:NewTransmission( self.Sound.RCDegrees.filename, self.Sound.RCDegrees.duration, self.soundpath )
+      self.rangecontrol:NewTransmission( self.Sound.RCFor.filename, self.Sound.RCFor.duration, self.soundpath )
       self.rangecontrol:Number2Transmission( string.format( "%d", UTILS.MetersToFeet( result.distance ) ) )
-      self.rangecontrol:NewTransmission( RANGE.Sound.RCFeet.filename, RANGE.Sound.RCFeet.duration, self.soundpath )
+      self.rangecontrol:NewTransmission( self.Sound.RCFeet.filename, self.Sound.RCFeet.duration, self.soundpath )
       if result.quality == "POOR" then
-        self.rangecontrol:NewTransmission( RANGE.Sound.RCPoorHit.filename, RANGE.Sound.RCPoorHit.duration, self.soundpath, nil, 0.5 )
+        self.rangecontrol:NewTransmission( self.Sound.RCPoorHit.filename, self.Sound.RCPoorHit.duration, self.soundpath, nil, 0.5 )
       elseif result.quality == "INEFFECTIVE" then
-        self.rangecontrol:NewTransmission( RANGE.Sound.RCIneffectiveHit.filename, RANGE.Sound.RCIneffectiveHit.duration, self.soundpath, nil, 0.5 )
+        self.rangecontrol:NewTransmission( self.Sound.RCIneffectiveHit.filename, self.Sound.RCIneffectiveHit.duration, self.soundpath, nil, 0.5 )
       elseif result.quality == "GOOD" then
-        self.rangecontrol:NewTransmission( RANGE.Sound.RCGoodHit.filename, RANGE.Sound.RCGoodHit.duration, self.soundpath, nil, 0.5 )
+        self.rangecontrol:NewTransmission( self.Sound.RCGoodHit.filename, self.Sound.RCGoodHit.duration, self.soundpath, nil, 0.5 )
       elseif result.quality == "EXCELLENT" then
-        self.rangecontrol:NewTransmission( RANGE.Sound.RCExcellentHit.filename, RANGE.Sound.RCExcellentHit.duration, self.soundpath, nil, 0.5 )
+        self.rangecontrol:NewTransmission( self.Sound.RCExcellentHit.filename, self.Sound.RCExcellentHit.duration, self.soundpath, nil, 0.5 )
       end
     end
   end
@@ -2325,14 +2397,14 @@ function RANGE:onafterSave( From, Event, To )
     if f then
       f:write( data )
       f:close()
-      self:I( self.lid .. string.format( "Saving player results to file %s", tostring( filename ) ) )
+      self:T( self.lid .. string.format( "Saving player results to file %s", tostring( filename ) ) )
     else
       self:E( self.lid .. string.format( "ERROR: Could not save results to file %s", tostring( filename ) ) )
     end
   end
 
   -- Path.
-  local path = lfs.writedir() .. [[Logs\]]
+  local path = self.targetpath or lfs.writedir() .. [[Logs\]]
 
   -- Set file name.
   local filename = path .. string.format( "RANGE-%s_BombingResults.csv", self.rangename )
@@ -2397,14 +2469,14 @@ function RANGE:onafterLoad( From, Event, To )
   end
 
   -- Path in DCS log file.
-  local path = lfs.writedir() .. [[Logs\]]
+  local path = self.targetpath or lfs.writedir() .. [[Logs\]]
 
   -- Set file name.
   local filename = path .. string.format( "RANGE-%s_BombingResults.csv", self.rangename )
 
   -- Info message.
   local text = string.format( "Loading player bomb results from file %s", filename )
-  self:I( self.lid .. text )
+  self:T( self.lid .. text )
 
   -- Load asset data from file.
   local data = _loadfile( filename )
@@ -2777,7 +2849,7 @@ function RANGE:_DisplayRangeInfo( _unitname )
 
   -- Check if we have a player.
   if unit and playername then
-    self:I(playername)
+    --self:I(playername)
     -- Message text.
     local text = ""
 
@@ -3152,7 +3224,7 @@ function RANGE:_CheckInZone( _unitName )
               self.controlsrsQ:NewTransmission(text,nil,self.controlmsrs,nil,1)
             else
               -- You left the strafing zone too quickly! No score!
-              self.rangecontrol:NewTransmission( RANGE.Sound.RCLeftStrafePitTooQuickly.filename, RANGE.Sound.RCLeftStrafePitTooQuickly.duration, self.soundpath )
+              self.rangecontrol:NewTransmission( self.Sound.RCLeftStrafePitTooQuickly.filename, self.Sound.RCLeftStrafePitTooQuickly.duration, self.soundpath )
             end
           end
         else
@@ -3179,23 +3251,23 @@ function RANGE:_CheckInZone( _unitName )
           local resulttext=""
           if _result.pastfoulline == true then --
             resulttext = "* INVALID - PASSED FOUL LINE *"
-            _sound = RANGE.Sound.RCPoorPass --
+            _sound = self.Sound.RCPoorPass --
           else
             if accur >= 90 then
               resulttext = "DEADEYE PASS"
-              _sound = RANGE.Sound.RCExcellentPass
+              _sound = self.Sound.RCExcellentPass
             elseif accur >= 75 then
               resulttext = "EXCELLENT PASS"
-              _sound = RANGE.Sound.RCExcellentPass
+              _sound = self.Sound.RCExcellentPass
             elseif accur >= 50 then
               resulttext = "GOOD PASS"
-              _sound = RANGE.Sound.RCGoodPass
+              _sound = self.Sound.RCGoodPass
             elseif accur >= 25 then
               resulttext = "INEFFECTIVE PASS"
-              _sound = RANGE.Sound.RCIneffectivePass
+              _sound = self.Sound.RCIneffectivePass
             else
               resulttext = "POOR PASS"
-              _sound = RANGE.Sound.RCPoorPass
+              _sound = self.Sound.RCPoorPass
             end
           end
 
@@ -3242,14 +3314,14 @@ function RANGE:_CheckInZone( _unitName )
             if self.useSRS then
               self.controlsrsQ:NewTransmission(ttstext,nil,self.controlmsrs,nil,1)
             else
-              self.rangecontrol:NewTransmission( RANGE.Sound.RCHitsOnTarget.filename, RANGE.Sound.RCHitsOnTarget.duration, self.soundpath )
+              self.rangecontrol:NewTransmission( self.Sound.RCHitsOnTarget.filename, self.Sound.RCHitsOnTarget.duration, self.soundpath )
               self.rangecontrol:Number2Transmission( string.format( "%d", _result.hits ) )
               if shots and accur then
-                self.rangecontrol:NewTransmission( RANGE.Sound.RCTotalRoundsFired.filename, RANGE.Sound.RCTotalRoundsFired.duration, self.soundpath, nil, 0.2 )
+                self.rangecontrol:NewTransmission( self.Sound.RCTotalRoundsFired.filename, self.Sound.RCTotalRoundsFired.duration, self.soundpath, nil, 0.2 )
                 self.rangecontrol:Number2Transmission( string.format( "%d", shots ), nil, 0.2 )
-                self.rangecontrol:NewTransmission( RANGE.Sound.RCAccuracy.filename, RANGE.Sound.RCAccuracy.duration, self.soundpath, nil, 0.2 )
+                self.rangecontrol:NewTransmission( self.Sound.RCAccuracy.filename, self.Sound.RCAccuracy.duration, self.soundpath, nil, 0.2 )
                 self.rangecontrol:Number2Transmission( string.format( "%d", UTILS.Round( accur, 0 ) ) )
-                self.rangecontrol:NewTransmission( RANGE.Sound.RCPercent.filename, RANGE.Sound.RCPercent.duration, self.soundpath )
+                self.rangecontrol:NewTransmission( self.Sound.RCPercent.filename, self.Sound.RCPercent.duration, self.soundpath )
               end
               self.rangecontrol:NewTransmission( _sound.filename, _sound.duration, self.soundpath, nil, 0.5 )
             end
@@ -3294,7 +3366,7 @@ function RANGE:_CheckInZone( _unitName )
             if self.useSRS then
               self.controlsrsQ:NewTransmission(_msg,nil,self.controlmsrs,nil,1)
             else
-              self.rangecontrol:NewTransmission( RANGE.Sound.RCRollingInOnStrafeTarget.filename, RANGE.Sound.RCRollingInOnStrafeTarget.duration, self.soundpath )
+              self.rangecontrol:NewTransmission( self.Sound.RCRollingInOnStrafeTarget.filename, self.Sound.RCRollingInOnStrafeTarget.duration, self.soundpath )
             end
           end
 
@@ -3343,16 +3415,23 @@ function RANGE:_AddF10Commands( _unitName )
         self.MenuAddedTo[_gid] = true
 
         -- Range root menu path.
-        local _rangePath = nil
+        local _rootMenu = nil
 
-        if RANGE.MenuF10Root then
-
+        if self.menuF10root then
+        
           -------------------
           -- MISSION LEVEL --
-          -------------------
+          -------------------        
+        
+          --_rootMenu = MENU_GROUP:New( group, self.rangename, self.menuF10root )
+          _rootMenu = self.menuF10root
+          self:T2(self.lid..string.format("Creating F10 menu for group %s", group:GetName()))
 
-          -- _rangePath = missionCommands.addSubMenuForGroup(_gid, self.rangename, RANGE.MenuF10Root)
-          _rangePath = MENU_GROUP:New( group, "On the Range" )
+        elseif RANGE.MenuF10Root then
+
+          -- Main F10 menu: F10/<RANGE.MenuF10Root>/<Range Name>
+          --_rootMenu = MENU_GROUP:New( group, self.rangename, RANGE.MenuF10Root )
+          _rootMenu = RANGE.MenuF10Root
 
         else
 
@@ -3362,12 +3441,17 @@ function RANGE:_AddF10Commands( _unitName )
 
           -- Main F10 menu: F10/On the Range/<Range Name>/
           if RANGE.MenuF10[_gid] == nil then
-            -- RANGE.MenuF10[_gid]=missionCommands.addSubMenuForGroup(_gid, "On the Range")
-            RANGE.MenuF10[_gid] = MENU_GROUP:New( group, "On the Range" )
+            self:T2(self.lid..string.format("Creating F10 menu 'On the Range' for group %s", group:GetName()))
+          else
+            self:T2(self.lid..string.format("F10 menu 'On the Range' already EXISTS for group %s", group:GetName()))
           end
-          -- _rangePath = missionCommands.addSubMenuForGroup(_gid, self.rangename, RANGE.MenuF10[_gid])
-          _rangePath = MENU_GROUP:New( group, self.rangename, RANGE.MenuF10[_gid] )
+          
+          _rootMenu=RANGE.MenuF10[_gid] or MENU_GROUP:New( group, "On the Range" )
+                    
         end
+        
+        -- Range menu
+        local _rangePath = MENU_GROUP:New( group, self.rangename, _rootMenu )
 
         local _statsPath = MENU_GROUP:New( group, "Statistics", _rangePath )
         local _markPath = MENU_GROUP:New( group, "Mark Targets", _rangePath )
@@ -3776,13 +3860,13 @@ function RANGE:_TargetsheetOnOff( _unitname )
 
         -- Inform player.
         if playerData and playerData.targeton == true then
-          text = string.format( "roger, your targetsheets are now SAVED." )
+          text = string.format( "Roger, your targetsheets are now SAVED." )
         else
-          text = string.format( "affirm, your targetsheets are NOT SAVED." )
+          text = string.format( "Affirm, your targetsheets are NOT SAVED." )
         end
 
       else
-        text = "negative, target sheet data recorder is broken on this range."
+        text = "Negative, target sheet data recorder is broken on this range."
       end
 
       -- Message to player.
@@ -4019,8 +4103,8 @@ end
 -- @return Wrapper.Unit#UNIT Unit of player.
 -- @return #string Name of the player.
 -- @return #boolean If true, group has > 1 player in it
-function RANGE:_GetPlayerUnitAndName( _unitName )
-  self:F2( _unitName )
+function RANGE:_GetPlayerUnitAndName( _unitName, PlayerName )
+  --self:I( _unitName )
 
   if _unitName ~= nil then
 
@@ -4029,9 +4113,9 @@ function RANGE:_GetPlayerUnitAndName( _unitName )
     -- Get DCS unit from its name.
     local DCSunit = Unit.getByName( _unitName )
 
-    if DCSunit then
+    if DCSunit and DCSunit.getPlayerName then
 
-      local playername = DCSunit:getPlayerName()
+      local playername = DCSunit:getPlayerName() or PlayerName or "None"
       local unit = UNIT:Find( DCSunit )
 
       self:T2( { DCSunit = DCSunit, unit = unit, playername = playername } )

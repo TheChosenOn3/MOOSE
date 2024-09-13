@@ -1203,7 +1203,7 @@ function ZONE_RADIUS:GetScannedSetUnit()
         if FoundUnit then
           SetUnit:AddUnit( FoundUnit )
         else
-          local FoundStatic = STATIC:FindByName( UnitObject:getName() )
+          local FoundStatic = STATIC:FindByName( UnitObject:getName(), false )
           if FoundStatic then
             SetUnit:AddUnit( FoundStatic )
           end
@@ -3641,7 +3641,7 @@ do -- ZONE_ELASTIC
   end
 
 
-  --- Create a convec hull.
+  --- Create a convex hull.
   -- @param #ZONE_ELASTIC self
   -- @param #table pl Points
   -- @return #table Points

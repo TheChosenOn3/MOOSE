@@ -1629,7 +1629,7 @@ WAREHOUSE = {
 -- @field #boolean arrived If true, asset arrived at its destination.
 -- 
 -- @field #number damage Damage of asset group in percent.
--- @field Ops.AirWing#AIRWING.Payload payload The payload of the asset.
+-- @field Ops.Airwing#AIRWING.Payload payload The payload of the asset.
 -- @field Ops.OpsGroup#OPSGROUP flightgroup The flightgroup object.
 -- @field Ops.Cohort#COHORT cohort The cohort this asset belongs to.
 -- @field Ops.Legion#LEGION legion The legion this asset belonts to.
@@ -6732,7 +6732,7 @@ end
 -- @param Wrapper.Group#GROUP deadgroup Group of unit that died.
 -- @param #WAREHOUSE.Pendingitem request Request that needs to be updated.
 function WAREHOUSE:_UnitDead(deadunit, deadgroup, request)
-  self:F(self.lid.."FF unit dead "..deadunit:GetName())
+  --self:F(self.lid.."FF unit dead "..deadunit:GetName())
 
   -- Find opsgroup.
   local opsgroup=_DATABASE:FindOpsGroup(deadgroup)
@@ -7946,10 +7946,12 @@ function WAREHOUSE:_FindParkingForAssets(airbase, assets)
       local clients=_DATABASE.CLIENTS
       for clientname, client in pairs(clients) do
         local template=_DATABASE:GetGroupTemplateFromUnitName(clientname)
-        local units=template.units
-        for i,unit in pairs(units) do
-          local coord=COORDINATE:New(unit.x, unit.alt, unit.y)
-          coords[unit.name]=coord
+        if template then
+          local units=template.units
+          for i,unit in pairs(units) do
+            local coord=COORDINATE:New(unit.x, unit.alt, unit.y)
+            coords[unit.name]=coord
+          end
         end
       end
     end

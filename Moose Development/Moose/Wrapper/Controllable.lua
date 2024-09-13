@@ -58,7 +58,7 @@
 --   * @{#CONTROLLABLE.TaskFollow}: (AIR) Following another airborne controllable.
 --   * @{#CONTROLLABLE.TaskHold}: (GROUND) Hold ground controllable from moving.
 --   * @{#CONTROLLABLE.TaskHoldPosition}: (AIR) Hold position at the current position of the first unit of the controllable.
---   * @{#CONTROLLABLE.TaskLand}: (AIR HELICOPTER) Landing at the ground. For helicopters only.
+--   * @{#CONTROLLABLE.TaskLandAtVec2}: (AIR HELICOPTER) Landing at the ground. For helicopters only.
 --   * @{#CONTROLLABLE.TaskLandAtZone}: (AIR) Land the controllable at a @{Core.Zone#ZONE_RADIUS).
 --   * @{#CONTROLLABLE.TaskOrbitCircle}: (AIR) Orbit at the current position of the first unit of the controllable at a specified altitude.
 --   * @{#CONTROLLABLE.TaskOrbitCircleAtVec2}: (AIR) Orbit at a specified position at a specified altitude during a specified duration with a specified speed.
@@ -174,7 +174,10 @@
 --   * @{#CONTROLLABLE.OptionKeepWeaponsOnThreat}
 --
 -- ## 5.5) Air-2-Air missile attack range:
---   * @{#CONTROLLABLE.OptionAAAttackRange}(): Defines the usage of A2A missiles against possible targets .
+--   * @{#CONTROLLABLE.OptionAAAttackRange}(): Defines the usage of A2A missiles against possible targets.
+--   
+-- # 6) [GROUND] IR Maker Beacons for GROUPs and UNITs
+--  * @{#CONTROLLABLE:NewIRMarker}(): Create a blinking IR Marker on a GROUP or UNIT.
 --
 -- @field #CONTROLLABLE
 CONTROLLABLE = {
@@ -1012,7 +1015,7 @@ end
 
 -- TASKS FOR AIR CONTROLLABLES
 
---- (AIR) Attack a Controllable.
+--- (AIR + GROUND) Attack a Controllable.
 -- @param #CONTROLLABLE self
 -- @param Wrapper.Group#GROUP AttackGroup The Group to be attacked.
 -- @param #number WeaponType (optional) Bitmask of weapon types those allowed to use. If parameter is not defined that means no limits on weapon usage.
@@ -1060,7 +1063,7 @@ function CONTROLLABLE:TaskAttackGroup( AttackGroup, WeaponType, WeaponExpend, At
   return DCSTask
 end
 
---- (AIR) Attack the Unit.
+--- (AIR + GROUND) Attack the Unit.
 -- @param #CONTROLLABLE self
 -- @param Wrapper.Unit#UNIT AttackUnit The UNIT to be attacked
 -- @param #boolean GroupAttack (Optional) If true, all units in the group will attack the Unit when found. Default false.
@@ -1148,10 +1151,10 @@ function CONTROLLABLE:TaskStrafing( Vec2, AttackQty, Length, WeaponType, WeaponE
     id = 'Strafing',
     params = {
      point = Vec2, -- req
-     weaponType = WeaponType or 1073741822,
+     weaponType = WeaponType or 805337088, -- Default 805337088 corresponds to guns/cannons (805306368) + any rocket (30720). You can set other types but then the AI uses even bombs for a strafing run!
      expend = WeaponExpend or "Auto",
      attackQty = AttackQty or 1,  -- req
-     attackQtyLimit = AttackQty >1 and true or false,
+     attackQtyLimit = AttackQty~=nil and true or false,
      direction = Direction and math.rad(Direction) or 0,
      directionEnabled = Direction and true or false,
      groupAttack = GroupAttack or false,
@@ -1516,8 +1519,10 @@ end
 -- @param #CONTROLLABLE self
 -- @param DCS#Vec2 Vec2 The point where to land.
 -- @param #number Duration The duration in seconds to stay on the ground.
+-- @param #boolean CombatLanding (optional) If true, set the Combat Landing option.
+-- @param #number DirectionAfterLand (optional) Heading after landing in degrees.
 -- @return #CONTROLLABLE self
-function CONTROLLABLE:TaskLandAtVec2( Vec2, Duration )
+function CONTROLLABLE:TaskLandAtVec2( Vec2, Duration , CombatLanding, DirectionAfterLand)
 
   local DCSTask = {
     id = 'Land',
@@ -1525,9 +1530,15 @@ function CONTROLLABLE:TaskLandAtVec2( Vec2, Duration )
       point        = Vec2,
       durationFlag = Duration and true or false,
       duration     = Duration,
+      combatLandingFlag = CombatLanding == true and true or false,
     },
   }
-
+  
+  if DirectionAfterLand ~= nil and type(DirectionAfterLand) == "number" then
+    DCSTask.params.directionEnabled = true
+    DCSTask.params.direction = math.rad(DirectionAfterLand) 
+  end
+  
   return DCSTask
 end
 
@@ -1535,13 +1546,16 @@ end
 -- @param #CONTROLLABLE self
 -- @param Core.Zone#ZONE Zone The zone where to land.
 -- @param #number Duration The duration in seconds to stay on the ground.
+-- @param #boolean RandomPoint (optional) If true,land at a random point inside of the zone. 
+-- @param #boolean CombatLanding (optional) If true, set the Combat Landing option.
+-- @param #number DirectionAfterLand (optional) Heading after landing in degrees.
 -- @return DCS#Task The DCS task structure.
-function CONTROLLABLE:TaskLandAtZone( Zone, Duration, RandomPoint )
+function CONTROLLABLE:TaskLandAtZone( Zone, Duration, RandomPoint, CombatLanding, DirectionAfterLand )
 
   -- Get landing point
   local Point = RandomPoint and Zone:GetRandomVec2() or Zone:GetVec2()
 
-  local DCSTask = CONTROLLABLE.TaskLandAtVec2( self, Point, Duration )
+  local DCSTask = CONTROLLABLE.TaskLandAtVec2( self, Point, Duration, CombatLanding, DirectionAfterLand)
 
   return DCSTask
 end
@@ -3800,6 +3814,48 @@ function CONTROLLABLE:OptionProhibitAfterburner( Prohibit )
   return self
 end
 
+--- [Ground] Allows AI radar units to take defensive actions to avoid anti radiation missiles. Units are allowed to shut radar off and displace. 
+-- @param #CONTROLLABLE self
+-- @param #number Seconds Can be - nil, 0 or false = switch off this option, any positive number = number of seconds the escape sequency runs.
+-- @return #CONTROLLABLE self
+function CONTROLLABLE:OptionEvasionOfARM(Seconds)
+  self:F2( { self.ControllableName } )
+
+  local DCSControllable = self:GetDCSObject()
+  if DCSControllable then
+    local Controller = self:_GetController()
+
+    if self:IsGround() then
+      if Seconds == nil then Seconds = false end
+      Controller:setOption( AI.Option.Ground.id.EVASION_OF_ARM, Seconds)
+    end
+
+  end
+
+  return self
+end
+
+--- [Ground] Option that defines the vehicle spacing when in an on road and off road formation. 
+-- @param #CONTROLLABLE self
+-- @param #number meters Can be zero to 100 meters. Defaults to 50 meters.
+-- @return #CONTROLLABLE self
+function CONTROLLABLE:OptionFormationInterval(meters)
+  self:F2( { self.ControllableName } )
+
+  local DCSControllable = self:GetDCSObject()
+  if DCSControllable then
+    local Controller = self:_GetController()
+
+    if self:IsGround() then
+      if meters == nil or meters > 100 or meters < 0 then meters = 50 end
+      Controller:setOption( 30, meters)
+    end
+
+  end
+
+  return self
+end
+
 --- [Air] Defines the usage of Electronic Counter Measures by airborne forces.
 -- @param #CONTROLLABLE self
 -- @param #number ECMvalue Can be - 0=Never on, 1=if locked by radar, 2=if detected by radar, 3=always on, defaults to 1
@@ -5565,4 +5621,129 @@ function CONTROLLABLE:PatrolRaceTrack(Point1, Point2, Altitude, Speed, Formation
   end
 
   return self
+end
+
+--- IR Marker courtesy Florian Brinker (fbrinker)
+
+--- [GROUND] Create and enable a new IR Marker for the given controllable UNIT or GROUP.
+-- @param #CONTROLLABLE self
+-- @param #boolean EnableImmediately (Optionally) If true start up the IR Marker immediately. Else you need to call `myobject:EnableIRMarker()` later on.
+-- @param #number Runtime (Optionally) Run this IR Marker for the given number of seconds, then stop. Use in conjunction with EnableImmediately.
+-- @return #CONTROLLABLE self
+function CONTROLLABLE:NewIRMarker(EnableImmediately, Runtime)
+  --sefl:F("NewIRMarker")
+    if self.ClassName == "GROUP" then
+      self.IRMarkerGroup = true
+      self.IRMarkerUnit = false
+    elseif self.ClassName == "UNIT" then
+      self.IRMarkerGroup = false
+      self.IRMarkerUnit = true
+    end
+
+    self.spot = nil
+    self.timer = nil
+    self.stoptimer = nil
+    
+    if EnableImmediately and EnableImmediately == true then
+      self:EnableIRMarker(Runtime)
+    end
+    
+    return self
+end
+
+--- [GROUND] Enable the IR marker.
+-- @param #CONTROLLABLE self
+-- @param #number Runtime (Optionally) Run this IR Marker for the given number of seconds, then stop. Else run until you call `myobject:DisableIRMarker()`.
+-- @return #CONTROLLABLE self 
+function CONTROLLABLE:EnableIRMarker(Runtime)
+  --sefl:F("EnableIRMarker")
+    if self.IRMarkerGroup == nil then
+      self:NewIRMarker(true,Runtime)
+      return
+    end
+    
+    if (self.IRMarkerGroup == true) then
+        self:EnableIRMarkerForGroup()
+        return
+    end
+
+    self.timer = TIMER:New(CONTROLLABLE._MarkerBlink, self)
+    self.timer:Start(nil, 1 - math.random(1, 5) / 10 / 2, Runtime) -- start randomized
+    
+    return self
+end
+
+--- [GROUND] Disable the IR marker.
+-- @param #CONTROLLABLE self
+-- @return #CONTROLLABLE self 
+function CONTROLLABLE:DisableIRMarker()
+ --sefl:F("DisableIRMarker")
+    if (self.IRMarkerGroup == true) then
+        self:DisableIRMarkerForGroup()
+        return
+    end
+    
+    if self.spot then 
+      self.spot:destroy()
+      self.spot = nil
+      if self.timer and self.timer:IsRunning() then
+          self.timer:Stop()
+          self.timer = nil
+      end
+    end
+    return self
+end
+
+--- [GROUND] Enable the IR markers for a whole group.
+-- @param #CONTROLLABLE self
+-- @return #CONTROLLABLE self 
+function CONTROLLABLE:EnableIRMarkerForGroup()
+  --sefl:F("EnableIRMarkerForGroup")
+  if self.ClassName == "GROUP" then
+    local units = self:GetUnits() or {}
+    for _,_unit in pairs(units) do
+      _unit:EnableIRMarker()
+    end
+  end
+  return self
+end
+
+--- [GROUND] Disable the IR markers for a whole group.
+-- @param #CONTROLLABLE self
+-- @return #CONTROLLABLE self 
+function CONTROLLABLE:DisableIRMarkerForGroup()
+  --sefl:F("DisableIRMarkerForGroup")
+  if self.ClassName == "GROUP" then
+    local units = self:GetUnits() or {}
+    for _,_unit in pairs(units) do
+      _unit:DisableIRMarker()
+    end
+  end
+  return self
+end
+
+--- [Internal] This method is called by the scheduler after enabling the IR marker.
+-- @param #CONTROLLABLE self
+-- @return #CONTROLLABLE self 
+function CONTROLLABLE:_MarkerBlink()
+  --sefl:F("_MarkerBlink")
+    if self:IsAlive() ~= true then
+        self:DisableIRMarker()
+        return
+    end
+
+    self.timer.dT = 1 - (math.random(1, 2) / 10 / 2) -- randomize the blinking by a small amount
+
+    local _, _, unitBBHeight, _ = self:GetObjectSize()
+    local unitPos = self:GetPositionVec3()
+
+    self.spot = Spot.createInfraRed(
+        self.DCSUnit,
+        { x = 0, y = (unitBBHeight + 1), z = 0 },
+        { x = unitPos.x, y = (unitPos.y + unitBBHeight), z = unitPos.z }
+    )
+
+    local offTimer = TIMER:New(function() if self.spot then self.spot:destroy() end end)
+    offTimer:Start(0.5)
+    return self
 end
