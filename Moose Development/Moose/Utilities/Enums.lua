@@ -580,6 +580,18 @@ ENUMS.Link16Power = {
 --- Enums for the STORAGE class for stores - which need to be in ""
 -- @type ENUMS.Storage
 -- @type ENUMS.Storage.weapons
+-- @type ENUMS.Storage.weapons.missiles
+-- @type ENUMS.Storage.weapons.bombs
+-- @type ENUMS.Storage.weapons.nurs
+-- @type ENUMS.Storage.weapons.containers
+-- @type ENUMS.Storage.weapons.droptanks
+-- @type ENUMS.Storage.weapons.adapters
+-- @type ENUMS.Storage.weapons.torpedoes
+-- @type ENUMS.Storage.weapons.Gazelle
+-- @type ENUMS.Storage.weapons.CH47
+-- @type ENUMS.Storage.weapons.OH58
+-- @type ENUMS.Storage.weapons.UH1H
+-- @type ENUMS.Storage.weapons.AH64D
 ENUMS.Storage = {
   weapons = {
     missiles = {}, -- Missiles
@@ -589,6 +601,11 @@ ENUMS.Storage = {
     droptanks = {}, -- Droptanks
     adapters = {}, -- Adapter
     torpedoes = {}, -- Torpedoes
+    Gazelle = {}, -- Gazelle specifics
+    CH47 = {}, -- Chinook specifics
+    OH58 = {}, -- Kiowa specifics
+    UH1H = {}, -- Huey specifics
+    AH64D = {}, -- Huey specifics
   }
 }
 
@@ -1148,4 +1165,75 @@ ENUMS.Storage.weapons.bombs.BDU_50LD = "weapons.bombs.BDU_50LD"
 ENUMS.Storage.weapons.bombs.AGM_62 = "weapons.bombs.AGM_62"
 ENUMS.Storage.weapons.containers.US_M10_SMOKE_TANK_WHITE = "weapons.containers.{US_M10_SMOKE_TANK_WHITE}" 
 ENUMS.Storage.weapons.missiles.MICA_T = "weapons.missiles.MICA_T" 
-ENUMS.Storage.weapons.containers.HVAR_rocket = "weapons.containers.HVAR_rocket" 
+ENUMS.Storage.weapons.containers.HVAR_rocket = "weapons.containers.HVAR_rocket"
+-- Gazelle
+ENUMS.Storage.weapons.Gazelle.HMP400_100RDS = {4,15,46,1771}
+ENUMS.Storage.weapons.Gazelle.HMP400_200RDS = {4,15,46,1770}
+ENUMS.Storage.weapons.Gazelle.HMP400_400RDS = {4,15,46,1769}
+ENUMS.Storage.weapons.Gazelle.GIAT_M261_AP = {4,15,46,1768}
+ENUMS.Storage.weapons.Gazelle.GIAT_M261_SAPHEI = {4,15,46,1767}
+ENUMS.Storage.weapons.Gazelle.GIAT_M261_HE = {4,15,46,1766}
+ENUMS.Storage.weapons.Gazelle.GIAT_M261_HEAP = {4,15,46,1765}
+ENUMS.Storage.weapons.Gazelle.GIAT_M261_APHE = {4,15,46,1764}
+ENUMS.Storage.weapons.Gazelle.GAZELLE_IR_DEFLECTOR = {4,15,47,680}
+ENUMS.Storage.weapons.Gazelle.GAZELLE_FAS_SANDFILTER = {4,15,47,679}
+-- Chinook
+ENUMS.Storage.weapons.CH47.CH47_PORT_M60D = {4,15,46,2476}
+ENUMS.Storage.weapons.CH47.CH47_STBD_M60D = {4,15,46,2477}
+ENUMS.Storage.weapons.CH47.CH47_AFT_M60D = {4,15,46,2478}
+ENUMS.Storage.weapons.CH47.CH47_PORT_M134D = {4,15,46,2482}
+ENUMS.Storage.weapons.CH47.CH47_STBD_M134D = {4,15,46,2483}
+ENUMS.Storage.weapons.CH47.CH47_AFT_M3M = {4,15,46,2484}
+ENUMS.Storage.weapons.CH47.CH47_PORT_M240H = {4,15,46,2479}
+ENUMS.Storage.weapons.CH47.CH47_STBD_M240H = {4,15,46,2480}
+ENUMS.Storage.weapons.CH47.CH47_AFT_M240H = {4,15,46,2481}
+-- Huey
+ENUMS.Storage.weapons.UH1H.M134_MiniGun_Right = {4,15,46,161}
+ENUMS.Storage.weapons.UH1H.M134_MiniGun_Left = {4,15,46,160}
+ENUMS.Storage.weapons.UH1H.M134_MiniGun_Right_Door  =  {4,15,46,175}
+ENUMS.Storage.weapons.UH1H.M60_MG_Right_Door  =  {4,15,46,177}
+ENUMS.Storage.weapons.UH1H.M134_MiniGun_Left_Door  =  {4,15,46,174}
+ENUMS.Storage.weapons.UH1H.M60_MG_Left_Door  =  {4,15,46,176}
+-- Kiowa
+ENUMS.Storage.weapons.OH58.FIM92  =  {4,4,7,446}
+ENUMS.Storage.weapons.OH58.MG_M3P100  =  {4,15,46,2578}
+ENUMS.Storage.weapons.OH58.MG_M3P200  =  {4,15,46,2577}
+ENUMS.Storage.weapons.OH58.MG_M3P300  =  {4,15,46,2576}
+ENUMS.Storage.weapons.OH58.MG_M3P400  =  {4,15,46,2575}
+ENUMS.Storage.weapons.OH58.MG_M3P500  =  {4,15,46,2574}
+ENUMS.Storage.weapons.OH58.Smk_Grenade_Blue  =  {4,5,9,484}
+ENUMS.Storage.weapons.OH58.Smk_Grenade_Green  =  {4,5,9,485}
+ENUMS.Storage.weapons.OH58.Smk_Grenade_Red  =  {4,5,9,483}
+ENUMS.Storage.weapons.OH58.Smk_Grenade_Violet  =  {4,5,9,486}
+ENUMS.Storage.weapons.OH58.Smk_Grenade_White  =  {4,5,9,488}
+ENUMS.Storage.weapons.OH58.Smk_Grenade_Yellow  =  {4,5,9,487}
+-- Apache
+ENUMS.Storage.weapons.AH64D.AN_APG78 = {4,15,44,2138}
+ENUMS.Storage.weapons.AH64D.Internal_Aux_FuelTank = {1,3,43,1700}
+
+---
+-- @type ENUMS.FARPType
+-- @field #string FARP
+-- @field #string INVISIBLE
+-- @field #string HELIPADSINGLE
+-- @field #string PADSINGLE
+ENUMS.FARPType = {
+  FARP = "FARP",
+  INVISIBLE = "INVISIBLE",
+  HELIPADSINGLE = "HELIPADSINGLE",
+  PADSINGLE = "PADSINGLE",  
+}
+
+
+---
+-- @type ENUMS.FARPObjectTypeNamesAndShape
+-- @field #string FARP
+-- @field #string INVISIBLE
+-- @field #string HELIPADSINGLE
+-- @field #string PADSINGLE
+ENUMS.FARPObjectTypeNamesAndShape ={
+  [ENUMS.FARPType.FARP] = { TypeName="FARP", ShapeName="FARPS"},
+  [ENUMS.FARPType.INVISIBLE] = { TypeName="Invisible FARP", ShapeName="invisiblefarp"},
+  [ENUMS.FARPType.HELIPADSINGLE] = { TypeName="SINGLE_HELIPAD", ShapeName="FARP"},
+  [ENUMS.FARPType.PADSINGLE] = { TypeName="FARP_SINGLE_01", ShapeName="FARP_SINGLE_01"},
+}

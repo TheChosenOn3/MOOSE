@@ -219,6 +219,7 @@ function UNIT:Name()
   return self.UnitName
 end
 
+--[[
 --- Get the DCS unit object.
 -- @param #UNIT self
 -- @return DCS#Unit The DCS unit object.
@@ -230,10 +231,34 @@ function UNIT:GetDCSObject()
     return DCSUnit
   end
   
-  --if self.DCSUnit then
-    --return self.DCSUnit
-  --end
+  return nil
+end
+--]]
+
+--- Returns the DCS Unit.
+-- @param #UNIT self
+-- @return DCS#Unit The DCS Group.
+function UNIT:GetDCSObject()
+
+  if (not self.LastCallDCSObject) or (self.LastCallDCSObject and timer.getTime() - self.LastCallDCSObject  > 1) then
+
+    -- Get DCS group.
+    local DCSUnit = Unit.getByName( self.UnitName )
+
+    if DCSUnit then
+      self.LastCallDCSObject = timer.getTime()
+      self.DCSObject = DCSUnit
+      return DCSUnit
+    else
+      self.DCSObject = nil
+      self.LastCallDCSObject = nil
+    end
   
+  else
+    return self.DCSObject
+  end
+  
+  --self:E(string.format("ERROR: Could not get DCS group object of group %s because DCS object could not be found!", tostring(self.UnitName)))
   return nil
 end
 
@@ -243,7 +268,7 @@ end
 -- @return #number The height of the group or nil if is not existing or alive.  
 function UNIT:GetAltitude(FromGround)
   
-  local DCSUnit = Unit.getByName( self.UnitName )
+  local DCSUnit = self:GetDCSObject()
 
   if DCSUnit then
     local altitude = 0
@@ -273,12 +298,12 @@ end
 -- @param #number Heading The heading of the unit respawn.
 function UNIT:ReSpawnAt( Coordinate, Heading )
 
-  self:T( self:Name() )
+  --self:T( self:Name() )
   local SpawnGroupTemplate = UTILS.DeepCopy( _DATABASE:GetGroupTemplateFromUnitName( self:Name() ) )
-  self:T( SpawnGroupTemplate )
+  --self:T( SpawnGroupTemplate )
 
   local SpawnGroup = self:GetGroup()
-  self:T( { SpawnGroup = SpawnGroup } )
+  --self:T( { SpawnGroup = SpawnGroup } )
   
   if SpawnGroup then
   
@@ -286,10 +311,10 @@ function UNIT:ReSpawnAt( Coordinate, Heading )
     SpawnGroupTemplate.x = Coordinate.x
     SpawnGroupTemplate.y = Coordinate.z
     
-    self:F( #SpawnGroupTemplate.units )
+    --self:F( #SpawnGroupTemplate.units )
     for UnitID, UnitData in pairs( SpawnGroup:GetUnits() or {} ) do
       local GroupUnit = UnitData -- #UNIT
-      self:F( GroupUnit:GetName() )
+      --self:F( GroupUnit:GetName() )
       if GroupUnit:IsAlive() then
         local GroupUnitVec3 = GroupUnit:GetVec3()
         local GroupUnitHeading = GroupUnit:GetHeading()
@@ -297,23 +322,23 @@ function UNIT:ReSpawnAt( Coordinate, Heading )
         SpawnGroupTemplate.units[UnitID].x = GroupUnitVec3.x
         SpawnGroupTemplate.units[UnitID].y = GroupUnitVec3.z
         SpawnGroupTemplate.units[UnitID].heading = GroupUnitHeading
-        self:F( { UnitID, SpawnGroupTemplate.units[UnitID], SpawnGroupTemplate.units[UnitID] } )
+        --self:F( { UnitID, SpawnGroupTemplate.units[UnitID], SpawnGroupTemplate.units[UnitID] } )
       end
     end
   end
   
   for UnitTemplateID, UnitTemplateData in pairs( SpawnGroupTemplate.units ) do
-    self:T( { UnitTemplateData.name, self:Name() } )
+    --self:T( { UnitTemplateData.name, self:Name() } )
     SpawnGroupTemplate.units[UnitTemplateID].unitId = nil
     if UnitTemplateData.name == self:Name() then
-      self:T("Adjusting")
+      --self:T("Adjusting")
       SpawnGroupTemplate.units[UnitTemplateID].alt = Coordinate.y
       SpawnGroupTemplate.units[UnitTemplateID].x = Coordinate.x
       SpawnGroupTemplate.units[UnitTemplateID].y = Coordinate.z
       SpawnGroupTemplate.units[UnitTemplateID].heading = Heading
-      self:F( { UnitTemplateID, SpawnGroupTemplate.units[UnitTemplateID], SpawnGroupTemplate.units[UnitTemplateID] } )
+      --self:F( { UnitTemplateID, SpawnGroupTemplate.units[UnitTemplateID], SpawnGroupTemplate.units[UnitTemplateID] } )
     else
-      self:F( SpawnGroupTemplate.units[UnitTemplateID].name )
+      --self:F( SpawnGroupTemplate.units[UnitTemplateID].name )
       local GroupUnit = UNIT:FindByName( SpawnGroupTemplate.units[UnitTemplateID].name ) -- #UNIT
       if GroupUnit and GroupUnit:IsAlive() then
         local GroupUnitVec3 = GroupUnit:GetVec3()
@@ -324,7 +349,7 @@ function UNIT:ReSpawnAt( Coordinate, Heading )
         UnitTemplateData.heading = GroupUnitHeading
       else
         if SpawnGroupTemplate.units[UnitTemplateID].name ~= self:Name() then
-          self:T("nilling")
+          --self:T("nilling")
           SpawnGroupTemplate.units[UnitTemplateID].delete = true
         end
       end
@@ -336,7 +361,7 @@ function UNIT:ReSpawnAt( Coordinate, Heading )
   while i <= #SpawnGroupTemplate.units do
 
     local UnitTemplateData = SpawnGroupTemplate.units[i]
-    self:T( UnitTemplateData.name )
+    --self:T( UnitTemplateData.name )
 
     if UnitTemplateData.delete then
       table.remove( SpawnGroupTemplate.units, i )
@@ -347,7 +372,7 @@ function UNIT:ReSpawnAt( Coordinate, Heading )
   
   SpawnGroupTemplate.groupId = nil
   
-  self:T( SpawnGroupTemplate )
+  --self:T( SpawnGroupTemplate )
 
   _DATABASE:Spawn( SpawnGroupTemplate )
 end
@@ -358,7 +383,7 @@ end
 -- @param #UNIT self
 -- @return #boolean `true` if Unit is activated. `nil` The DCS Unit is not existing or alive.  
 function UNIT:IsActive()
-  self:F2( self.UnitName )
+  --self:F2( self.UnitName )
 
   local DCSUnit = self:GetDCSObject()
   
@@ -395,7 +420,7 @@ end
 -- @param #UNIT self
 -- @return #boolean Returns `true` if Unit is alive and active, `false` if it exists but is not active and `nil` if the object does not exist or DCS `isExist` function returns false.
 function UNIT:IsAlive()
-  self:F3( self.UnitName )
+  --self:F3( self.UnitName )
 
   local DCSUnit = self:GetDCSObject() -- DCS#Unit
   
@@ -418,7 +443,7 @@ end
 -- @param #UNIT self
 -- @return #string The Callsign of the Unit.
 function UNIT:GetCallsign()
-  self:F2( self.UnitName )
+  --self:F2( self.UnitName )
 
   local DCSUnit = self:GetDCSObject()
   
@@ -430,7 +455,7 @@ function UNIT:GetCallsign()
     return UnitCallSign
   end
   
-  self:F( self.ClassName .. " " .. self.UnitName .. " not found!" )
+  --self:F( self.ClassName .. " " .. self.UnitName .. " not found!" )
   return nil
 end
 
@@ -445,7 +470,18 @@ function UNIT:IsPlayer()
   if not group then return false end
     
   -- Units of template group.
-  local units=group:GetTemplate().units
+  local template = group:GetTemplate()
+  
+  if (template == nil) or (template.units == nil ) then 
+    local DCSObject = self:GetDCSObject()
+    if DCSObject then
+      if DCSObject:getPlayerName() ~= nil then return true else return false end
+    else
+      return false 
+    end
+  end
+  
+  local units=template.units
   
   -- Get numbers.
   for _,unit in pairs(units) do
@@ -466,7 +502,7 @@ end
 -- @return #string Player Name
 -- @return #nil The DCS Unit is not existing or alive.  
 function UNIT:GetPlayerName()
-  self:F( self.UnitName )
+  --self:F( self.UnitName )
 
   local DCSUnit = self:GetDCSObject() -- DCS#Unit
   
@@ -540,7 +576,7 @@ end
 -- @return #number The Unit number. 
 -- @return #nil The DCS Unit is not existing or alive.  
 function UNIT:GetNumber()
-  self:F2( self.UnitName )
+  --self:F2( self.UnitName )
 
   local DCSUnit = self:GetDCSObject()
   
@@ -557,7 +593,7 @@ end
 -- @param #UNIT self
 -- @return #number Speed in km/h. 
 function UNIT:GetSpeedMax()
-  self:F2( self.UnitName )
+  --self:F2( self.UnitName )
 
   local Desc = self:GetDesc()
   
@@ -574,7 +610,7 @@ end
 -- @param #UNIT self
 -- @return #number Range in meters.
 function UNIT:GetRange()
-  self:F2( self.UnitName )
+  --self:F2( self.UnitName )
 
   local Desc = self:GetDesc()
   
@@ -596,7 +632,7 @@ end
 -- @return #boolean If true, unit is refuelable (checks for the attribute "Refuelable").
 -- @return #number Refueling system (if any): 0=boom, 1=probe.
 function UNIT:IsRefuelable()
-  self:F2( self.UnitName )
+  --self:F2( self.UnitName )
 
   local refuelable=self:HasAttribute("Refuelable")
   
@@ -615,7 +651,7 @@ end
 -- @return #boolean If true, unit is a tanker (checks for the attribute "Tankers").
 -- @return #number Refueling system (if any): 0=boom, 1=probe.
 function UNIT:IsTanker()
-  self:F2( self.UnitName )
+  --self:F2( self.UnitName )
 
   local tanker=self:HasAttribute("Tankers")
   
@@ -714,7 +750,7 @@ end
 -- @param Wrapper.Unit#UNIT self
 -- @return Wrapper.Group#GROUP The Group of the Unit or `nil` if the unit does not exist.  
 function UNIT:GetGroup()
-  self:F2( self.UnitName )  
+  --self:F2( self.UnitName )  
   local UnitGroup = GROUP:FindByName(self.GroupName)
   if UnitGroup then
     return UnitGroup
@@ -738,13 +774,13 @@ end
 -- @return #string The name of the DCS Unit.
 -- @return #nil The DCS Unit is not existing or alive.  
 function UNIT:GetPrefix()
-  self:F2( self.UnitName )
+  --self:F2( self.UnitName )
 
   local DCSUnit = self:GetDCSObject()
   
   if DCSUnit then
     local UnitPrefix = string.match( self.UnitName, ".*#" ):sub( 1, -2 )
-    self:T3( UnitPrefix )
+    --self:T3( UnitPrefix )
     return UnitPrefix
   end
   
@@ -755,7 +791,7 @@ end
 -- @param #UNIT self
 -- @return DCS#Unit.Ammo Table with ammuntion of the unit (or nil). This can be a complex table! 
 function UNIT:GetAmmo()
-  self:F2( self.UnitName )
+  --self:F2( self.UnitName )
   local DCSUnit = self:GetDCSObject()
   if DCSUnit then
     --local status, unitammo = pcall(
@@ -789,11 +825,13 @@ end
 --- Get the number of ammunition and in particular the number of shells, rockets, bombs and missiles a unit currently has.
 -- @param #UNIT self
 -- @return #number Total amount of ammo the unit has left. This is the sum of shells, rockets, bombs and missiles.
--- @return #number Number of shells left.
+-- @return #number Number of shells left. Shells include MG ammunition, AP and HE shells, and artillery shells where applicable.
 -- @return #number Number of rockets left.
 -- @return #number Number of bombs left.
 -- @return #number Number of missiles left.
--- @return #number Number of artillery shells left (with explosive mass, included in shells; shells can also be machine gun ammo)
+-- @return #number Number of artillery shells left (with explosive mass, included in shells; HE will also be reported as artillery shells for tanks)
+-- @return #number Number of tank AP shells left (for tanks, if applicable)
+-- @return #number Number of tank HE shells left (for tanks, if applicable)
 function UNIT:GetAmmunition()
 
   -- Init counter.
@@ -803,6 +841,8 @@ function UNIT:GetAmmunition()
   local nmissiles=0
   local nbombs=0
   local narti=0
+  local nAPshells = 0
+  local nHEshells = 0
 
   local unit=self
 
@@ -844,6 +884,14 @@ function UNIT:GetAmmunition()
           narti=narti+Nammo
         end
         
+        if ammotable[w].desc.typeName and string.find(ammotable[w].desc.typeName,"_AP",1,true) then
+          nAPshells = nAPshells+Nammo
+        end
+        
+        if ammotable[w].desc.typeName and string.find(ammotable[w].desc.typeName,"_HE",1,true) then
+          nHEshells = nHEshells+Nammo
+        end
+        
       elseif Category==Weapon.Category.ROCKET then
 
         -- Add up all rockets.
@@ -880,14 +928,62 @@ function UNIT:GetAmmunition()
   -- Total amount of ammunition.
   nammo=nshells+nrockets+nmissiles+nbombs
 
-  return nammo, nshells, nrockets, nbombs, nmissiles, narti
+  return nammo, nshells, nrockets, nbombs, nmissiles, narti, nAPshells, nHEshells
+end
+
+--- Checks if a tank still has AP shells.
+-- @param #UNIT self
+-- @return #boolean HasAPShells  
+function UNIT:HasAPShells()
+  local _,_,_,_,_,_,shells = self:GetAmmunition()
+  if shells > 0 then return true else return false end
+end
+
+--- Get number of AP shells from a tank.
+-- @param #UNIT self
+-- @return #number Number of AP shells 
+function UNIT:GetAPShells()
+  local _,_,_,_,_,_,shells = self:GetAmmunition()
+  return shells or 0
+end
+
+--- Get number of HE shells from a tank.
+-- @param #UNIT self
+-- @return #number Number of HE shells
+function UNIT:GetHEShells()
+  local _,_,_,_,_,_,_,shells = self:GetAmmunition()
+  return shells or 0
+end
+
+--- Checks if a tank still has HE shells.
+-- @param #UNIT self
+-- @return #boolean HasHEShells  
+function UNIT:HasHEShells()
+  local _,_,_,_,_,_,_,shells = self:GetAmmunition()
+  if shells > 0 then return true else return false end
+end
+
+--- Checks if an artillery unit still has artillery shells.
+-- @param #UNIT self
+-- @return #boolean HasArtiShells  
+function UNIT:HasArtiShells()
+  local _,_,_,_,_,shells = self:GetAmmunition()
+  if shells > 0 then return true else return false end
+end
+
+--- Get number of artillery shells from an artillery unit.
+-- @param #UNIT self
+-- @return #number Number of artillery shells
+function UNIT:GetArtiShells()
+  local _,_,_,_,_,shells = self:GetAmmunition()
+  return shells or 0
 end
 
 --- Returns the unit sensors.
 -- @param #UNIT self
 -- @return DCS#Unit.Sensors Table of sensors.  
 function UNIT:GetSensors()
-  self:F2( self.UnitName )
+  --self:F2( self.UnitName )
 
   local DCSUnit = self:GetDCSObject()
   
@@ -906,7 +1002,7 @@ end
 -- @param #UNIT self
 -- @return #boolean returns true if the unit has specified types of sensors. This function is more preferable than Unit.getSensors() if you don't want to get information about all the unit's sensors, and just want to check if the unit has specified types of sensors. 
 function UNIT:HasSensors( ... )
-  self:F2( arg )
+  --self:F2( arg )
 
   local DCSUnit = self:GetDCSObject()
   
@@ -922,7 +1018,7 @@ end
 -- @param #UNIT self
 -- @return #boolean returns true if the unit is SEADable. 
 function UNIT:HasSEAD()
-  self:F2()
+  --self:F2()
 
   local DCSUnit = self:GetDCSObject()
   
@@ -950,7 +1046,7 @@ end
 -- @return #boolean  Indicates if at least one of the unit's radar(s) is on.
 -- @return DCS#Object The object of the radar's interest. Not nil only if at least one radar of the unit is tracking a target.
 function UNIT:GetRadar()
-  self:F2( self.UnitName )
+  --self:F2( self.UnitName )
 
   local DCSUnit = self:GetDCSObject()
   
@@ -966,7 +1062,7 @@ end
 -- @param #UNIT self
 -- @return #number The relative amount of fuel (from 0.0 to 1.0) or *nil* if the DCS Unit is not existing or alive. 
 function UNIT:GetFuel()
-  self:F3( self.UnitName )
+  --self:F3( self.UnitName )
 
   local DCSUnit = self:GetDCSObject()
   
@@ -983,14 +1079,14 @@ end
 -- @param #UNIT self
 -- @return #list<Wrapper.Unit#UNIT> A list of one @{Wrapper.Unit}.
 function UNIT:GetUnits()
-  self:F3( { self.UnitName } )
+  --self:F3( { self.UnitName } )
   local DCSUnit = self:GetDCSObject()
 
   local Units = {}
   
   if DCSUnit then
     Units[1] = UNIT:Find( DCSUnit )
-    self:T3( Units )
+    -self:T3( Units )
     return Units
   end
 
@@ -1002,7 +1098,7 @@ end
 -- @param #UNIT self
 -- @return #number The Unit's health value or -1 if unit does not exist any more.
 function UNIT:GetLife()
-  self:F2( self.UnitName )
+  --self:F2( self.UnitName )
 
   local DCSUnit = self:GetDCSObject()
   
@@ -1018,7 +1114,7 @@ end
 -- @param #UNIT self
 -- @return #number The Unit's initial health value or 0 if unit does not exist any more.  
 function UNIT:GetLife0()
-  self:F2( self.UnitName )
+  --self:F2( self.UnitName )
 
   local DCSUnit = self:GetDCSObject()
   
@@ -1034,7 +1130,7 @@ end
 -- @param #UNIT self
 -- @return #number The Unit's relative health value, i.e. a number in [0,1] or -1 if unit does not exist any more.
 function UNIT:GetLifeRelative()
-  self:F2(self.UnitName)
+  --self:F2(self.UnitName)
 
   if self and self:IsAlive() then
     local life0=self:GetLife0()
@@ -1049,7 +1145,7 @@ end
 -- @param #UNIT self
 -- @return #number The Unit's relative health value, i.e. a number in [0,1] or 1 if unit does not exist any more.
 function UNIT:GetDamageRelative()
-  self:F2(self.UnitName)
+  --self:F2(self.UnitName)
 
   if self and self:IsAlive() then
     return 1-self:GetLifeRelative()
@@ -1087,7 +1183,7 @@ end
 -- @param #UNIT self
 -- @return #number Unit category from `getDesc().category`.
 function UNIT:GetUnitCategory()
-  self:F3( self.UnitName )
+  --self:F3( self.UnitName )
 
   local DCSUnit = self:GetDCSObject()
   if DCSUnit then
@@ -1101,7 +1197,7 @@ end
 -- @param #UNIT self
 -- @return #string Category name = Helicopter, Airplane, Ground Unit, Ship
 function UNIT:GetCategoryName()
-  self:F3( self.UnitName )
+  --self:F3( self.UnitName )
 
   local DCSUnit = self:GetDCSObject()
   if DCSUnit then
@@ -1113,7 +1209,7 @@ function UNIT:GetCategoryName()
       [Unit.Category.STRUCTURE] = "Structure",
     }
     local UnitCategory = DCSUnit:getDesc().category
-    self:T3( UnitCategory )
+    --self:T3( UnitCategory )
 
     return CategoryNames[UnitCategory]
   end
@@ -1192,17 +1288,17 @@ function UNIT:GetThreatLevel()
     if self:IsGround() then
     
       local ThreatLevels = {
-        "Unarmed", 
-        "Infantry", 
-        "Old Tanks & APCs", 
-        "Tanks & IFVs without ATGM",   
-        "Tanks & IFV with ATGM",
-        "Modern Tanks",
-        "AAA",
-        "IR Guided SAMs",
-        "SR SAMs",
-        "MR SAMs",
-        "LR SAMs"
+        [1] = "Unarmed", 
+        [2] = "Infantry", 
+        [3] = "Old Tanks & APCs", 
+        [4] = "Tanks & IFVs without ATGM",   
+        [5] = "Tanks & IFV with ATGM",
+        [6] = "Modern Tanks",
+        [7] = "AAA",
+        [8] = "IR Guided SAMs",
+        [9] = "SR SAMs",
+        [10] = "MR SAMs",
+        [11] = "LR SAMs"
       }
       
       
@@ -1228,17 +1324,17 @@ function UNIT:GetThreatLevel()
     if self:IsAir() then
     
       local ThreatLevels = {
-        "Unarmed", 
-        "Tanker", 
-        "AWACS", 
-        "Transport Helicopter",   
-        "UAV",
-        "Bomber",
-        "Strategic Bomber",
-        "Attack Helicopter",
-        "Battleplane",
-        "Multirole Fighter",
-        "Fighter"
+        [1] = "Unarmed", 
+        [2] = "Tanker", 
+        [3] = "AWACS", 
+        [4] = "Transport Helicopter",   
+        [5] = "UAV",
+        [6] = "Bomber",
+        [7] = "Strategic Bomber",
+        [8] = "Attack Helicopter",
+        [9] = "Battleplane",
+        [10] = "Multirole Fighter",
+        [11] = "Fighter"
       }
       
       
@@ -1272,17 +1368,17 @@ function UNIT:GetThreatLevel()
   --["Unarmed ships"] = {"Ships","HeavyArmoredUnits",},
     
       local ThreatLevels = {
-        "Unarmed ship", 
-        "Light armed ships", 
-        "Corvettes",
-        "",
-        "Frigates",
-        "",
-        "Cruiser",
-        "",
-        "Destroyer",
-        "",
-        "Aircraft Carrier"
+        [1] = "Unarmed ship", 
+        [2] = "Light armed ships", 
+        [3] = "Corvettes",
+        [4] = "",
+        [5] = "Frigates",
+        [6] = "",
+        [7] = "Cruiser",
+        [8] = "",
+        [9] = "Destroyer",
+        [10] = "",
+        [11] = "Aircraft Carrier"
       }
       
       
@@ -1341,7 +1437,7 @@ end
 -- @return true If the other DCS Unit is within the radius of the 2D point of the DCS Unit. 
 -- @return #nil The DCS Unit is not existing or alive.  
 function UNIT:OtherUnitInRadius( AwaitUnit, Radius )
-  self:F2( { self.UnitName, AwaitUnit.UnitName, Radius } )
+  --self:F2( { self.UnitName, AwaitUnit.UnitName, Radius } )
 
   local DCSUnit = self:GetDCSObject()
   
@@ -1350,10 +1446,10 @@ function UNIT:OtherUnitInRadius( AwaitUnit, Radius )
     local AwaitUnitVec3 = AwaitUnit:GetVec3()
   
     if  (((UnitVec3.x - AwaitUnitVec3.x)^2 + (UnitVec3.z - AwaitUnitVec3.z)^2)^0.5 <= Radius) then
-      self:T3( "true" )
+      --self:T3( "true" )
       return true
     else
-      self:T3( "false" )
+      --self:T3( "false" )
       return false
     end
   end
@@ -1371,17 +1467,17 @@ end
 -- @param #UNIT self
 -- @return #boolean IsFriendly evaluation result.
 function UNIT:IsFriendly( FriendlyCoalition )
-  self:F2()
+  --self:F2()
   
   local DCSUnit = self:GetDCSObject()
   
   if DCSUnit then
     local UnitCoalition = DCSUnit:getCoalition()
-    self:T3( { UnitCoalition, FriendlyCoalition } )
+    --self:T3( { UnitCoalition, FriendlyCoalition } )
     
     local IsFriendlyResult = ( UnitCoalition == FriendlyCoalition )
   
-    self:F( IsFriendlyResult )
+    --self:F( IsFriendlyResult )
     return IsFriendlyResult
   end
   
@@ -1393,17 +1489,17 @@ end
 -- @param #UNIT self
 -- @return #boolean Ship category evaluation result.
 function UNIT:IsShip()
-  self:F2()
+  --self:F2()
   
   local DCSUnit = self:GetDCSObject()
   
   if DCSUnit then
     local UnitDescriptor = DCSUnit:getDesc()
-    self:T3( { UnitDescriptor.category, Unit.Category.SHIP } )
+    --self:T3( { UnitDescriptor.category, Unit.Category.SHIP } )
     
     local IsShipResult = ( UnitDescriptor.category == Unit.Category.SHIP )
   
-    self:T3( IsShipResult )
+    --self:T3( IsShipResult )
     return IsShipResult
   end
   
@@ -1415,7 +1511,7 @@ end
 -- @param #boolean NoHeloCheck If true, no additonal checks for helos are performed.
 -- @return #boolean Return true if in the air or #nil if the UNIT is not existing or alive.   
 function UNIT:InAir(NoHeloCheck)
-  self:F2( self.UnitName )
+  --self:F2( self.UnitName )
 
   -- Get DCS unit object.
   local DCSUnit = self:GetDCSObject() --DCS#Unit
@@ -1429,7 +1525,7 @@ function UNIT:InAir(NoHeloCheck)
     local UnitCategory = DCSUnit:getDesc().category
 
     -- If DCS says that it is in air, check if this is really the case, since we might have landed on a building where inAir()=true but actually is not.
-    -- This is a workaround since DCS currently does not acknoledge that helos land on buildings.
+    -- This is a workaround since DCS currently does not acknowledge that helos land on buildings.
     -- Note however, that the velocity check will fail if the ground is moving, e.g. on an aircraft carrier!    
     if UnitInAir==true and UnitCategory == Unit.Category.HELICOPTER and (not NoHeloCheck) then
       local VelocityVec3 = DCSUnit:getVelocity()
@@ -1442,7 +1538,7 @@ function UNIT:InAir(NoHeloCheck)
       end
     end
     
-    self:T3( UnitInAir )
+    --self:T3( UnitInAir )
     return UnitInAir
   end
   
@@ -1637,7 +1733,7 @@ end
 -- @param #boolean switch If true, emission is enabled. If false, emission is disabled. 
 -- @return #UNIT self
 function UNIT:EnableEmission(switch)
-  self:F2( self.UnitName )
+  --self:F2( self.UnitName )
   
   local switch = switch or false
   
@@ -1656,9 +1752,12 @@ end
 -- @param #UNIT self
 -- @return #string Skill String of skill name.
 function UNIT:GetSkill()
-  self:F2( self.UnitName )
+  --self:F2( self.UnitName )
   local name = self.UnitName
-  local skill = _DATABASE.Templates.Units[name].Template.skill or "Random"
+  local skill = "Random"
+  if _DATABASE.Templates.Units[name] and _DATABASE.Templates.Units[name].Template and _DATABASE.Templates.Units[name].Template.skill then
+    skill = _DATABASE.Templates.Units[name].Template.skill or "Random"
+  end
   return skill
 end
 
@@ -1669,7 +1768,7 @@ end
 -- @return #string VCN Voice Callsign Number or nil if not set/capable.
 -- @return #string Lead If true, unit is Flight Lead, else false or nil.
 function UNIT:GetSTN()
-  self:F2(self.UnitName)
+  --self:F2(self.UnitName)
   local STN = nil -- STN/TN
   local VCL = nil -- VoiceCallsignLabel
   local VCN = nil -- VoiceCallsignNumber

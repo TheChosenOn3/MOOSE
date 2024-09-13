@@ -14365,32 +14365,55 @@ function AIRBOSS:_GetOnboardNumbers( group, playeronly )
   -- Debug text.
   local text = string.format( "Onboard numbers of group %s:", groupname )
 
-  -- Units of template group.
-  local units = group:GetTemplate().units
+  local template=group:GetTemplate()
 
-  -- Get numbers.
   local numbers = {}
-  for _, unit in pairs( units ) do
+  if template then
 
-    -- Onboard number and unit name.
-    local n = tostring( unit.onboard_num )
-    local name = unit.name
-    local skill = unit.skill or "Unknown"
+    -- Units of template group.
+    local units = template.units
 
-    -- Debug text.
-    text = text .. string.format( "\n- unit %s: onboard #=%s  skill=%s", name, n, tostring( skill ) )
+    -- Get numbers.
+    for _, unit in pairs( units ) do
 
-    if playeronly and skill == "Client" or skill == "Player" then
-      -- There can be only one player in the group, so we skip everything else.
-      return n
+      -- Onboard number and unit name.
+      local n = tostring( unit.onboard_num )
+      local name = unit.name
+      local skill = unit.skill or "Unknown"
+
+      -- Debug text.
+      text = text .. string.format( "\n- unit %s: onboard #=%s  skill=%s", name, n, tostring( skill ) )
+
+      if playeronly and skill == "Client" or skill == "Player" then
+        -- There can be only one player in the group, so we skip everything else.
+        return n
+      end
+
+      -- Table entry.
+      numbers[name] = n
     end
 
-    -- Table entry.
-    numbers[name] = n
-  end
+    -- Debug info.
+    self:T2( self.lid .. text )
 
-  -- Debug info.
-  self:T2( self.lid .. text )
+  else
+
+    if playeronly then
+      return 101
+    else
+
+      local units=group:GetUnits()
+
+      for i,_unit in pairs(units) do
+        local name=_unit:GetName()
+
+        numbers[name]=100+i
+
+      end
+
+    end
+
+  end
 
   return numbers
 end
@@ -14655,7 +14678,7 @@ function AIRBOSS:_GetPlayerUnitAndName( _unitName )
     -- Get DCS unit from its name.
     local DCSunit = Unit.getByName( _unitName )
 
-    if DCSunit then
+    if DCSunit and DCSunit.getPlayerName then
 
       -- Get player name if any.
       local playername = DCSunit:getPlayerName()
@@ -15626,7 +15649,7 @@ function AIRBOSS:_Number2Sound( playerData, sender, number, delay )
   end
 
   -- Split string into characters.
-  local numbers = _split( number )
+  local numbers = _split( tostring(number) )
 
   local wait = 0
   for i = 1, #numbers do
@@ -15694,7 +15717,7 @@ function AIRBOSS:_Number2Radio( radio, number, delay, interval, pilotcall )
   end
 
   -- Split string into characters.
-  local numbers = _split( number )
+  local numbers = _split( tostring(number) )
 
   local wait = 0
   for i = 1, #numbers do
@@ -18062,7 +18085,7 @@ function AIRBOSS:_MarkCaseZones( _unitName, flare )
             self:_GetZoneArcIn( case ):FlareZone( FLARECOLOR.White, 45 )
             text = text .. "\n* arc turn in with WHITE flares"
             self:_GetZoneArcOut( case ):FlareZone( FLARECOLOR.White, 45 )
-            text = text .. "\n* arc trun out with WHITE flares"
+            text = text .. "\n* arc turn out with WHITE flares"
           end
         end
 
@@ -18114,7 +18137,7 @@ function AIRBOSS:_MarkCaseZones( _unitName, flare )
             self:_GetZoneArcIn( case ):SmokeZone( SMOKECOLOR.Blue, 45 )
             text = text .. "\n* arc turn in with BLUE smoke"
             self:_GetZoneArcOut( case ):SmokeZone( SMOKECOLOR.Blue, 45 )
-            text = text .. "\n* arc trun out with BLUE smoke"
+            text = text .. "\n* arc turn out with BLUE smoke"
           end
         end
 

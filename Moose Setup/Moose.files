@@ -49,6 +49,7 @@ Wrapper/Marker.lua
 Wrapper/Weapon.lua
 Wrapper/Net.lua
 Wrapper/Storage.lua
+Wrapper/DynamicCargo.lua
 
 Cargo/Cargo.lua
 Cargo/CargoUnit.lua
@@ -78,6 +79,7 @@ Functional/Warehouse.lua
 Functional/Fox.lua
 Functional/Mantis.lua
 Functional/Shorad.lua
+Functional/ClientWatch.lua
 
 Ops/Airboss.lua
 Ops/RecoveryTanker.lua

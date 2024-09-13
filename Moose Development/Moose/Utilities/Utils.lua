@@ -66,7 +66,8 @@ DCSMAP = {
   MarianaIslands="MarianaIslands",
   Falklands="Falklands",
   Sinai="SinaiMap",
-  Kola="Kola"
+  Kola="Kola",
+  Afghanistan="Afghanistan",
 }
 
 
@@ -197,6 +198,45 @@ CALLSIGN={
     Cargo=11,
     Ascot=12,
   },
+  AH64={
+    Army_Air = 9,
+    Apache = 10,
+    Crow = 11,
+    Sioux = 12,
+    Gatling = 13,
+    Gunslinger = 14,
+    Hammerhead = 15,
+    Bootleg = 16,
+    Palehorse = 17,
+    Carnivor = 18,
+    Saber = 19,
+  },
+  Kiowa = {
+    Anvil = 1,
+    Azrael = 2,
+    BamBam = 3,
+    Blackjack = 4,
+    Bootleg = 5,
+    BurninStogie = 6,
+    Chaos = 7,
+    CrazyHorse = 8,
+    Crusader = 9,
+    Darkhorse = 10,
+    Eagle = 11,
+    Lighthorse = 12,
+    Mustang = 13,
+    Outcast = 14,
+    Palehorse = 15,
+    Pegasus = 16,
+    Pistol = 17,
+    Roughneck = 18,
+    Saber = 19,
+    Shamus = 20,
+    Spur = 21,
+    Stetson = 22,
+    Wrath = 23,
+  },
+  
 } --#CALLSIGN
 
 --- Utilities static class.
@@ -443,6 +483,15 @@ UTILS.BasicSerialize = function(s)
   end
 end
 
+--- Counts the number of elements in a table.
+-- @param #table T Table to count
+-- @return #int Number of elements in the table
+function UTILS.TableLength(T)
+  local count = 0
+  for _ in pairs(T or {}) do count = count + 1 end
+  return count
+end
+
 --- Print a table to log in a nice format
 -- @param #table table The table to print
 -- @param #number indent Number of indents
@@ -457,7 +506,7 @@ function UTILS.PrintTableToLog(table, indent, noprint)
   if not indent then indent = 0 end
   for k, v in pairs(table) do
     if string.find(k," ") then k='"'..k..'"'end
-    if type(v) == "table" then
+    if type(v) == "table" and UTILS.TableLength(v) > 0 then
       if not noprint then
         env.info(string.rep("  ", indent) .. tostring(k) .. " = {")
       end
@@ -1172,7 +1221,7 @@ function UTILS.SecondsToClock(seconds, short)
   end
 
   -- Seconds
-  local seconds = tonumber(seconds)
+  local seconds = tonumber(seconds) or 0
 
   -- Seconds of this day.
   local _seconds=seconds%(60*60*24)
@@ -1705,7 +1754,8 @@ end
 -- * Mariana Islands +2 (East)
 -- * Falklands +12 (East) - note there's a LOT of deviation across the map, as we're closer to the South Pole
 -- * Sinai +4.8 (East)
--- * Kola +15 (East) - not there is a lot of deviation across the map (-1° to +24°), as we are close to the North pole
+-- * Kola +15 (East) - note there is a lot of deviation across the map (-1° to +24°), as we are close to the North pole
+-- * Afghanistan +3 (East) - actually +3.6 (NW) to +2.3 (SE)
 -- @param #string map (Optional) Map for which the declination is returned. Default is from env.mission.theatre
 -- @return #number Declination in degrees.
 function UTILS.GetMagneticDeclination(map)
@@ -1734,6 +1784,8 @@ function UTILS.GetMagneticDeclination(map)
     declination=4.8
   elseif map==DCSMAP.Kola then
     declination=15
+  elseif map==DCSMAP.Afghanistan then
+    declination=3
   else
     declination=0
   end
@@ -1923,7 +1975,19 @@ function UTILS.GetCallsignName(Callsign)
       return name
     end
   end
-
+  
+  for name, value in pairs(CALLSIGN.AH64) do
+    if value==Callsign then
+      return name
+    end
+  end
+  
+  for name, value in pairs(CALLSIGN.Kiowa) do
+    if value==Callsign then
+      return name
+    end
+  end
+  
   return "Ghostrider"
 end
 
@@ -1953,6 +2017,8 @@ function UTILS.GMTToLocalTimeDifference()
     return 2   -- Currently map is +2 but should be +3 (DCS bug?)
   elseif theatre==DCSMAP.Kola then
     return 3   -- Currently map is +2 but should be +3 (DCS bug?)
+  elseif theatre==DCSMAP.Afghanistan then
+    return 4.5   -- UTC +4:30
   else
     BASE:E(string.format("ERROR: Unknown Map %s in UTILS.GMTToLocal function. Returning 0", tostring(theatre)))
     return 0
@@ -2056,9 +2122,9 @@ function UTILS.GetSunRiseAndSet(DayOfYear, Latitude, Longitude, Rising, Tlocal)
    local cosH = (cos(zenith) - (sinDec * sin(latitude))) / (cosDec * cos(latitude))
 
    if rising and cosH > 1 then
-      return "N/R" -- The sun never rises on this location on the specified date
+      return "N/S" -- The sun never rises on this location on the specified date
    elseif cosH < -1 then
-      return "N/S" -- The sun never sets on this location on the specified date
+      return "N/R" -- The sun never sets on this location on the specified date
    end
 
    -- Finish calculating H and convert into hours
@@ -2249,8 +2315,13 @@ function UTILS.IsLoadingDoorOpen( unit_name )
         return true
       end
 
-      if type_name == " OH-58D" and (unit:getDrawArgumentValue(35) > 0 or unit:getDrawArgumentValue(421) == -1) then
+      if type_name == "OH-58D" and (unit:getDrawArgumentValue(35) > 0 or unit:getDrawArgumentValue(421) == -1) then
         BASE:T(unit_name .. " cargo door is open")
+        return true
+      end
+
+      if type_name == "CH-47Fbl1" and (unit:getDrawArgumentValue(86) > 0.5) then
+        BASE:T(unit_name .. " rear cargo door is open")
         return true
       end
 
@@ -2279,17 +2350,19 @@ end
 --- Function to generate valid VHF frequencies in kHz for radio beacons (FM).
 -- @return #table VHFrequencies
 function UTILS.GenerateVHFrequencies()
-
+  
   -- known and sorted map-wise NDBs in kHz
   local _skipFrequencies = {
-  214,274,291.5,295,297.5,
-  300.5,304,305,307,309.5,311,312,312.5,316,
-  320,324,328,329,330,332,336,337,
-  342,343,348,351,352,353,358,
-  363,365,368,372.5,374,
-  380,381,384,385,389,395,396,
-  414,420,430,432,435,440,450,455,462,470,485,
-  507,515,520,525,528,540,550,560,570,577,580,
+  214,243,264,273,274,288,291.5,295,297.5,
+  300.5,304,305,307,309.5,310,311,312,312.5,316,317,
+  320,323,324,325,326,328,329,330,332,335,336,337,
+  340,342,343,346,348,351,352,353,358,
+  360,363,364,365,368,372.5,373,374,
+  380,381,384,385,387,389,391,395,396,399,
+  403,404,410,412,414,418,420,423,
+  430,432,435,440,445,
+  450,455,462,470,485,490,
+  507,515,520,525,528,540,550,560,563,570,577,580,595,
   602,625,641,662,670,680,682,690,
   705,720,722,730,735,740,745,750,770,795,
   822,830,862,866,
@@ -3145,7 +3218,7 @@ end
 -- @param #table Table The table.
 -- @param #table Object The object to check.
 -- @param #string Key (Optional) Key to check. By default, the object itself is checked.
--- @return #booolen Returns `true` if object is in table.
+-- @return #boolean Returns `true` if object is in table.
 function UTILS.IsInTable(Table, Object, Key)
 
   for key, object in pairs(Table) do
@@ -3167,7 +3240,7 @@ end
 -- @param #table Table The table.
 -- @param #table Objects The objects to check.
 -- @param #string Key (Optional) Key to check.
--- @return #booolen Returns `true` if object is in table.
+-- @return #boolean Returns `true` if object is in table.
 function UTILS.IsAnyInTable(Table, Objects, Key)
 
   for _,Object in pairs(UTILS.EnsureTable(Objects)) do
@@ -3315,14 +3388,14 @@ end
 --- Checks if the current time is in between start_time and end_time
 -- @param #string time_string_01 Time string like "07:15:22"
 -- @param #string time_string_02 Time string like "08:11:27"
--- @return #bool True if it is, False if it's not
+-- @return #boolean True if it is, False if it's not
 function UTILS.TimeBetween(start_time, end_time)
     return UTILS.TimeLaterThan(start_time) and UTILS.TimeBefore(end_time)
 end
 
 --- Easy to read one line to roll the dice on something. 1% is very unlikely to happen, 99% is very likely to happen
 -- @param #number chance (optional) Percentage chance you want something to happen. Defaults to a random number if not given
--- @return #bool True if the dice roll was within the given percentage chance of happening
+-- @return #boolean True if the dice roll was within the given percentage chance of happening
 function UTILS.PercentageChance(chance)
     chance = chance or math.random(0, 100)
     chance = UTILS.Clamp(chance, 0, 100)
@@ -3375,10 +3448,10 @@ function UTILS.RemapValue(value, old_min, old_max, new_min, new_max)
 end
 
 --- Given a triangle made out of 3 vector 2s, return a vec2 that is a random number in this triangle
--- @param #Vec2 pt1 Min value to remap from
--- @param #Vec2 pt2 Max value to remap from
--- @param #Vec2 pt3 Max value to remap from
--- @return #Vec2 Random point in triangle
+-- @param DCS#Vec2 pt1 Min value to remap from
+-- @param DCS#Vec2 pt2 Max value to remap from
+-- @param DCS#Vec2 pt3 Max value to remap from
+-- @return DCS#Vec2 Random point in triangle
 function UTILS.RandomPointInTriangle(pt1, pt2, pt3)
     local pt = {math.random(), math.random()}
     table.sort(pt)
@@ -3396,7 +3469,7 @@ end
 -- @param #number angle Min value to remap from
 -- @param #number min Max value to remap from
 -- @param #number max Max value to remap from
--- @return #bool
+-- @return #boolean 
 function UTILS.AngleBetween(angle, min, max)
     angle = (360 + (angle % 360)) % 360
     min = (360 + min % 360) % 360
@@ -3456,10 +3529,10 @@ end
 --- Rotates a point around another point with a given angle. Useful if you're loading in groups or
 --- statics but you want to rotate them all as a collection. You can get the center point of everything
 --- and then rotate all the positions of every object around this center point.
--- @param #Vec2 point Point that you want to rotate
--- @param #Vec2 pivot Pivot point of the rotation
+-- @param DCS#Vec2 point Point that you want to rotate
+-- @param DCS#Vec2 pivot Pivot point of the rotation
 -- @param #number angle How many degrees the point should be rotated
--- @return #Vec Rotated point
+-- @return DCS#Vec2 Rotated point
 function UTILS.RotatePointAroundPivot(point, pivot, angle)
     local radians = math.rad(angle)
 
@@ -3491,7 +3564,7 @@ end
 --- Check if a string starts with something
 -- @param #string str String to check
 -- @param #string value
--- @return #bool True if str starts with value
+-- @return #boolean True if str starts with value
 function string.startswith(str, value)
    return string.sub(str,1,string.len(value)) == value
 end
@@ -3500,7 +3573,7 @@ end
 --- Check if a string ends with something
 -- @param #string str String to check
 -- @param #string value
--- @return #bool True if str ends with value
+-- @return #boolean True if str ends with value
 function string.endswith(str, value)
     return value == "" or str:sub(-#value) == value
 end
@@ -3523,16 +3596,16 @@ end
 --- string.split("hello_dcs_world", "-") would return {"hello", "dcs", "world"}
 -- @param #string str
 -- @param #string value
--- @return #bool True if str contains value
+-- @return #boolean True if str contains value
 function string.contains(str, value)
     return string.match(str, value)
 end
 
 
 --- Moves an object from one table to another
--- @param #obj object to move
--- @param #from_table table to move from
--- @param #to_table table to move to
+-- @param #table obj object to move
+-- @param #table from_table table to move from
+-- @param #table to_table table to move to
 function table.move_object(obj, from_table, to_table)
     local index
     for i, v in pairs(from_table) do
@@ -3551,7 +3624,7 @@ end
 --- The table can be made up out of complex tables or values as well
 -- @param #table tbl
 -- @param #string element
--- @return #bool True if tbl contains element
+-- @return #boolean True if tbl contains element
 function table.contains(tbl, element)
     if element == nil or tbl == nil then return false end
 
@@ -3568,7 +3641,7 @@ end
 --- Checks if a table contains a specific key.
 -- @param #table tbl Table to check
 -- @param #string key Key to look for
--- @return #bool True if tbl contains key
+-- @return #boolean True if tbl contains key
 function table.contains_key(tbl, key)
     if tbl[key] ~= nil then return true else return false end
 end
@@ -3615,7 +3688,7 @@ end
 --- Finds the index of an element in a table.
 -- @param #table table Table to search
 -- @param #string element Element to find
--- @return #int Index of the element, or nil if not found
+-- @return #number Index of the element, or nil if not found
 function table.index_of(table, element)
     for i, v in ipairs(table) do
         if v == element then
@@ -3627,7 +3700,7 @@ end
 
 --- Counts the number of elements in a table.
 -- @param #table T Table to count
--- @return #int Number of elements in the table
+-- @return #number Number of elements in the table
 function table.length(T)
   local count = 0
   for _ in pairs(T) do count = count + 1 end
@@ -3636,8 +3709,8 @@ end
 
 --- Slices a table between two indices, much like Python's my_list[2:-1]
 -- @param #table tbl Table to slice
--- @param #int first Starting index
--- @param #int last Ending index
+-- @param #number first Starting index
+-- @param #number last Ending index
 -- @return #table Sliced table
 function table.slice(tbl, first, last)
   local sliced = {}
@@ -3658,7 +3731,7 @@ end
 --- Counts the number of occurrences of a value in a table.
 -- @param #table tbl Table to search
 -- @param #string value Value to count
--- @return #int Number of occurrences of the value
+-- @return #number Number of occurrences of the value
 function table.count_value(tbl, value)
     local count = 0
     for _, item in pairs(tbl) do
@@ -3938,4 +4011,191 @@ function UTILS.MGRSStringToSRSFriendly(Text,Slow)
     end
     Text = "MGRS;"..Text
     return Text
+end
+
+
+--- Read csv file and convert it to a lua table.
+-- The csv must have a header specifing the names of the columns. The column names are used as table keys.
+-- @param #string filename File name including full path on local disk.
+-- @return #table The table filled with data from the csv file.
+function UTILS.ReadCSV(filename)
+
+  if not UTILS.FileExists(filename) then  
+    env.error("File does not exist")
+    return nil  
+  end
+  
+  --- Function that load data from a file.
+  local function _loadfile( filename )
+    local f = io.open( filename, "rb" )
+    if f then
+      local data = f:read( "*all" )
+      f:close()
+      return data
+    else
+      BASE:E(string.format( "WARNING: Could read data from file %s!", tostring( filename ) ) )
+      return nil
+    end
+  end
+  
+  -- Load asset data from file.
+  local data = _loadfile( filename )
+  
+  local lines=UTILS.Split(data, "\n" )
+  
+  -- Remove carriage returns from end of lines
+  for _,line in pairs(lines) do
+    line=string.gsub(line, "[\n\r]","")
+  end
+  
+  local sep=";"
+  
+  local columns=UTILS.Split(lines[1], sep)
+
+  -- Remove header line.
+  table.remove(lines, 1)
+  
+  local csvdata={}  
+  for i, line in pairs(lines) do
+    line=string.gsub(line, "[\n\r]","")
+  
+    local row={}
+    for j, value in pairs(UTILS.Split(line, sep)) do
+    
+      local key=string.gsub(columns[j], "[\n\r]","")
+      row[key]=value    
+    end
+    table.insert(csvdata, row)
+  
+  end
+
+  return csvdata
+end
+
+--- Seed the LCG random number generator.
+-- @param #number seed Seed value. Default is a random number using math.random()
+function UTILS.LCGRandomSeed(seed)
+  UTILS.lcg = {
+    seed = seed or math.random(1, 2^32 - 1),
+    a = 1664525,
+    c = 1013904223,
+    m = 2^32
+  }
+end
+
+--- Return a pseudo-random number using the LCG algorithm.
+-- @return #number Random number between 0 and 1.
+function UTILS.LCGRandom()
+  if UTILS.lcg == nil then
+    UTILS.LCGRandomSeed()
+  end
+  UTILS.lcg.seed = (UTILS.lcg.a * UTILS.lcg.seed + UTILS.lcg.c) % UTILS.lcg.m
+  return UTILS.lcg.seed / UTILS.lcg.m
+end
+
+--- Spawns a new FARP of a defined type and coalition and functional statics (fuel depot, ammo storage, tent, windsock) around that FARP to make it operational.
+-- Adds vehicles from template if given. Fills the FARP warehouse with liquids and known materiels.
+-- References: [DCS Forum Topic](https://forum.dcs.world/topic/282989-farp-equipment-to-run-it)
+-- @param #string Name Name of this FARP installation. Must be unique. 
+-- @param Core.Point#COORDINATE Coordinate Where to spawn the FARP.
+-- @param #string FARPType Type of FARP, can be one of the known types ENUMS.FARPType.FARP, ENUMS.FARPType.INVISIBLE, ENUMS.FARPType.HELIPADSINGLE, ENUMS.FARPType.PADSINGLE. Defaults to ENUMS.FARPType.FARP.
+-- @param #number Coalition Coalition of this FARP, i.e. coalition.side.BLUE or coalition.side.RED, defaults to coalition.side.BLUE.
+-- @param #number Country Country of this FARP, defaults to country.id.USA (blue) or country.id.RUSSIA (red).
+-- @param #number CallSign Callsign of the FARP ATC, defaults to CALLSIGN.FARP.Berlin.
+-- @param #number Frequency Frequency of the FARP ATC Radio, defaults to 127.5 (MHz).
+-- @param #number Modulation Modulation of the FARP ATC Radio, defaults to radio.modulation.AM.
+-- @param #number ADF ADF Beacon (FM) Frequency in KHz, e.g. 428. If not nil, creates an VHF/FM ADF Beacon for this FARP. Requires a sound called "beacon.ogg" to be in the mission (trigger "sound to" ...)
+-- @param #number SpawnRadius Radius of the FARP, i.e. where the FARP objects will be placed in meters, not more than 150m away. Defaults to 100.
+-- @param #string VehicleTemplate, template name for additional vehicles. Can be nil for no additional vehicles.
+-- @param #number Liquids Tons of fuel to be added initially to the FARP. Defaults to 10 (tons). Set to 0 for no fill.
+-- @param #number Equipment Number of equipment items per known item to be added initially to the FARP. Defaults to 10 (items). Set to 0 for no fill.
+-- @return #list<Wrapper.Static#STATIC> Table of spawned objects and vehicle object (if given).
+-- @return #string ADFBeaconName Name of the ADF beacon, to be able to remove/stop it later.
+function UTILS.SpawnFARPAndFunctionalStatics(Name,Coordinate,FARPType,Coalition,Country,CallSign,Frequency,Modulation,ADF,SpawnRadius,VehicleTemplate,Liquids,Equipment)
+  
+  -- Set Defaults
+  local farplocation = Coordinate
+  local farptype = FARPType or ENUMS.FARPType.FARP
+  local Coalition = Coalition or coalition.side.BLUE
+  local callsign = CallSign or CALLSIGN.FARP.Berlin
+  local freq = Frequency or 127.5
+  local mod = Modulation or radio.modulation.AM
+  local radius = SpawnRadius or 100
+  if radius < 0 or radius > 150 then radius = 100 end
+  local liquids = Liquids or 10
+  liquids = liquids * 1000 -- tons to kg
+  local equip = Equipment or 10
+  local statictypes = ENUMS.FARPObjectTypeNamesAndShape[farptype] or {TypeName="FARP", ShapeName="FARPS"}
+  local STypeName = statictypes.TypeName
+  local SShapeName = statictypes.ShapeName
+  local Country = Country or (Coalition == coalition.side.BLUE and country.id.USA or country.id.RUSSIA)
+  local ReturnObjects = {}
+  
+  -- Spawn FARP
+  local newfarp = SPAWNSTATIC:NewFromType(STypeName,"Heliports",Country) --  "Invisible FARP" "FARP"
+  newfarp:InitShape(SShapeName) -- "invisiblefarp" "FARPS"
+  newfarp:InitFARP(callsign,freq,mod)
+  local spawnedfarp = newfarp:SpawnFromCoordinate(farplocation,0,Name)
+  table.insert(ReturnObjects,spawnedfarp)
+  -- Spawn Objects
+  local FARPStaticObjectsNato = {
+    ["FUEL"] = { TypeName = "FARP Fuel Depot", ShapeName = "GSM Rus", Category = "Fortifications"},
+    ["AMMO"] = { TypeName = "FARP Ammo Dump Coating", ShapeName = "SetkaKP", Category = "Fortifications"},
+    ["TENT"] = { TypeName = "FARP Tent", ShapeName = "PalatkaB", Category = "Fortifications"},
+    ["WINDSOCK"]  = { TypeName = "Windsock", ShapeName = "H-Windsock_RW", Category = "Fortifications"},
+  }
+    
+  local farpobcount = 0
+  for _name,_object in pairs(FARPStaticObjectsNato) do
+    local objloc = farplocation:Translate(radius,farpobcount*30)
+    local heading = objloc:HeadingTo(farplocation)
+    local newobject = SPAWNSTATIC:NewFromType(_object.TypeName,_object.Category,Country)
+    newobject:InitShape(_object.ShapeName)
+    newobject:InitHeading(heading)
+    newobject:SpawnFromCoordinate(objloc,farpobcount*30,_name.." - "..Name)
+    table.insert(ReturnObjects,newobject)
+    farpobcount = farpobcount + 1
+  end
+  
+  -- Vehicle if any
+  if VehicleTemplate and type(VehicleTemplate) == "string" then
+    local vcoordinate = farplocation:Translate(radius,farpobcount*30)
+    local heading = vcoordinate:HeadingTo(farplocation)
+    local vehicles = SPAWN:NewWithAlias(VehicleTemplate,"FARP Vehicles - "..Name)
+    vehicles:InitGroupHeading(heading)
+    vehicles:InitCountry(Country)
+    vehicles:InitCoalition(Coalition)
+    vehicles:InitDelayOff()
+    local spawnedvehicle = vehicles:SpawnFromCoordinate(vcoordinate)
+    table.insert(ReturnObjects,spawnedvehicle)
+  end
+  
+  local newWH = STORAGE:New(Name)
+  if liquids and liquids > 0 then
+    -- Storage fill-up
+    newWH:SetLiquid(STORAGE.Liquid.DIESEL,liquids) -- kgs to tons
+    newWH:SetLiquid(STORAGE.Liquid.GASOLINE,liquids)
+    newWH:SetLiquid(STORAGE.Liquid.JETFUEL,liquids)
+    newWH:SetLiquid(STORAGE.Liquid.MW50,liquids)
+  end
+  
+  if equip and equip > 0 then
+    for cat,nitem in pairs(ENUMS.Storage.weapons) do
+      for name,item in pairs(nitem) do
+        newWH:SetItem(item,equip)
+      end
+    end
+  end
+  
+  local ADFName
+  if ADF and type(ADF) == "number" then
+    local ADFFreq = ADF*1000 -- KHz to Hz
+    local Sound =  "l10n/DEFAULT/beacon.ogg"
+    local vec3 = farplocation:GetVec3()
+    ADFName = Name .. " ADF "..tostring(ADF).."KHz"
+    --BASE:I(string.format("Adding FARP Beacon %d KHz Name %s",ADF,ADFName))
+    trigger.action.radioTransmission(Sound, vec3, 0, true, ADFFreq, 250, ADFName)
+  end
+  
+  return ReturnObjects, ADFName
 end

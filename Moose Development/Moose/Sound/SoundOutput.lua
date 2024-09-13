@@ -24,7 +24,7 @@
 
 do -- Sound Base
 
-  --- @type SOUNDBASE
+  -- @type SOUNDBASE
   -- @field #string ClassName Name of the class.
   -- @extends Core.Base#BASE
 
@@ -100,7 +100,7 @@ end
 
 do -- Sound File
 
-  --- @type SOUNDFILE
+  -- @type SOUNDFILE
   -- @field #string ClassName Name of the class
   -- @field #string filename Name of the flag.
   -- @field #string path Directory path, where the sound file is located. This includes the final slash "/".
@@ -160,7 +160,7 @@ do -- Sound File
   -- @param #string FileName The name of the sound file, e.g. "Hello World.ogg".
   -- @param #string Path The path of the directory, where the sound file is located. Default is "l10n/DEFAULT/" within the miz file.
   -- @param #number Duration Duration in seconds, how long it takes to play the sound file. Default is 3 seconds.
-  -- @param #bolean UseSrs Set if SRS should be used to play this file. Default is false.
+  -- @param #boolean UseSrs Set if SRS should be used to play this file. Default is false.
   -- @return #SOUNDFILE self
   function SOUNDFILE:New(FileName, Path, Duration, UseSrs)
 
@@ -249,6 +249,9 @@ do -- Sound File
   -- @param #string Duration Duration in seconds. Default 3 seconds.
   -- @return #SOUNDFILE self
   function SOUNDFILE:SetDuration(Duration)
+    if Duration and type(Duration)=="string" then
+      Duration=tonumber(Duration)
+    end
     self.duration=Duration or 3
     return self
   end  
@@ -289,7 +292,7 @@ end
 
 do -- Text-To-Speech
 
-  --- @type SOUNDTEXT
+  -- @type SOUNDTEXT
   -- @field #string ClassName Name of the class
   -- @field #string text Text to speak.
   -- @field #number duration Duration in seconds.
@@ -356,7 +359,7 @@ do -- Text-To-Speech
     local self=BASE:Inherit(self, BASE:New()) -- #SOUNDTEXT
 
     self:SetText(Text)
-    self:SetDuration(Duration or STTS.getSpeechTime(Text))
+    self:SetDuration(Duration or MSRS.getSpeechTime(Text))
     --self:SetGender()
     --self:SetCulture()
     

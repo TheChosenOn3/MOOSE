@@ -2233,7 +2233,7 @@ do -- COORDINATE
     --   local MarkGroup = GROUP:FindByName( "AttackGroup" )
     --   local MarkID = TargetCoord:MarkToGroup( "This is a target for the attack group", AttackGroup )
     --   <<< logic >>>
-    --   RemoveMark( MarkID ) -- The mark is now removed
+    --   TargetCoord:RemoveMark( MarkID ) -- The mark is now removed
     function COORDINATE:RemoveMark( MarkID )
       trigger.action.removeMark( MarkID )
     end
@@ -2669,9 +2669,9 @@ do -- COORDINATE
     local date=UTILS.GetDCSMissionDate()
 
     -- Debug output.
-    --self:I(string.format("Sun rise at lat=%.3f long=%.3f on %s (DayOfYear=%d): %s (%d sec of the day) (GMT %d)", Latitude, Longitude, date, DayOfYear, tostring(UTILS.SecondsToClock(sunrise)), sunrise, Tdiff))
+    --self:I(string.format("Sun rise at lat=%.3f long=%.3f on %s (DayOfYear=%d): %s (%s sec of the day) (GMT %d)", Latitude, Longitude, date, DayOfYear, tostring(UTILS.SecondsToClock(sunrise)), tonumber(sunrise) or "0", Tdiff))
 
-    if InSeconds then
+    if InSeconds or type(sunrise) == "string" then
       return sunrise
     else
       return UTILS.SecondsToClock(sunrise, true)
@@ -2747,7 +2747,10 @@ do -- COORDINATE
 
       local sunrise=UTILS.GetSunRiseAndSet(DayOfYear, Latitude, Longitude, true, Tdiff)
       local sunset=UTILS.GetSunRiseAndSet(DayOfYear, Latitude, Longitude, false, Tdiff)
-
+      
+      if sunrise == "N/R" then return false end
+      if sunrise == "N/S" then return true end
+      
       local time=UTILS.ClockToSeconds(clock)
 
       -- Check if time is between sunrise and sunset.
@@ -2834,9 +2837,9 @@ do -- COORDINATE
     local date=UTILS.GetDCSMissionDate()
 
     -- Debug output.
-    --self:I(string.format("Sun set at lat=%.3f long=%.3f on %s (DayOfYear=%d): %s (%d sec of the day) (GMT %d)", Latitude, Longitude, date, DayOfYear, tostring(UTILS.SecondsToClock(sunrise)), sunrise, Tdiff))
+    --self:I(string.format("Sun set at lat=%.3f long=%.3f on %s (DayOfYear=%d): %s (%s sec of the day) (GMT %d)", Latitude, Longitude, date, DayOfYear, tostring(UTILS.SecondsToClock(sunrise)), tostring(sunrise) or "0", Tdiff))
 
-    if InSeconds then
+    if InSeconds or type(sunrise) == "string" then
       return sunrise
     else
       return UTILS.SecondsToClock(sunrise, true)
@@ -3411,7 +3414,7 @@ do -- COORDINATE
   -- @param #COORDINATE self
   -- @param #number Radius (Optional) Radius to check around the coordinate, defaults to 50m (100m diameter)
   -- @param #number Minelevation (Optional) Elevation from which on a area is defined as steep, defaults to 8% (8m height gain across 100 meters)
-  -- @return #boolen IsSteep If true, area is steep
+  -- @return #boolean IsSteep If true, area is steep
   -- @return #number MaxElevation Elevation in meters measured over 100m
   function COORDINATE:IsInSteepArea(Radius,Minelevation)
     local steep = false
@@ -3443,7 +3446,7 @@ do -- COORDINATE
   -- @param #COORDINATE self
   -- @param #number Radius (Optional) Radius to check around the coordinate, defaults to 50m (100m diameter)
   -- @param #number Minelevation (Optional) Elevation from which on a area is defined as steep, defaults to 8% (8m height gain across 100 meters)
-  -- @return #boolen IsFlat If true, area is flat
+  -- @return #boolean IsFlat If true, area is flat
   -- @return #number MaxElevation Elevation in meters measured over 100m
   function COORDINATE:IsInFlatArea(Radius,Minelevation)
     local steep, elev = self:IsInSteepArea(Radius,Minelevation)

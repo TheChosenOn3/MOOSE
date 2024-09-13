@@ -22,7 +22,7 @@
 -- @module Functional.Mantis
 -- @image Functional.Mantis.jpg
 --
--- Last Update: May 2024
+-- Last Update: July 2024
 
 -------------------------------------------------------------------------
 --- **MANTIS** class, extends Core.Base#BASE
@@ -59,6 +59,7 @@
 -- @field #number ShoradTime Timer in seconds, how long #SHORAD will be active after a detection inside of the defense range
 -- @field #number ShoradActDistance Distance of an attacker in meters from a Mantis SAM site, on which Shorad will be switched on. Useful to not give away Shorad sites too early. Default 15km. Should be smaller than checkradius.
 -- @field #boolean checkforfriendlies If true, do not activate a SAM installation if a friendly aircraft is in firing range.
+-- @field #table FilterZones Table of Core.Zone#ZONE Zones Consider SAM groups in this zone(s) only for this MANTIS instance, must be handed as #table of Zone objects.
 -- @extends Core.Base#BASE
 
 
@@ -239,7 +240,7 @@
 --
 --  Use this option if you want to make use of or allow advanced SEAD tactics.
 --
--- # 5. Integrate SHORAD [classic mode]
+-- # 5. Integrate SHORAD [classic mode, not necessary in automode]
 --
 --  You can also choose to integrate Mantis with @{Functional.Shorad#SHORAD} for protection against HARMs and AGMs. When SHORAD detects a missile fired at one of MANTIS' SAM sites, it will activate SHORAD systems in
 --  the given defense checkradius around that SAM site. Create a SHORAD object first, then integrate with MANTIS like so:

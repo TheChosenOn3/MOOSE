@@ -177,40 +177,22 @@ end
 --
 --   -- Send the 2 messages created with the @{New} method to the Client Group.
 --   -- Note that the Message of MessageClient2 is overwriting the Message of MessageClient1.
---   ClientGroup = Group.getByName( "ClientGroup" )
+--   Client = CLIENT:FindByName("NameOfClientUnit")
 --
---   MessageClient1 = MESSAGE:New( "Congratulations, you've just hit a target", "Score", 25, "Score" ):ToClient( ClientGroup )
---   MessageClient2 = MESSAGE:New( "Congratulations, you've just killed a target", "Score", 25, "Score" ):ToClient( ClientGroup )
+--   MessageClient1 = MESSAGE:New( "Congratulations, you've just hit a target", 25, "Score" ):ToClient( Client )
+--   MessageClient2 = MESSAGE:New( "Congratulations, you've just killed a target", 25, "Score" ):ToClient( Client )
 --   or
---   MESSAGE:New( "Congratulations, you've just hit a target", "Score", 25 ):ToClient( ClientGroup )
---   MESSAGE:New( "Congratulations, you've just killed a target", "Score", 25 ):ToClient( ClientGroup )
+--   MESSAGE:New( "Congratulations, you've just hit a target", 25, "Score"):ToClient( Client )
+--   MESSAGE:New( "Congratulations, you've just killed a target", 25, "Score"):ToClient( Client )
 --   or
---   MessageClient1 = MESSAGE:New( "Congratulations, you've just hit a target", "Score", 25 )
---   MessageClient2 = MESSAGE:New( "Congratulations, you've just killed a target", "Score", 25 )
---   MessageClient1:ToClient( ClientGroup )
---   MessageClient2:ToClient( ClientGroup )
+--   MessageClient1 = MESSAGE:New( "Congratulations, you've just hit a target", 25, "Score")
+--   MessageClient2 = MESSAGE:New( "Congratulations, you've just killed a target", 25, "Score")
+--   MessageClient1:ToClient( Client )
+--   MessageClient2:ToClient( Client )
 --
 function MESSAGE:ToClient( Client, Settings )
   self:F( Client )
-
-  if Client and Client:GetClientGroupID() then
-
-    if self.MessageType then
-      local Settings = Settings or ( Client and _DATABASE:GetPlayerSettings( Client:GetPlayerName() ) ) or _SETTINGS -- Core.Settings#SETTINGS
-      self.MessageDuration = Settings:GetMessageTime( self.MessageType )
-      self.MessageCategory = "" -- self.MessageType .. ": "
-    end
-    
-    local Unit = Client:GetClient()
-    
-    if self.MessageDuration ~= 0 then
-      local ClientGroupID = Client:GetClientGroupID()
-      self:T( self.MessageCategory .. self.MessageText:gsub("\n$",""):gsub("\n$","") .. " / " .. self.MessageDuration )
-      --trigger.action.outTextForGroup( ClientGroupID, self.MessageCategory .. self.MessageText:gsub("\n$",""):gsub("\n$",""), self.MessageDuration , self.ClearScreen)
-      trigger.action.outTextForUnit( Unit:GetID(), self.MessageCategory .. self.MessageText:gsub("\n$",""):gsub("\n$",""), self.MessageDuration , self.ClearScreen)
-    end
-  end
-  
+  self:ToUnit(Client,Settings)
   return self
 end
 
@@ -257,6 +239,7 @@ function MESSAGE:ToUnit( Unit, Settings )
 
     if self.MessageDuration ~= 0 then
       self:T( self.MessageCategory .. self.MessageText:gsub("\n$",""):gsub("\n$","") .. " / " .. self.MessageDuration )
+      local ID = Unit:GetID()
       trigger.action.outTextForUnit( Unit:GetID(), self.MessageCategory .. self.MessageText:gsub("\n$",""):gsub("\n$",""), self.MessageDuration, self.ClearScreen )
     end
   end
@@ -305,11 +288,11 @@ end
 -- @usage
 --
 --   -- Send a message created with the @{New} method to the BLUE coalition.
---   MessageBLUE = MESSAGE:New( "To the BLUE Players: You receive a penalty because you've killed one of your own units", "Penalty", 25):ToBlue()
+--   MessageBLUE = MESSAGE:New( "To the BLUE Players: You receive a penalty because you've killed one of your own units", 25, "Penalty"):ToBlue()
 --   or
---   MESSAGE:New( "To the BLUE Players: You receive a penalty because you've killed one of your own units", "Penalty", 25 ):ToBlue()
+--   MESSAGE:New( "To the BLUE Players: You receive a penalty because you've killed one of your own units", 25, "Penalty"):ToBlue()
 --   or
---   MessageBLUE = MESSAGE:New( "To the BLUE Players: You receive a penalty because you've killed one of your own units", "Penalty", 25 )
+--   MessageBLUE = MESSAGE:New( "To the BLUE Players: You receive a penalty because you've killed one of your own units", 25, "Penalty")
 --   MessageBLUE:ToBlue()
 --
 function MESSAGE:ToBlue()
@@ -326,11 +309,11 @@ end
 -- @usage
 --
 --   -- Send a message created with the @{New} method to the RED coalition.
---   MessageRED = MESSAGE:New( "To the RED Players: You receive a penalty because you've killed one of your own units", "Penalty", 25 ):ToRed()
+--   MessageRED = MESSAGE:New( "To the RED Players: You receive a penalty because you've killed one of your own units", 25, "Penalty"):ToRed()
 --   or
---   MESSAGE:New( "To the RED Players: You receive a penalty because you've killed one of your own units", "Penalty", 25 ):ToRed()
+--   MESSAGE:New( "To the RED Players: You receive a penalty because you've killed one of your own units", 25, "Penalty"):ToRed()
 --   or
---   MessageRED = MESSAGE:New( "To the RED Players: You receive a penalty because you've killed one of your own units", "Penalty", 25 )
+--   MessageRED = MESSAGE:New( "To the RED Players: You receive a penalty because you've killed one of your own units", 25, "Penalty")
 --   MessageRED:ToRed()
 --
 function MESSAGE:ToRed()
@@ -349,11 +332,11 @@ end
 -- @usage
 --
 --   -- Send a message created with the @{New} method to the RED coalition.
---   MessageRED = MESSAGE:New( "To the RED Players: You receive a penalty because you've killed one of your own units", "Penalty", 25 ):ToCoalition( coalition.side.RED )
+--   MessageRED = MESSAGE:New( "To the RED Players: You receive a penalty because you've killed one of your own units", 25, "Penalty"):ToCoalition( coalition.side.RED )
 --   or
---   MESSAGE:New( "To the RED Players: You receive a penalty because you've killed one of your own units", "Penalty", 25 ):ToCoalition( coalition.side.RED )
+--   MESSAGE:New( "To the RED Players: You receive a penalty because you've killed one of your own units", 25, "Penalty"):ToCoalition( coalition.side.RED )
 --   or
---   MessageRED = MESSAGE:New( "To the RED Players: You receive a penalty because you've killed one of your own units", "Penalty", 25 )
+--   MessageRED = MESSAGE:New( "To the RED Players: You receive a penalty because you've killed one of your own units", 25, "Penalty")
 --   MessageRED:ToCoalition( coalition.side.RED )
 --
 function MESSAGE:ToCoalition( CoalitionSide, Settings )
@@ -395,29 +378,36 @@ end
 --- Sends a MESSAGE to all players. 
 -- @param #MESSAGE self
 -- @param Core.Settings#Settings Settings (Optional) Settings for message display.
--- @return #MESSAGE
+-- @param #number Delay (Optional) Delay in seconds before the message is send. Default instantly (`nil`).
+-- @return #MESSAGE self
 -- @usage
 --
 --   -- Send a message created to all players.
---   MessageAll = MESSAGE:New( "To all Players: BLUE has won! Each player of BLUE wins 50 points!", "End of Mission", 25 ):ToAll()
+--   MessageAll = MESSAGE:New( "To all Players: BLUE has won! Each player of BLUE wins 50 points!", 25, "End of Mission"):ToAll()
 --   or
---   MESSAGE:New( "To all Players: BLUE has won! Each player of BLUE wins 50 points!", "End of Mission", 25 ):ToAll()
+--   MESSAGE:New( "To all Players: BLUE has won! Each player of BLUE wins 50 points!", 25, "End of Mission"):ToAll()
 --   or
---   MessageAll = MESSAGE:New( "To all Players: BLUE has won! Each player of BLUE wins 50 points!", "End of Mission", 25 )
+--   MessageAll = MESSAGE:New( "To all Players: BLUE has won! Each player of BLUE wins 50 points!", 25, "End of Mission")
 --   MessageAll:ToAll()
 --
-function MESSAGE:ToAll( Settings )
+function MESSAGE:ToAll( Settings, Delay )
   self:F()
 
-  if self.MessageType then
-    local Settings = Settings or _SETTINGS -- Core.Settings#SETTINGS
-    self.MessageDuration = Settings:GetMessageTime( self.MessageType )
-    self.MessageCategory = "" -- self.MessageType .. ": "
-  end
+  if Delay and Delay>0 then
+    self:ScheduleOnce(Delay, MESSAGE.ToAll, self, Settings, 0)
+  else
 
-  if self.MessageDuration ~= 0 then
-    self:T( self.MessageCategory .. self.MessageText:gsub( "\n$", "" ):gsub( "\n$", "" ) .. " / " .. self.MessageDuration )
-    trigger.action.outText( self.MessageCategory .. self.MessageText:gsub( "\n$", "" ):gsub( "\n$", "" ), self.MessageDuration, self.ClearScreen )
+    if self.MessageType then
+      local Settings = Settings or _SETTINGS -- Core.Settings#SETTINGS
+      self.MessageDuration = Settings:GetMessageTime( self.MessageType )
+      self.MessageCategory = "" -- self.MessageType .. ": "
+    end
+  
+    if self.MessageDuration ~= 0 then
+      self:T( self.MessageCategory .. self.MessageText:gsub( "\n$", "" ):gsub( "\n$", "" ) .. " / " .. self.MessageDuration )
+      trigger.action.outText( self.MessageCategory .. self.MessageText:gsub( "\n$", "" ):gsub( "\n$", "" ), self.MessageDuration, self.ClearScreen )
+    end
+    
   end
 
   return self

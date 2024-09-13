@@ -26,7 +26,7 @@
 -- @module Core.Base
 -- @image Core_Base.JPG
 
-local _TraceOnOff = true
+local _TraceOnOff = false -- default to no tracing
 local _TraceLevel = 1
 local _TraceAll = false
 local _TraceClass = {}
@@ -741,7 +741,31 @@ do -- Event Handling
   -- @function [parent=#BASE] OnEventPlayerEnterAircraft
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
-
+  
+  --- Occurs when a player creates a dynamic cargo object from the F8 ground crew menu.
+  -- *** NOTE *** this is a workarounf for DCS not creating these events as of Aug 2024.
+  -- @function [parent=#BASE] OnEventNewDynamicCargo
+  -- @param #BASE self
+  -- @param Core.Event#EVENTDATA EventData The EventData structure.
+  
+    --- Occurs when a player loads a dynamic cargo object with the F8 ground crew menu into a helo.
+  -- *** NOTE *** this is a workarounf for DCS not creating these events as of Aug 2024.
+  -- @function [parent=#BASE] OnEventDynamicCargoLoaded
+  -- @param #BASE self
+  -- @param Core.Event#EVENTDATA EventData The EventData structure.
+  
+  --- Occurs when a player unloads a dynamic cargo object with the F8 ground crew menu from a helo.
+  -- *** NOTE *** this is a workarounf for DCS not creating these events as of Aug 2024.
+  -- @function [parent=#BASE] OnEventDynamicCargoUnloaded
+  -- @param #BASE self
+  -- @param Core.Event#EVENTDATA EventData The EventData structure.
+  
+  --- Occurs when a dynamic cargo crate is removed.
+  -- *** NOTE *** this is a workarounf for DCS not creating these events as of Aug 2024.
+  -- @function [parent=#BASE] OnEventDynamicCargoRemoved
+  -- @param #BASE self
+  -- @param Core.Event#EVENTDATA EventData The EventData structure.
+  
 end
 
 --- Creation of a Birth Event.
@@ -862,6 +886,62 @@ end
   
     world.onEvent(Event)
   end  
+  
+    --- Creation of a S_EVENT_NEW_DYNAMIC_CARGO event.
+  -- @param #BASE self
+  -- @param Wrapper.DynamicCargo#DYNAMICCARGO DynamicCargo the dynamic cargo object
+  function BASE:CreateEventNewDynamicCargo(DynamicCargo)
+    self:F({DynamicCargo})
+    local Event = {
+      id = EVENTS.NewDynamicCargo,
+      time = timer.getTime(),
+      dynamiccargo = DynamicCargo,
+      initiator = DynamicCargo:GetDCSObject(),
+    }
+    world.onEvent( Event )
+  end
+  
+  --- Creation of a S_EVENT_DYNAMIC_CARGO_LOADED event.
+  -- @param #BASE self
+  -- @param Wrapper.DynamicCargo#DYNAMICCARGO DynamicCargo the dynamic cargo object
+  function BASE:CreateEventDynamicCargoLoaded(DynamicCargo)
+    self:F({DynamicCargo})
+    local Event = {
+      id = EVENTS.DynamicCargoLoaded,
+      time = timer.getTime(),
+      dynamiccargo = DynamicCargo,
+      initiator = DynamicCargo:GetDCSObject(),
+    }
+    world.onEvent( Event )
+  end
+  
+  --- Creation of a S_EVENT_DYNAMIC_CARGO_UNLOADED event.
+  -- @param #BASE self
+  -- @param Wrapper.DynamicCargo#DYNAMICCARGO DynamicCargo the dynamic cargo object
+  function BASE:CreateEventDynamicCargoUnloaded(DynamicCargo)
+    self:F({DynamicCargo})
+    local Event = {
+      id = EVENTS.DynamicCargoUnloaded,
+      time = timer.getTime(),
+      dynamiccargo = DynamicCargo,
+      initiator = DynamicCargo:GetDCSObject(),
+    }
+    world.onEvent( Event )
+  end
+  
+  --- Creation of a S_EVENT_DYNAMIC_CARGO_REMOVED event.
+  -- @param #BASE self
+  -- @param Wrapper.DynamicCargo#DYNAMICCARGO DynamicCargo the dynamic cargo object
+  function BASE:CreateEventDynamicCargoRemoved(DynamicCargo)
+    self:F({DynamicCargo})
+    local Event = {
+      id = EVENTS.DynamicCargoRemoved,
+      time = timer.getTime(),
+      dynamiccargo = DynamicCargo,
+      initiator = DynamicCargo:GetDCSObject(),
+    }
+    world.onEvent( Event )
+  end
                   
 --- The main event handling function... This function captures all events generated for the class.
 -- @param #BASE self
@@ -1157,6 +1237,15 @@ function BASE:_Serialize(Arguments)
   return text
 end
 
+----- (Internal) Serialize arguments
+---- @param #BASE self
+---- @param #table Arguments
+---- @return #string Text
+--function BASE:_Serialize(Arguments)
+--  local text=UTILS.BasicSerialize(Arguments)
+--  return text
+--end
+
 --- Trace a function call. This function is private.
 -- @param #BASE self
 -- @param Arguments A #table or any field.
@@ -1191,7 +1280,7 @@ end
 -- @param Arguments A #table or any field.
 function BASE:F( Arguments )
 
-  if BASE.Debug and _TraceOnOff then
+  if BASE.Debug and _TraceOnOff == true then
     local DebugInfoCurrent = BASE.Debug.getinfo( 2, "nl" )
     local DebugInfoFrom = BASE.Debug.getinfo( 3, "l" )
 
@@ -1206,7 +1295,7 @@ end
 -- @param Arguments A #table or any field.
 function BASE:F2( Arguments )
 
-  if BASE.Debug and _TraceOnOff then
+  if BASE.Debug and _TraceOnOff == true and _TraceLevel >= 2 then
     local DebugInfoCurrent = BASE.Debug.getinfo( 2, "nl" )
     local DebugInfoFrom = BASE.Debug.getinfo( 3, "l" )
 
@@ -1221,7 +1310,7 @@ end
 -- @param Arguments A #table or any field.
 function BASE:F3( Arguments )
 
-  if BASE.Debug and _TraceOnOff then
+  if BASE.Debug and _TraceOnOff == true and _TraceLevel >= 3 then
     local DebugInfoCurrent = BASE.Debug.getinfo( 2, "nl" )
     local DebugInfoFrom = BASE.Debug.getinfo( 3, "l" )
 
@@ -1265,7 +1354,7 @@ end
 -- @param Arguments A #table or any field.
 function BASE:T( Arguments )
 
-  if BASE.Debug and _TraceOnOff then
+  if BASE.Debug and _TraceOnOff == true then
     local DebugInfoCurrent = BASE.Debug.getinfo( 2, "nl" )
     local DebugInfoFrom = BASE.Debug.getinfo( 3, "l" )
 
@@ -1280,7 +1369,7 @@ end
 -- @param Arguments A #table or any field.
 function BASE:T2( Arguments )
 
-  if BASE.Debug and _TraceOnOff then
+  if BASE.Debug and _TraceOnOff == true and _TraceLevel >= 2 then
     local DebugInfoCurrent = BASE.Debug.getinfo( 2, "nl" )
     local DebugInfoFrom = BASE.Debug.getinfo( 3, "l" )
 
@@ -1295,7 +1384,7 @@ end
 -- @param Arguments A #table or any field.
 function BASE:T3( Arguments )
 
-  if BASE.Debug and _TraceOnOff then
+  if BASE.Debug and _TraceOnOff == true and _TraceLevel >= 3 then
     local DebugInfoCurrent = BASE.Debug.getinfo( 2, "nl" )
     local DebugInfoFrom = BASE.Debug.getinfo( 3, "l" )
 

@@ -593,7 +593,6 @@ AIRBASE.MarianaIslands = {
 --- Airbases of the South Atlantic map:
 --
 -- * AIRBASE.SouthAtlantic.Almirante_Schroeders
--- * AIRBASE.SouthAtlantic.Caleta_Tortel
 -- * AIRBASE.SouthAtlantic.Comandante_Luis_Piedrabuena
 -- * AIRBASE.SouthAtlantic.Cullen
 -- * AIRBASE.SouthAtlantic.El_Calafate
@@ -624,7 +623,6 @@ AIRBASE.MarianaIslands = {
 --@field SouthAtlantic
 AIRBASE.SouthAtlantic={
   ["Almirante_Schroeders"] = "Almirante Schroeders",
-  ["Caleta_Tortel"] = "Caleta Tortel",
   ["Comandante_Luis_Piedrabuena"] = "Comandante Luis Piedrabuena",
   ["Cullen"] = "Cullen",
   ["El_Calafate"] = "El Calafate",
@@ -657,77 +655,108 @@ AIRBASE.SouthAtlantic={
 --
 -- * AIRBASE.Sinai.Abu_Rudeis
 -- * AIRBASE.Sinai.Abu_Suwayr
+-- * AIRBASE.Sinai.Al_Bahr_al_Ahmar
 -- * AIRBASE.Sinai.Al_Ismailiyah
+-- * AIRBASE.Sinai.Al_Khatatbah
 -- * AIRBASE.Sinai.Al_Mansurah
+-- * AIRBASE.Sinai.Al_Rahmaniyah_Air_Base
 -- * AIRBASE.Sinai.As_Salihiyah
 -- * AIRBASE.Sinai.AzZaqaziq
 -- * AIRBASE.Sinai.Baluza
 -- * AIRBASE.Sinai.Ben_Gurion
+-- * AIRBASE.Sinai.Beni_Suef
 -- * AIRBASE.Sinai.Bilbeis_Air_Base
 -- * AIRBASE.Sinai.Bir_Hasanah
+-- * AIRBASE.Sinai.Birma_Air_Base
+-- * AIRBASE.Sinai.Borj_El_Arab_International_Airport
 -- * AIRBASE.Sinai.Cairo_International_Airport
 -- * AIRBASE.Sinai.Cairo_West
 -- * AIRBASE.Sinai.Difarsuwar_Airfield
 -- * AIRBASE.Sinai.El_Arish
 -- * AIRBASE.Sinai.El_Gora
+-- * AIRBASE.Sinai.El_Minya
 -- * AIRBASE.Sinai.Fayed
+-- * AIRBASE.Sinai.Gebel_El_Basur_Air_Base
 -- * AIRBASE.Sinai.Hatzerim
 -- * AIRBASE.Sinai.Hatzor
+-- * AIRBASE.Sinai.Hurghada_International_Airport
 -- * AIRBASE.Sinai.Inshas_Airbase
+-- * AIRBASE.Sinai.Jiyanklis_Air_Base
 -- * AIRBASE.Sinai.Kedem
 -- * AIRBASE.Sinai.Kibrit_Air_Base
+-- * AIRBASE.Sinai.Kom_Awshim
 -- * AIRBASE.Sinai.Melez
 -- * AIRBASE.Sinai.Nevatim
 -- * AIRBASE.Sinai.Ovda
--- * AIRBASE.Sinai.Palmahim
+-- * AIRBASE.Sinai.Palmachim
+-- * AIRBASE.Sinai.Quwaysina
 -- * AIRBASE.Sinai.Ramon_Airbase
+-- * AIRBASE.Sinai.Ramon_International_Airport
 -- * AIRBASE.Sinai.Sde_Dov
+-- * AIRBASE.Sinai.Sharm_El_Sheikh_International_Airport
 -- * AIRBASE.Sinai.St_Catherine
 -- * AIRBASE.Sinai.Tel_Nof
+-- * AIRBASE.Sinai.Wadi_Abu_Rish
 -- * AIRBASE.Sinai.Wadi_al_Jandali
 --
 -- @field Sinai
 AIRBASE.Sinai = {
   ["Abu_Rudeis"] = "Abu Rudeis",
   ["Abu_Suwayr"] = "Abu Suwayr",
+  ["Al_Bahr_al_Ahmar"] = "Al Bahr al Ahmar",
   ["Al_Ismailiyah"] = "Al Ismailiyah",
+  ["Al_Khatatbah"] = "Al Khatatbah",
   ["Al_Mansurah"] = "Al Mansurah",
+  ["Al_Rahmaniyah_Air_Base"] = "Al Rahmaniyah Air Base",
   ["As_Salihiyah"] = "As Salihiyah",
   ["AzZaqaziq"] = "AzZaqaziq",
   ["Baluza"] = "Baluza",
   ["Ben_Gurion"] = "Ben-Gurion",
+  ["Beni_Suef"] = "Beni Suef",
   ["Bilbeis_Air_Base"] = "Bilbeis Air Base",
   ["Bir_Hasanah"] = "Bir Hasanah",
+  ["Birma_Air_Base"] = "Birma Air Base",
+  ["Borj_El_Arab_International_Airport"] = "Borj El Arab International Airport",
   ["Cairo_International_Airport"] = "Cairo International Airport",
   ["Cairo_West"] = "Cairo West",
   ["Difarsuwar_Airfield"] = "Difarsuwar Airfield",
   ["El_Arish"] = "El Arish",
   ["El_Gora"] = "El Gora",
+  ["El_Minya"] = "El Minya",
   ["Fayed"] = "Fayed",
+  ["Gebel_El_Basur_Air_Base"] = "Gebel El Basur Air Base",
   ["Hatzerim"] = "Hatzerim",
   ["Hatzor"] = "Hatzor",
+  ["Hurghada_International_Airport"] = "Hurghada International Airport",
   ["Inshas_Airbase"] = "Inshas Airbase",
+  ["Jiyanklis_Air_Base"] = "Jiyanklis Air Base",
   ["Kedem"] = "Kedem",
   ["Kibrit_Air_Base"] = "Kibrit Air Base",
+  ["Kom_Awshim"] = "Kom Awshim",
   ["Melez"] = "Melez",
   ["Nevatim"] = "Nevatim",
   ["Ovda"] = "Ovda",
-  ["Palmahim"] = "Palmahim",
+  ["Palmachim"] = "Palmachim",
+  ["Quwaysina"] = "Quwaysina",
   ["Ramon_Airbase"] = "Ramon Airbase",
+  ["Ramon_International_Airport"] = "Ramon International Airport",
   ["Sde_Dov"] = "Sde Dov",
+  ["Sharm_El_Sheikh_International_Airport"] = "Sharm El Sheikh International Airport",
   ["St_Catherine"] = "St Catherine",
   ["Tel_Nof"] = "Tel Nof",
+  ["Wadi_Abu_Rish"] = "Wadi Abu Rish",
   ["Wadi_al_Jandali"] = "Wadi al Jandali",
 }
 
 --- Airbases of the Kola map
 -- 
 -- * AIRBASE.Kola.Banak
--- * AIRBASE.Kola.Bas_100
 -- * AIRBASE.Kola.Bodo
 -- * AIRBASE.Kola.Jokkmokk
 -- * AIRBASE.Kola.Kalixfors
+-- * AIRBASE.Kola.Kallax
 -- * AIRBASE.Kola.Kemi_Tornio
+-- * AIRBASE.Kola.Kirkenes
 -- * AIRBASE.Kola.Kiruna
 -- * AIRBASE.Kola.Monchegorsk
 -- * AIRBASE.Kola.Murmansk_International
@@ -735,11 +764,12 @@ AIRBASE.Sinai = {
 -- * AIRBASE.Kola.Rovaniemi
 -- * AIRBASE.Kola.Severomorsk_1
 -- * AIRBASE.Kola.Severomorsk_3
+-- * AIRBASE.Kola.Vidsel
+-- * AIRBASE.Kola.Vuojarvi
 -- 
 -- @field Kola
 AIRBASE.Kola = {
   ["Banak"] = "Banak",
-  ["Bas_100"] = "Bas 100",
   ["Bodo"] = "Bodo",
   ["Jokkmokk"] = "Jokkmokk",
   ["Kalixfors"] = "Kalixfors",
@@ -751,6 +781,47 @@ AIRBASE.Kola = {
   ["Rovaniemi"] = "Rovaniemi",
   ["Severomorsk_1"] = "Severomorsk-1",
   ["Severomorsk_3"] = "Severomorsk-3",
+  ["Vuojarvi"] = "Vuojarvi",
+  ["Kirkenes"] = "Kirkenes",
+  ["Kallax"] = "Kallax",
+  ["Vidsel"] = "Vidsel",
+}
+
+--- Airbases of the Afghanistan map
+-- 
+-- * AIRBASE.Afghanistan.Bost
+-- * AIRBASE.Afghanistan.Camp_Bastion
+-- * AIRBASE.Afghanistan.Camp_Bastion_Heliport
+-- * AIRBASE.Afghanistan.Chaghcharan
+-- * AIRBASE.Afghanistan.Dwyer
+-- * AIRBASE.Afghanistan.Farah
+-- * AIRBASE.Afghanistan.Herat
+-- * AIRBASE.Afghanistan.Kandahar
+-- * AIRBASE.Afghanistan.Kandahar_Heliport
+-- * AIRBASE.Afghanistan.Maymana_Zahiraddin_Faryabi
+-- * AIRBASE.Afghanistan.Nimroz
+-- * AIRBASE.Afghanistan.Qala_i_Naw
+-- * AIRBASE.Afghanistan.Shindand
+-- * AIRBASE.Afghanistan.Shindand_Heliport
+-- * AIRBASE.Afghanistan.Tarinkot
+-- 
+-- @field Afghanistan
+AIRBASE.Afghanistan = {
+  ["Bost"] = "Bost",
+  ["Camp_Bastion"] = "Camp Bastion",
+  ["Camp_Bastion_Heliport"] = "Camp Bastion Heliport",
+  ["Chaghcharan"] = "Chaghcharan",
+  ["Dwyer"] = "Dwyer",
+  ["Farah"] = "Farah",
+  ["Herat"] = "Herat",
+  ["Kandahar"] = "Kandahar",
+  ["Kandahar_Heliport"] = "Kandahar Heliport",
+  ["Maymana_Zahiraddin_Faryabi"] = "Maymana Zahiraddin Faryabi",
+  ["Nimroz"] = "Nimroz",
+  ["Qala_i_Naw"] = "Qala i Naw",
+  ["Shindand"] = "Shindand",
+  ["Shindand_Heliport"] = "Shindand Heliport",
+  ["Tarinkot"] = "Tarinkot",
 }
 
 --- AIRBASE.ParkingSpot ".Coordinate, ".TerminalID", ".TerminalType", ".TOAC", ".Free", ".TerminalID0", ".DistToRwy".
@@ -1529,7 +1600,7 @@ function AIRBASE:GetFreeParkingSpotsTable(termtype, allowTOAC)
   -- Put coordinates of free spots into table.
   local freespots={}
   for _,_spot in pairs(parkingfree) do
-    if AIRBASE._CheckTerminalType(_spot.Term_Type, termtype) and _spot.Term_Index>0 then
+    if AIRBASE._CheckTerminalType(_spot.Term_Type, termtype) then -- and _spot.Term_Index>0 then --Not sure why I had this in. But caused problems now for a Gas platform where a valid spot was not included!
       if (allowTOAC and allowTOAC==true) or _spot.TO_AC==false then
 
         local spot=self:_GetParkingSpotByID(_spot.Term_Index)
