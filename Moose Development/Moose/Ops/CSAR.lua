@@ -308,7 +308,7 @@ CSAR.AircraftType["AH-64D_BLK_II"] = 2
 CSAR.AircraftType["Bronco-OV-10A"] = 2
 CSAR.AircraftType["MH-60R"] = 10
 CSAR.AircraftType["OH-6A"] = 2
-CSAR.AircraftType["OH-58D"] = 2
+CSAR.AircraftType["OH58D"] = 2
 CSAR.AircraftType["CH-47Fbl1"] = 31
 
 --- CSAR class version.
@@ -841,9 +841,9 @@ function CSAR:_AddCsar(_coalition , _country, _point, _typeName, _unitName, _pla
   local BeaconName
   
   if _playerName then
-    BeaconName = _unitName..math.random(1,10000)
-  elseif _unitName then
     BeaconName = _playerName..math.random(1,10000)
+  elseif _unitName then
+    BeaconName = _unitName..math.random(1,10000)
   else
     BeaconName = "Ghost-1-1"..math.random(1,10000)
   end

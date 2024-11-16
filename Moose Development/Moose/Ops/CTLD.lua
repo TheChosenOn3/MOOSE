@@ -24,7 +24,7 @@
 -- @module Ops.CTLD
 -- @image OPS_CTLD.jpg
 
--- Last Update Sep 2024
+-- Last Update Oct 2024
 
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -836,6 +836,8 @@ do
 --          my_ctld.enableChinookGCLoading = true -- this will effectively suppress the crate load and drop for CTLD_CARGO.Enum.STATIc types for CTLD for the Chinook
 --          my_ctld.TroopUnloadDistGround = 5 -- If hovering, spawn dropped troops this far away in meters from the helo
 --          my_ctld.TroopUnloadDistHover = 1.5 -- If grounded, spawn dropped troops this far away in meters from the helo
+--          my_ctld.TroopUnloadDistGroundHerc = 25 -- On the ground, unload troops this far behind the Hercules
+--          my_ctld.TroopUnloadDistGroundHook = 15 -- On the ground, unload troops this far behind the Chinook
 -- 
 -- ## 2.1 CH-47 Chinook support
 -- 
@@ -895,7 +897,7 @@ do
 --        ["Bronco-OV-10A"] = {type="Bronco-OV-10A", crates= false, troops=true, cratelimit = 0, trooplimit = 5, length = 13, cargoweightlimit = 1450},
 --        ["Bronco-OV-10A"] = {type="Bronco-OV-10A", crates= false, troops=true, cratelimit = 0, trooplimit = 5, length = 13, cargoweightlimit = 1450},
 --        ["OH-6A"] = {type="OH-6A", crates=false, troops=true, cratelimit = 0, trooplimit = 4, length = 7, cargoweightlimit = 550},
---        ["OH-58D"] = {type="OH58D", crates=false, troops=false, cratelimit = 0, trooplimit = 0, length = 14, cargoweightlimit = 400},
+--        ["OH58D"] = {type="OH58D", crates=false, troops=false, cratelimit = 0, trooplimit = 0, length = 14, cargoweightlimit = 400},
 --        ["CH-47Fbl1"] = {type="CH-47Fbl1", crates=true, troops=true, cratelimit = 4, trooplimit = 31, length = 20, cargoweightlimit = 8000},
 --        
 -- ### 2.2.2 Activate and deactivate zones
@@ -1233,6 +1235,8 @@ CTLD = {
   DynamicCargo = {},
   ChinookTroopCircleRadius = 5,
   TroopUnloadDistGround = 5,
+  TroopUnloadDistGroundHerc = 25,
+  TroopUnloadDistGroundHook = 15,
   TroopUnloadDistHover = 1.5,
   UserSetGroup = nil,
 }
@@ -1333,13 +1337,13 @@ CTLD.UnitTypeCapabilities = {
     ["AH-64D_BLK_II"] = {type="AH-64D_BLK_II", crates=false, troops=true, cratelimit = 0, trooplimit = 2, length = 17, cargoweightlimit = 200}, -- 2 ppl **outside** the helo
     ["Bronco-OV-10A"] = {type="Bronco-OV-10A", crates= false, troops=true, cratelimit = 0, trooplimit = 5, length = 13, cargoweightlimit = 1450},
     ["OH-6A"] = {type="OH-6A", crates=false, troops=true, cratelimit = 0, trooplimit = 4, length = 7, cargoweightlimit = 550},
-    ["OH-58D"] = {type="OH58D", crates=false, troops=false, cratelimit = 0, trooplimit = 0, length = 14, cargoweightlimit = 400},
+    ["OH58D"] = {type="OH58D", crates=false, troops=false, cratelimit = 0, trooplimit = 0, length = 14, cargoweightlimit = 400},
     ["CH-47Fbl1"] = {type="CH-47Fbl1", crates=true, troops=true, cratelimit = 4, trooplimit = 31, length = 20, cargoweightlimit = 10800},
 }
 
 --- CTLD class version.
 -- @field #string version
-CTLD.version="1.1.16"
+CTLD.version="1.1.18"
 
 --- Instantiate a new CTLD.
 -- @param #CTLD self
@@ -2425,6 +2429,7 @@ end
     local nearestGroup = nil
     local nearestGroupIndex = -1
     local nearestDistance = 10000000
+    local maxdistance = 0
     local nearestList = {}
     local distancekeys = {}
     local extractdistance = self.CrateDistance * self.ExtractFactor
@@ -2436,8 +2441,14 @@ end
         nearestGroup = v
         nearestGroupIndex = k
         nearestDistance = distance
+        if math.floor(distance) > maxdistance then maxdistance = math.floor(distance) end
+        if nearestList[math.floor(distance)] then 
+          distance = maxdistance+1
+          maxdistance = distance 
+        end
         table.insert(nearestList, math.floor(distance), v)
         distancekeys[#distancekeys+1] = math.floor(distance)
+        --self:I(string.format("Adding group %s distance %dm",nearestGroup:GetName(),distance))
       end
     end
     
@@ -2490,7 +2501,7 @@ end
           nearestGroup.ExtractTime = timer.getTime()
           local loadcargotype = CTLD_CARGO:New(self.CargoCounter, Cargotype.Name, Cargotype.Templates, Cargotype.CargoType, true, true, Cargotype.CratesNeeded,nil,nil,Cargotype.PerCrateMass)
           self:T({cargotype=loadcargotype})
-          local running = math.floor(nearestDistance / 4)+10 -- time run to helo plus boarding
+          local running = math.floor(nearestDistance / 4)+20 -- time run to helo plus boarding
           loaded.Troopsloaded = loaded.Troopsloaded + troopsize
           table.insert(loaded.Cargo,loadcargotype)
           self.Loaded_Cargo[unitname] = loaded
@@ -2505,26 +2516,32 @@ end
             local Angle = math.floor((heading+160)%360)
             Point = coord:Translate(8,Angle):GetVec2()
             if Point then
-              nearestGroup:RouteToVec2(Point,4)
+              nearestGroup:RouteToVec2(Point,5)
             end
           end
           -- clean up:
-          if type(Cargotype.Templates) == "table" and  Cargotype.Templates[2] then
+          local hassecondaries = false
+          if type(Cargotype.Templates) == "table" and Cargotype.Templates[2] then
             for _,_key in pairs (Cargotype.Templates) do
               table.insert(secondarygroups,_key)
+              hassecondaries = true
             end
           end
-          nearestGroup:Destroy(false,running)
+          local destroytimer = math.random(10,20)
+          --self:I("Destroying Group "..nearestGroup:GetName().." in "..destroytimer.." seconds!")
+          nearestGroup:Destroy(false,destroytimer)
         end
       end
     end
     -- clean up secondary groups
-    for _,_name in pairs(secondarygroups) do
-      for _,_group in pairs(nearestList) do
-        if _group and _group:IsAlive() then
-          local groupname = string.match(_group:GetName(), "(.+)-(.+)$")
-          if _name == groupname then
-            _group:Destroy(false,15)
+    if hassecondaries == true then
+      for _,_name in pairs(secondarygroups) do
+        for _,_group in pairs(nearestList) do
+          if _group and _group:IsAlive() then
+            local groupname = string.match(_group:GetName(), "(.+)-(.+)$")
+            if _name == groupname then
+              _group:Destroy(false,15)
+            end
           end
         end
       end
@@ -3408,8 +3425,8 @@ function CTLD:_GetUnitPositions(Coordinate,Radius,Heading,Template)
   local template = _DATABASE:GetGroupTemplate(Template)
   --UTILS.PrintTableToLog(template)
   local numbertroops = #template.units
-  local slightshift = math.abs(math.random(0,200)/100)
-  local newcenter = Coordinate:Translate(Radius+slightshift,((Heading+270)%360))
+  local slightshift = math.abs(math.random(1,500)/100)
+  local newcenter = Coordinate:Translate(Radius+slightshift,((Heading+270+math.random(1,10))%360))
   for i=1,360,math.floor(360/numbertroops) do
     local phead = ((Heading+270+i)%360)
     local post = newcenter:Translate(Radius,phead)
@@ -3484,7 +3501,10 @@ function CTLD:_UnloadTroops(Group, Unit)
             randomcoord = Group:GetCoordinate()
             -- slightly left from us           
             local Angle = (heading+270)%360
+            if IsHerc or IsHook then Angle = (heading+180)%360 end
             local offset = hoverunload and self.TroopUnloadDistHover or self.TroopUnloadDistGround
+            if IsHerc then offset = self.TroopUnloadDistGroundHerc or 25 end
+            if IsHook then offset = self.TroopUnloadDistGroundHook or 15 end
             randomcoord:Translate(offset,Angle,nil,true)
           end
           local tempcount = 0
@@ -3494,7 +3514,7 @@ function CTLD:_UnloadTroops(Group, Unit)
             self.TroopCounter = self.TroopCounter + 1
             tempcount = tempcount+1
             local alias = string.format("%s-%d", _template, math.random(1,100000))
-            local rad = 2.5+tempcount
+            local rad = 2.5+(tempcount*2)
             local Positions = self:_GetUnitPositions(randomcoord,rad,heading,_template)
             self.DroppedTroops[self.TroopCounter] = SPAWN:NewWithAlias(_template,alias)
               --:InitRandomizeUnits(true,20,2)
@@ -4269,7 +4289,7 @@ end
 -- @param #string SubCategory Name of sub-category (optional).
 -- @param #boolean DontShowInMenu (optional) If set to "true" this won't show up in the menu.
 -- @param Core.Zone#ZONE Location (optional) If set, the cargo item is **only** available here. Can be a #ZONE object or the name of a zone as #string.
--- @param #string UnitTypes Unit type names (optional). If set, only these unit types can pick up the cargo, e.g. "UH-1H" or {"UH-1H","OH-58D"}.
+-- @param #string UnitTypes Unit type names (optional). If set, only these unit types can pick up the cargo, e.g. "UH-1H" or {"UH-1H","OH58D"}.
 -- @param #string Category Static category name (optional). If set, spawn cargo crate with an alternate category type, e.g. "Cargos".
 -- @param #string TypeName Static type name (optional). If set, spawn cargo crate with an alternate type shape, e.g. "iso_container".
 -- @param #string ShapeName Static shape name (optional). If set, spawn cargo crate with an alternate type sub-shape, e.g. "iso_container_cargo".
@@ -4353,7 +4373,7 @@ end
 -- @param #string SubCategory Name of the sub-category (optional).
 -- @param #boolean DontShowInMenu (optional) If set to "true" this won't show up in the menu.
 -- @param Core.Zone#ZONE Location (optional) If set, the cargo item is **only** available here. Can be a #ZONE object or the name of a zone as #string.
--- @param #string UnitTypes Unit type names (optional). If set, only these unit types can pick up the cargo, e.g. "UH-1H" or {"UH-1H","OH-58D"}
+-- @param #string UnitTypes Unit type names (optional). If set, only these unit types can pick up the cargo, e.g. "UH-1H" or {"UH-1H","OH58D"}
 -- @param #string Category Static category name (optional). If set, spawn cargo crate with an alternate category type, e.g. "Cargos".
 -- @param #string TypeName Static type name (optional). If set, spawn cargo crate with an alternate type shape, e.g. "iso_container".
 -- @param #string ShapeName Static shape name (optional). If set, spawn cargo crate with an alternate type sub-shape, e.g. "iso_container_cargo".

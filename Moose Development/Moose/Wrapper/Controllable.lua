@@ -902,7 +902,11 @@ function CONTROLLABLE:CommandEPLRS( SwitchOnOff, Delay )
       groupId = self:GetID(),
     },
   }
-
+  
+  --if self:IsGround() then
+   --CommandEPLRS.params.groupId = self:GetID()
+  --end
+  
   if Delay and Delay > 0 then
     SCHEDULER:New( nil, self.CommandEPLRS, { self, SwitchOnOff }, Delay )
   else
@@ -937,7 +941,7 @@ function CONTROLLABLE:CommandSetUnlimitedFuel(OnOff, Delay)
 end
 
 
---- Set radio frequency. See [DCS command EPLRS](https://wiki.hoggitworld.com/view/DCS_command_setFrequency)
+--- Set radio frequency. See [DCS command SetFrequency](https://wiki.hoggitworld.com/view/DCS_command_setFrequency)
 -- @param #CONTROLLABLE self
 -- @param #number Frequency Radio frequency in MHz.
 -- @param #number Modulation Radio modulation. Default `radio.modulation.AM`.
@@ -956,7 +960,7 @@ function CONTROLLABLE:CommandSetFrequency( Frequency, Modulation, Power, Delay )
   }
 
   if Delay and Delay > 0 then
-    SCHEDULER:New( nil, self.CommandSetFrequency, { self, Frequency, Modulation, Power } )
+    SCHEDULER:New( nil, self.CommandSetFrequency, { self, Frequency, Modulation, Power },Delay )
   else
     self:SetCommand( CommandSetFrequency )
   end
@@ -964,7 +968,7 @@ function CONTROLLABLE:CommandSetFrequency( Frequency, Modulation, Power, Delay )
   return self
 end
 
---- [AIR] Set radio frequency. See [DCS command EPLRS](https://wiki.hoggitworld.com/view/DCS_command_setFrequencyForUnit)
+--- [AIR] Set radio frequency. See [DCS command SetFrequencyForUnit](https://wiki.hoggitworld.com/view/DCS_command_setFrequencyForUnit)
 -- @param #CONTROLLABLE self
 -- @param #number Frequency Radio frequency in MHz.
 -- @param #number Modulation Radio modulation. Default `radio.modulation.AM`.
@@ -983,7 +987,7 @@ function CONTROLLABLE:CommandSetFrequencyForUnit(Frequency,Modulation,Power,Unit
     },
   }
   if Delay and Delay>0 then
-    SCHEDULER:New(nil,self.CommandSetFrequencyForUnit,{self,Frequency,Modulation,Power,UnitID})
+    SCHEDULER:New(nil,self.CommandSetFrequencyForUnit,{self,Frequency,Modulation,Power,UnitID},Delay)
   else
     self:SetCommand(CommandSetFrequencyForUnit)
   end
@@ -1009,7 +1013,11 @@ function CONTROLLABLE:TaskEPLRS( SwitchOnOff, idx )
       groupId = self:GetID(),
     },
   }
-
+  
+  --if self:IsGround() then
+   --CommandEPLRS.params.groupId = self:GetID()
+  --end
+  
   return self:TaskWrappedAction( CommandEPLRS, idx or 1 )
 end
 
