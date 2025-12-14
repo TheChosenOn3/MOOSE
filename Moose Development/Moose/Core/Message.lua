@@ -75,35 +75,37 @@ MESSAGE.Type = {
 
 --- Creates a new MESSAGE object. Note that these MESSAGE objects are not yet displayed on the display panel. You must use the functions @{#MESSAGE.ToClient} or @{#MESSAGE.ToCoalition} or @{#MESSAGE.ToAll} to send these Messages to the respective recipients.
 -- @param self
--- @param #string MessageText is the text of the Message.
--- @param #number MessageDuration is a number in seconds of how long the MESSAGE should be shown on the display panel.
--- @param #string MessageCategory (optional) is a string expressing the "category" of the Message. The category will be shown as the first text in the message followed by a ": ".
+-- @param #string Text is the text of the Message.
+-- @param #number Duration Duration in seconds how long the message text is shown.
+-- @param #string Category (Optional) String expressing the "category" of the Message. The category will be shown as the first text in the message followed by a ": ".
 -- @param #boolean ClearScreen (optional) Clear all previous messages if true.
--- @return #MESSAGE
+-- @return #MESSAGE self
 -- @usage
 --
---    -- Create a series of new Messages.
---    -- MessageAll is meant to be sent to all players, for 25 seconds, and is classified as "Score".
---    -- MessageRED is meant to be sent to the RED players only, for 10 seconds, and is classified as "End of Mission", with ID "Win".
---    -- MessageClient1 is meant to be sent to a Client, for 25 seconds, and is classified as "Score", with ID "Score".
---    -- MessageClient1 is meant to be sent to a Client, for 25 seconds, and is classified as "Score", with ID "Score".
+--   -- Create a series of new Messages.
+--   -- MessageAll is meant to be sent to all players, for 25 seconds, and is classified as "Score".
+--   -- MessageRED is meant to be sent to the RED players only, for 10 seconds, and is classified as "End of Mission", with ID "Win".
+--   -- MessageClient1 is meant to be sent to a Client, for 25 seconds, and is classified as "Score", with ID "Score".
+--   -- MessageClient1 is meant to be sent to a Client, for 25 seconds, and is classified as "Score", with ID "Score".
 --   MessageAll = MESSAGE:New( "To all Players: BLUE has won! Each player of BLUE wins 50 points!",  25, "End of Mission" )
 --   MessageRED = MESSAGE:New( "To the RED Players: You receive a penalty because you've killed one of your own units", 25, "Penalty" )
 --   MessageClient1 = MESSAGE:New( "Congratulations, you've just hit a target",  25, "Score" )
 --   MessageClient2 = MESSAGE:New( "Congratulations, you've just killed a target", 25, "Score")
 --
-function MESSAGE:New( MessageText, MessageDuration, MessageCategory, ClearScreen )
+function MESSAGE:New( Text, Duration, Category, ClearScreen )
+
   local self = BASE:Inherit( self, BASE:New() )
-  self:F( { MessageText, MessageDuration, MessageCategory } )
+  
+  self:F( { Text, Duration, Category } )
 
   self.MessageType = nil
 
   -- When no MessageCategory is given, we don't show it as a title... 
-  if MessageCategory and MessageCategory ~= "" then
-    if MessageCategory:sub( -1 ) ~= "\n" then
-      self.MessageCategory = MessageCategory .. ": "
+  if Category and Category ~= "" then
+    if Category:sub( -1 ) ~= "\n" then
+      self.MessageCategory = Category .. ": "
     else
-      self.MessageCategory = MessageCategory:sub( 1, -2 ) .. ":\n"
+      self.MessageCategory = Category:sub( 1, -2 ) .. ":\n"
     end
   else
     self.MessageCategory = ""
@@ -114,9 +116,9 @@ function MESSAGE:New( MessageText, MessageDuration, MessageCategory, ClearScreen
     self.ClearScreen = ClearScreen
   end
 
-  self.MessageDuration = MessageDuration or 5
+  self.MessageDuration = Duration or 5
   self.MessageTime = timer.getTime()
-  self.MessageText = MessageText:gsub( "^\n", "", 1 ):gsub( "\n$", "", 1 )
+  self.MessageText = Text:gsub( "^\n", "", 1 ):gsub( "\n$", "", 1 )
 
   self.MessageSent = false
   self.MessageGroup = false
@@ -204,7 +206,7 @@ end
 function MESSAGE:ToGroup( Group, Settings )
   self:F( Group.GroupName )
 
-  if Group then
+  if Group and Group:IsAlive() then
 
     if self.MessageType then
       local Settings = Settings or (Group and _DATABASE:GetPlayerSettings( Group:GetPlayerName() )) or _SETTINGS -- Core.Settings#SETTINGS
@@ -229,7 +231,7 @@ end
 function MESSAGE:ToUnit( Unit, Settings )
   self:F( Unit.IdentifiableName )
 
-  if Unit then
+  if Unit and Unit:IsAlive() then
     
     if self.MessageType then
       local Settings = Settings or ( Unit and _DATABASE:GetPlayerSettings( Unit:GetPlayerName() ) ) or _SETTINGS -- Core.Settings#SETTINGS
@@ -450,7 +452,7 @@ end
 _MESSAGESRS = {}
 
 --- Set up MESSAGE generally to allow Text-To-Speech via SRS and TTS functions. `SetMSRS()` will try to use as many attributes configured with @{Sound.SRS#MSRS.LoadConfigFile}() as possible.
--- @param #string PathToSRS (optional) Path to SRS Folder, defaults to "C:\\\\Program Files\\\\DCS-SimpleRadio-Standalone" or your configuration file setting.
+-- @param #string PathToSRS (optional) Path to SRS TTS Folder, defaults to "C:\\\\Program Files\\\\DCS-SimpleRadio-Standalone\\ExternalAudio" or your configuration file setting.
 -- @param #number Port Port (optional) number of SRS, defaults to 5002 or your configuration file setting.
 -- @param #string PathToCredentials (optional) Path to credentials file for Google.
 -- @param #number Frequency Frequency in MHz. Can also be given as a #table of frequencies.
@@ -462,16 +464,17 @@ _MESSAGESRS = {}
 -- @param #number Volume (optional) Volume, can be between 0.0 and 1.0 (loudest).
 -- @param #string Label (optional) Label, defaults to "MESSAGE" or the Message Category set.
 -- @param Core.Point#COORDINATE Coordinate (optional) Coordinate this messages originates from.
+-- @param #string Backend (optional) Backend to be used, can be MSRS.Backend.SRSEXE or MSRS.Backend.GRPC
 -- @usage
 --          -- Mind the dot here, not using the colon this time around!
 --          -- Needed once only
---          MESSAGE.SetMSRS("D:\\Program Files\\DCS-SimpleRadio-Standalone",5012,nil,127,radio.modulation.FM,"female","en-US",nil,coalition.side.BLUE)
+--          MESSAGE.SetMSRS("D:\\Program Files\\DCS-SimpleRadio-Standalone\\ExternalAudio",5012,nil,127,radio.modulation.FM,"female","en-US",nil,coalition.side.BLUE)
 --          -- later on in your code
 --          MESSAGE:New("Test message!",15,"SPAWN"):ToSRS()
 --          
-function MESSAGE.SetMSRS(PathToSRS,Port,PathToCredentials,Frequency,Modulation,Gender,Culture,Voice,Coalition,Volume,Label,Coordinate)
+function MESSAGE.SetMSRS(PathToSRS,Port,PathToCredentials,Frequency,Modulation,Gender,Culture,Voice,Coalition,Volume,Label,Coordinate,Backend)
   
-  _MESSAGESRS.PathToSRS = PathToSRS or MSRS.path or "C:\\Program Files\\DCS-SimpleRadio-Standalone"
+  _MESSAGESRS.PathToSRS = PathToSRS or MSRS.path or "C:\\Program Files\\DCS-SimpleRadio-Standalone\\ExternalAudio"
   
   _MESSAGESRS.frequency = Frequency or MSRS.frequencies or 243
   _MESSAGESRS.modulation = Modulation or MSRS.modulations or radio.modulation.AM
@@ -485,6 +488,10 @@ function MESSAGE.SetMSRS(PathToSRS,Port,PathToCredentials,Frequency,Modulation,G
   
   if Coordinate then
     _MESSAGESRS.MSRS:SetCoordinate(Coordinate)
+  end
+  
+  if Backend then
+   _MESSAGESRS.MSRS:SetBackend(Backend)
   end
   
   _MESSAGESRS.Culture = Culture or MSRS.culture or "en-GB"
@@ -528,7 +535,7 @@ end
 -- @usage
 --          -- Mind the dot here, not using the colon this time around!
 --          -- Needed once only
---          MESSAGE.SetMSRS("D:\\Program Files\\DCS-SimpleRadio-Standalone",5012,nil,127,radio.modulation.FM,"female","en-US",nil,coalition.side.BLUE)
+--          MESSAGE.SetMSRS("D:\\Program Files\\DCS-SimpleRadio-Standalone\\ExternalAudio",5012,nil,127,radio.modulation.FM,"female","en-US",nil,coalition.side.BLUE)
 --          -- later on in your code
 --          MESSAGE:New("Test message!",15,"SPAWN"):ToSRS()
 --          
@@ -560,7 +567,7 @@ end
 -- @usage
 --          -- Mind the dot here, not using the colon this time around!
 --          -- Needed once only
---          MESSAGE.SetMSRS("D:\\Program Files\\DCS-SimpleRadio-Standalone",5012,nil,127,radio.modulation.FM,"female","en-US",nil,coalition.side.BLUE)
+--          MESSAGE.SetMSRS("D:\\Program Files\\DCS-SimpleRadio-Standalone\\ExternalAudio",5012,nil,127,radio.modulation.FM,"female","en-US",nil,coalition.side.BLUE)
 --          -- later on in your code
 --          MESSAGE:New("Test message!",15,"SPAWN"):ToSRSBlue()
 --          
@@ -582,7 +589,7 @@ end
 -- @usage
 --          -- Mind the dot here, not using the colon this time around!
 --          -- Needed once only
---          MESSAGE.SetMSRS("D:\\Program Files\\DCS-SimpleRadio-Standalone",5012,nil,127,radio.modulation.FM,"female","en-US",nil,coalition.side.RED)
+--          MESSAGE.SetMSRS("D:\\Program Files\\DCS-SimpleRadio-Standalone\\ExternalAudio",5012,nil,127,radio.modulation.FM,"female","en-US",nil,coalition.side.RED)
 --          -- later on in your code
 --          MESSAGE:New("Test message!",15,"SPAWN"):ToSRSRed()
 --          
@@ -604,7 +611,7 @@ end
 -- @usage
 --          -- Mind the dot here, not using the colon this time around!
 --          -- Needed once only
---          MESSAGE.SetMSRS("D:\\Program Files\\DCS-SimpleRadio-Standalone",5012,nil,127,radio.modulation.FM,"female","en-US",nil,coalition.side.NEUTRAL)
+--          MESSAGE.SetMSRS("D:\\Program Files\\DCS-SimpleRadio-Standalone\\ExternalAudio",5012,nil,127,radio.modulation.FM,"female","en-US",nil,coalition.side.NEUTRAL)
 --          -- later on in your code
 --          MESSAGE:New("Test message!",15,"SPAWN"):ToSRSAll()
 --          
