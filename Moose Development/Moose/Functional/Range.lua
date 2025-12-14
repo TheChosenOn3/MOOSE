@@ -107,6 +107,8 @@
 -- @field Sound.SRS#MSRSQUEUE instructsrsQ SRS queue for range instructor.
 -- @field #number Coalition Coalition side for the menu, if any.
 -- @field Core.Menu#MENU_MISSION menuF10root Specific user defined root F10 menu.
+-- @field #number ceilingaltitude Range ceiling altitude in ft MSL.  Aircraft above this altitude are not considered to be in the range. Default is 20000 ft.
+-- @field #boolean ceilingenabled Range has a ceiling and is not unlimited.  Default is false.
 -- @extends Core.Fsm#FSM
 
 --- *Don't only practice your art, but force your way into its secrets; art deserves that, for it and knowledge can raise man to the Divine.* - Ludwig van Beethoven
@@ -273,6 +275,10 @@
 --      -- Create a range object.
 --      GoldwaterRange=RANGE:New("Goldwater Range")
 --
+--      -- Set and enable the range ceiling altitude in feet MSL.  If aircraft are above this altitude they are not considered to be in the range.
+--      GoldwaterRange:SetRangeCeiling(20000)
+--      GoldwaterRange:EnableRangeCeiling(true)
+--
 --      -- Distance between strafe target and foul line. You have to specify the names of the unit or static objects.
 --      -- Note that this could also be done manually by simply measuring the distance between the target and the foul line in the ME.
 --      GoldwaterRange:GetFoullineDistance("GWR Strafe Pit Left 1", "GWR Foul Line Left")
@@ -358,6 +364,8 @@ RANGE = {
   targetpath = nil,
   targetprefix = nil,
   Coalition = nil,
+  ceilingaltitude = 20000,
+  ceilingenabled = false,
   }
 
 --- Default range parameters.
@@ -594,7 +602,7 @@ RANGE.MenuF10Root = nil
 
 --- Range script version.
 -- @field #string version
-RANGE.version = "2.8.0"
+RANGE.version = "2.8.1"
 
 -- TODO list:
 -- TODO: Verbosity level for messages.
@@ -1085,6 +1093,37 @@ function RANGE:SetRangeZone( zone )
   return self
 end
 
+--- Set range ceiling altitude in feet MSL.
+-- @param #RANGE self
+-- @param #number altitude (optional) Ceiling altitude of the range in ft MSL. Default 20000ft MSL
+-- @return #RANGE self
+function RANGE:SetRangeCeiling( altitude )
+  self:T(self.lid.."SetRangeCeiling")
+  if altitude and type(altitude) == "number" then
+    self.ceilingaltitude=altitude
+  else
+    self:E(self.lid.."Altitude either not provided or is not a number, using default setting (20000).")
+    self.ceilingaltitude=20000
+  end
+  return self
+end
+
+--- Enable range ceiling. Aircraft must be below the ceiling altitude to be considered in the range zone. 
+-- @param #RANGE self
+-- @param #boolean enabled True if you would like to enable the ceiling check.  If no value give, will Default to false.
+-- @return #RANGE self
+function RANGE:EnableRangeCeiling( enabled )
+  self:T(self.lid.."EnableRangeCeiling")
+  if enabled and type(enabled) == "boolean" then
+    self.ceilingenabled=enabled
+  else
+    self:E(self.lid.."Enabled either not provide or is not a boolean, using default setting (false).")
+    self.ceilingenabled=false
+  end
+
+  return self
+end
+
 --- Set smoke color for marking bomb targets. By default bomb targets are marked by red smoke.
 -- @param #RANGE self
 -- @param Utilities.Utils#SMOKECOLOR colorid Color id. Default `SMOKECOLOR.Red`.
@@ -1231,6 +1270,9 @@ function RANGE:SetSRS(PathToSRS, Port, Coalition, Frequency, Modulation, Volume,
     self.controlmsrs:SetCoalition(Coalition or coalition.side.BLUE)
     self.controlmsrs:SetLabel("RANGEC")
     self.controlmsrs:SetVolume(Volume or 1.0)
+    if self.rangezone then
+      self.controlmsrs:SetCoordinate(self.rangezone:GetCoordinate())
+    end
     self.controlsrsQ = MSRSQUEUE:New("CONTROL")
 
     self.instructmsrs=MSRS:New(PathToSRS or MSRS.path, Frequency or 305, Modulation or radio.modulation.AM)
@@ -1238,6 +1280,9 @@ function RANGE:SetSRS(PathToSRS, Port, Coalition, Frequency, Modulation, Volume,
     self.instructmsrs:SetCoalition(Coalition or coalition.side.BLUE)
     self.instructmsrs:SetLabel("RANGEI")
     self.instructmsrs:SetVolume(Volume or 1.0)
+    if self.rangezone then
+      self.instructmsrs:SetCoordinate(self.rangezone:GetCoordinate())
+    end
     self.instructsrsQ = MSRSQUEUE:New("INSTRUCT")
     
     if PathToGoogleKey then 
@@ -1276,8 +1321,13 @@ function RANGE:SetSRSRangeControl( frequency, modulation, voice, culture, gender
   self.rangecontrol = true
   if relayunitname then
     local unit = UNIT:FindByName(relayunitname)
-    local Coordinate = unit:GetCoordinate()
-    self.rangecontrolrelayname = relayunitname
+    if unit then
+      local Coordinate = unit:GetCoordinate()
+      self.rangecontrolrelayname = relayunitname
+      self.controlmsrs:SetCoordinate(Coordinate)
+    else
+      MESSAGE:New("RANGE: Control Relay Unit "..relayunitname.." not found!",15,"ERROR"):ToAllIf(self.Debug):ToLog()
+    end
   end
   return self
 end
@@ -1305,9 +1355,13 @@ function RANGE:SetSRSRangeInstructor( frequency, modulation, voice, culture, gen
   self.instructor = true
   if relayunitname then
     local unit = UNIT:FindByName(relayunitname)
-    local Coordinate = unit:GetCoordinate()
-    self.instructmsrs:SetCoordinate(Coordinate)
-    self.instructorrelayname = relayunitname
+    if unit then
+      local Coordinate = unit:GetCoordinate()
+      self.instructmsrs:SetCoordinate(Coordinate)
+      self.instructorrelayname = relayunitname
+    else
+      MESSAGE:New("RANGE: Instructor Relay Unit "..relayunitname.." not found!",15,"ERROR"):ToAllIf(self.Debug):ToLog()
+    end
   end
   return self
 end
@@ -1893,7 +1947,7 @@ function RANGE:OnEventHit( EventData )
   local _currentTarget = self.strafeStatus[_unitID] --#RANGE.StrafeStatus
 
   -- Player has rolled in on a strafing target.
-  if _currentTarget and target:IsAlive() then
+  if _currentTarget and target and target:IsAlive() then
 
     local playerPos = _unit:GetCoordinate()
     local targetPos = target:GetCoordinate()
@@ -1992,10 +2046,10 @@ function RANGE._OnImpact(weapon, self, playerData, attackHdg, attackAlt, attackV
 
   -- Smoke impact point of bomb.
   if playerData and playerData.smokebombimpact and insidezone then
-    if playerData and playerData.delaysmoke then
-      timer.scheduleFunction( self._DelayedSmoke, { coord = impactcoord, color = playerData.smokecolor }, timer.getTime() + self.TdelaySmoke )
+    if playerData.delaysmoke then
+      impactcoord:Smoke(playerData.smokecolor, 30, self.TdelaySmoke)
     else
-      impactcoord:Smoke( playerData.smokecolor )
+      impactcoord:Smoke(playerData.smokecolor, 30)
     end
   end
 
@@ -2062,7 +2116,12 @@ function RANGE._OnImpact(weapon, self, playerData, attackHdg, attackAlt, attackV
     result.attackHdg = attackHdg
     result.attackVel = attackVel
     result.attackAlt = attackAlt
-    result.date=os and os.date() or "n/a"
+    if os and os.date then
+        result.date=os.date()
+    else
+        self:E(self.lid.."os or os.date() not available")
+        result.date = "n/a"
+    end
 
     -- Add to table.
     table.insert( _results, result )
@@ -2595,13 +2654,6 @@ end
 -- Display Messages
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
---- Start smoking a coordinate with a delay.
--- @param #table _args Argements passed.
-function RANGE._DelayedSmoke( _args )
-  _args.coord:Smoke(_args.color)
-  --trigger.action.smoke( _args.coord:GetVec3(), _args.color )
-end
-
 --- Display top 10 stafing results of a specific player.
 -- @param #RANGE self
 -- @param #string _unitName Name of the player unit.
@@ -2987,7 +3039,7 @@ function RANGE:_DisplayBombTargets( _unitname )
       end
     end
 
-    self:_DisplayMessageToGroup( _unit, _text, 120, true, true, _multiplayer )
+    self:_DisplayMessageToGroup( _unit, _text, 150, true, true, _multiplayer )
   end
 end
 
@@ -3112,7 +3164,10 @@ function RANGE:_CheckPlayers()
 
     if unit and unit:IsAlive() then
 
-      if unit:IsInZone( self.rangezone ) then
+      local unitalt = unit:GetAltitude(false)
+      local unitaltinfeet = UTILS.MetersToFeet(unitalt)
+
+      if unit:IsInZone(self.rangezone) and (not self.ceilingenabled or unitaltinfeet < self.ceilingaltitude) then
 
         ------------------------------
         -- Player INSIDE Range Zone --
@@ -3453,10 +3508,10 @@ function RANGE:_AddF10Commands( _unitName )
         -- Range menu
         local _rangePath = MENU_GROUP:New( group, self.rangename, _rootMenu )
 
-        local _statsPath = MENU_GROUP:New( group, "Statistics", _rangePath )
-        local _markPath = MENU_GROUP:New( group, "Mark Targets", _rangePath )
-        local _settingsPath = MENU_GROUP:New( group, "My Settings", _rangePath )
         local _infoPath = MENU_GROUP:New( group, "Range Info", _rangePath )
+        local _markPath = MENU_GROUP:New( group, "Mark Targets", _rangePath )
+        local _statsPath = MENU_GROUP:New( group, "Statistics", _rangePath )
+        local _settingsPath = MENU_GROUP:New( group, "My Settings", _rangePath )
 
         -- F10/On the Range/<Range Name>/My Settings/
         local _mysmokePath = MENU_GROUP:New( group, "Smoke Color", _settingsPath )

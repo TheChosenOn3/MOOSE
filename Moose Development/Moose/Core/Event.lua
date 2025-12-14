@@ -1372,11 +1372,12 @@ function EVENT:onEvent( Event )
           -- Scenery
           ---          
           Event.IniDCSUnit = Event.initiator
-          Event.IniDCSUnitName = Event.IniDCSUnit.getName and Event.IniDCSUnit:getName() or "Scenery no name "..math.random(1,20000)
+          Event.IniDCSUnitName = ( Event.IniDCSUnit and Event.IniDCSUnit.getName ) and Event.IniDCSUnit:getName() or "Scenery no name "..math.random(1,20000)
           Event.IniUnitName = Event.IniDCSUnitName
           Event.IniUnit = SCENERY:Register( Event.IniDCSUnitName, Event.initiator )
-          Event.IniCategory = Event.IniDCSUnit:getDesc().category
-          Event.IniTypeName = Event.initiator:isExist() and Event.IniDCSUnit:getTypeName() or "SCENERY"
+          Event.IniCategory =  (Event.IniDCSUnit and Event.IniDCSUnit.getDesc ) and Event.IniDCSUnit:getDesc().category
+          Event.IniTypeName = (Event.initiator and Event.initiator.isExist          
+          and Event.initiator:isExist() and Event.IniDCSUnit and Event.IniDCSUnit.getTypeName) and Event.IniDCSUnit:getTypeName() or "SCENERY"
 
         elseif Event.IniObjectCategory == Object.Category.BASE then
           ---
@@ -1474,12 +1475,13 @@ function EVENT:onEvent( Event )
           -- SCENERY
           ---
           Event.TgtDCSUnit = Event.target
-          Event.TgtDCSUnitName = Event.TgtDCSUnit:getName()
-          if Event.TgtDCSUnitName==nil then return end
-          Event.TgtUnitName = Event.TgtDCSUnitName
-          Event.TgtUnit = SCENERY:Register( Event.TgtDCSUnitName, Event.target )
-          Event.TgtCategory = Event.TgtDCSUnit:getDesc().category
-          Event.TgtTypeName = Event.TgtDCSUnit:getTypeName()
+          Event.TgtDCSUnitName = Event.TgtDCSUnit.getName and Event.TgtDCSUnit:getName() or nil
+          if Event.TgtDCSUnitName~=nil then
+            Event.TgtUnitName = Event.TgtDCSUnitName
+            Event.TgtUnit = SCENERY:Register( Event.TgtDCSUnitName, Event.target )
+            Event.TgtCategory = Event.TgtDCSUnit:getDesc().category
+            Event.TgtTypeName = Event.TgtDCSUnit:getTypeName()
+          end
         end
       end
 
@@ -1506,7 +1508,9 @@ function EVENT:onEvent( Event )
         else  
           if Event.place:isExist() and Object.getCategory(Event.place) ~= Object.Category.SCENERY then
             Event.Place=AIRBASE:Find(Event.place)
-            Event.PlaceName=Event.Place:GetName()
+            if Event.Place then
+              Event.PlaceName=Event.Place:GetName()
+            end
           end
         end
       end

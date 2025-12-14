@@ -10,7 +10,7 @@ _SCHEDULEDISPATCHER = SCHEDULEDISPATCHER:New() -- Core.ScheduleDispatcher#SCHEDU
 _DATABASE = DATABASE:New() -- Core.Database#DATABASE
 
 --- Settings
-_SETTINGS = SETTINGS:Set()
+_SETTINGS = SETTINGS:Set() -- Core.Settings#SETTINGS
 _SETTINGS:SetPlayerMenuOn()
 
 --- Register cargos.
@@ -19,6 +19,13 @@ _DATABASE:_RegisterCargos()
 --- Register zones.
 _DATABASE:_RegisterZones()
 _DATABASE:_RegisterAirbases()
+
+--- Function that writes to DCS log file
+-- @param #string text Formatted text.
+-- @param ... Format passed to string.format().
+function printf(text, ...)
+  env.info(string.format(text, ...))
+end
 
 --- Check if os etc is available.
 BASE:I("Checking de-sanitization of os, io and lfs:")
