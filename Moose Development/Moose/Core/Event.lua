@@ -1232,6 +1232,28 @@ function EVENT:onEvent( Event )
     return errmsg
   end
 
+  local SafeDCSCall = function( Object, MethodName, Default, ... )
+    if Object == nil or Object[MethodName] == nil then
+      return Default
+    end
+
+    local Result, Value = pcall( Object[MethodName], Object, ... )
+    if Result then
+      return Value
+    end
+
+    return Default
+  end
+
+  local SafeDCSCategory = function( Object, Default )
+    local Desc = SafeDCSCall( Object, "getDesc", nil )
+    if Desc and Desc.category ~= nil then
+      return Desc.category
+    end
+
+    return Default
+  end
+
 
   -- Get event meta data.
   local EventMeta = _EVENTMETA[Event.id]
@@ -1273,12 +1295,12 @@ function EVENT:onEvent( Event )
             Event.IniTypeName = "Ejection Seat"
           else
             Event.IniDCSUnit = Event.initiator
-            Event.IniDCSUnitName = Event.IniDCSUnit:getName()
+            Event.IniDCSUnitName = SafeDCSCall( Event.IniDCSUnit, "getName", string.format("Static ID %s", tostring(Event.initiator.id_)) )
             Event.IniUnitName = Event.IniDCSUnitName
             Event.IniUnit = STATIC:FindByName( Event.IniDCSUnitName, false )
-            Event.IniCoalition = Event.IniDCSUnit:getCoalition()
-            Event.IniCategory = Event.IniDCSUnit:getDesc().category
-            Event.IniTypeName = Event.IniDCSUnit:getTypeName()
+            Event.IniCoalition = SafeDCSCall( Event.IniDCSUnit, "getCoalition", 0 )
+            Event.IniCategory = SafeDCSCategory( Event.IniDCSUnit, 0 )
+            Event.IniTypeName = SafeDCSCall( Event.IniDCSUnit, "getTypeName", "Unknown Static" )
           end
           
           -- Dead events of units can be delayed and the initiator changed to a static.
@@ -1293,9 +1315,9 @@ function EVENT:onEvent( Event )
           -- Unit
           ---        
           Event.IniDCSUnit = Event.initiator
-          Event.IniDCSUnitName = Event.IniDCSUnit:getName()
+          Event.IniDCSUnitName = SafeDCSCall( Event.IniDCSUnit, "getName", string.format("Unit ID %s", tostring(Event.initiator.id_)) )
           Event.IniUnitName = Event.IniDCSUnitName
-          Event.IniDCSGroup = Event.IniDCSUnit:getGroup()
+          Event.IniDCSGroup = SafeDCSCall( Event.IniDCSUnit, "getGroup", nil )
           Event.IniUnit = UNIT:FindByName( Event.IniDCSUnitName )
                   
           if not Event.IniUnit then
@@ -1305,13 +1327,13 @@ function EVENT:onEvent( Event )
           
           Event.IniDCSGroupName = Event.IniUnit and Event.IniUnit.GroupName or ""
           Event.IniGroupName=Event.IniDCSGroupName --At least set the group name because group might not exist any more
-          if Event.IniDCSGroup and Event.IniDCSGroup:isExist() then
-            Event.IniDCSGroupName = Event.IniDCSGroup:getName()
+          if Event.IniDCSGroup and SafeDCSCall( Event.IniDCSGroup, "isExist", false ) then
+            Event.IniDCSGroupName = SafeDCSCall( Event.IniDCSGroup, "getName", Event.IniDCSGroupName )
             Event.IniGroup = GROUP:FindByName( Event.IniDCSGroupName )
             Event.IniGroupName = Event.IniDCSGroupName
           end
           
-          Event.IniPlayerName = Event.IniDCSUnit:getPlayerName()
+          Event.IniPlayerName = SafeDCSCall( Event.IniDCSUnit, "getPlayerName", nil )
           if Event.IniPlayerName then
             -- get UUCID
             local PID = NET.GetPlayerIDByName(nil,Event.IniPlayerName)
@@ -1320,9 +1342,9 @@ function EVENT:onEvent( Event )
               --env.info("Event.IniPlayerUCID="..tostring(Event.IniPlayerUCID),false)
             end
           end
-          Event.IniCoalition = Event.IniDCSUnit:getCoalition()
-          Event.IniTypeName = Event.IniDCSUnit:getTypeName()
-          Event.IniCategory = Event.IniDCSUnit:getDesc().category  
+          Event.IniCoalition = SafeDCSCall( Event.IniDCSUnit, "getCoalition", 0 )
+          Event.IniTypeName = SafeDCSCall( Event.IniDCSUnit, "getTypeName", "Unknown Unit" )
+          Event.IniCategory = SafeDCSCategory( Event.IniDCSUnit, 0 )  
 
         elseif Event.IniObjectCategory == Object.Category.CARGO then
           ---
@@ -1391,17 +1413,17 @@ function EVENT:onEvent( Event )
           -- UNIT
           ---
           Event.TgtDCSUnit = Event.target
-          Event.TgtDCSGroup = Event.TgtDCSUnit:getGroup()
-          Event.TgtDCSUnitName = Event.TgtDCSUnit:getName()
+          Event.TgtDCSGroup = SafeDCSCall( Event.TgtDCSUnit, "getGroup", nil )
+          Event.TgtDCSUnitName = SafeDCSCall( Event.TgtDCSUnit, "getName", string.format("Target Unit ID %s", tostring(Event.target.id_)) )
           Event.TgtUnitName = Event.TgtDCSUnitName
           Event.TgtUnit = UNIT:FindByName( Event.TgtDCSUnitName )
           Event.TgtDCSGroupName = ""
-          if Event.TgtDCSGroup and Event.TgtDCSGroup:isExist() then
-            Event.TgtDCSGroupName = Event.TgtDCSGroup:getName()
+          if Event.TgtDCSGroup and SafeDCSCall( Event.TgtDCSGroup, "isExist", false ) then
+            Event.TgtDCSGroupName = SafeDCSCall( Event.TgtDCSGroup, "getName", Event.TgtDCSGroupName )
             Event.TgtGroup = GROUP:FindByName( Event.TgtDCSGroupName )
             Event.TgtGroupName = Event.TgtDCSGroupName
           end
-          Event.TgtPlayerName = Event.TgtDCSUnit:getPlayerName()
+          Event.TgtPlayerName = SafeDCSCall( Event.TgtDCSUnit, "getPlayerName", nil )
           if Event.TgtPlayerName  then
             -- get UUCID
             local PID = NET.GetPlayerIDByName(nil,Event.TgtPlayerName)
@@ -1410,9 +1432,9 @@ function EVENT:onEvent( Event )
               --env.info("Event.TgtPlayerUCID="..tostring(Event.TgtPlayerUCID),false)
             end
           end
-          Event.TgtCoalition = Event.TgtDCSUnit:getCoalition()
-          Event.TgtCategory = Event.TgtDCSUnit:getDesc().category
-          Event.TgtTypeName = Event.TgtDCSUnit:getTypeName()
+          Event.TgtCoalition = SafeDCSCall( Event.TgtDCSUnit, "getCoalition", 0 )
+          Event.TgtCategory = SafeDCSCategory( Event.TgtDCSUnit, 0 )
+          Event.TgtTypeName = SafeDCSCall( Event.TgtDCSUnit, "getTypeName", "Unknown Unit" )
 
         elseif Event.TgtObjectCategory == Object.Category.STATIC then
           ---

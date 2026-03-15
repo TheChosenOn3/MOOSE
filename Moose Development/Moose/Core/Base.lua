@@ -212,6 +212,12 @@ BASE._ = {
   Schedules = {}, --- Contains the Schedulers Active
 }
 
+local function _SafeTraceF( self, Arguments )
+  if self and type( self.F ) == "function" then
+    self:F( Arguments )
+  end
+end
+
 --- BASE constructor.
 --
 -- This is an example how to use the BASE:New() constructor in a new class definition when inheriting from BASE.
@@ -770,7 +776,7 @@ end
 -- @param place
 -- @param subplace
 function BASE:CreateEventBirth( EventTime, Initiator, IniUnitName, place, subplace )
-  self:F( { EventTime, Initiator, IniUnitName, place, subplace } )
+  _SafeTraceF( self, { EventTime, Initiator, IniUnitName, place, subplace } )
 
   local Event = {
     id = world.event.S_EVENT_BIRTH,
@@ -789,7 +795,7 @@ end
 -- @param DCS#Time EventTime The time stamp of the event.
 -- @param DCS#Object Initiator The initiating object of the event.
 function BASE:CreateEventCrash( EventTime, Initiator, IniObjectCategory )
-  self:F( { EventTime, Initiator } )
+  _SafeTraceF( self, { EventTime, Initiator } )
 
   local Event = {
     id = world.event.S_EVENT_CRASH,
@@ -806,7 +812,7 @@ end
 -- @param DCS#Time EventTime The time stamp of the event.
 -- @param DCS#Object Initiator The initiating object of the event.
 function BASE:CreateEventUnitLost(EventTime, Initiator)
-  self:F( { EventTime, Initiator } )
+  _SafeTraceF( self, { EventTime, Initiator } )
 
   local Event = {
     id = world.event.S_EVENT_UNIT_LOST,
@@ -822,7 +828,7 @@ end
 -- @param DCS#Time EventTime The time stamp of the event.
 -- @param DCS#Object Initiator The initiating object of the event.
 function BASE:CreateEventDead( EventTime, Initiator, IniObjectCategory )
-  self:F( { EventTime, Initiator, IniObjectCategory } )
+  _SafeTraceF( self, { EventTime, Initiator, IniObjectCategory } )
 
   local Event = {
     id = world.event.S_EVENT_DEAD,
@@ -839,7 +845,7 @@ end
 -- @param DCS#Time EventTime The time stamp of the event.
 -- @param DCS#Object Initiator The initiating object of the event.
 function BASE:CreateEventRemoveUnit( EventTime, Initiator )
-  self:F( { EventTime, Initiator } )
+  _SafeTraceF( self, { EventTime, Initiator } )
 
   local Event = {
     id = EVENTS.RemoveUnit,
@@ -855,7 +861,7 @@ end
 -- @param DCS#Time EventTime The time stamp of the event.
 -- @param DCS#Object Initiator The initiating object of the event.
 function BASE:CreateEventTakeoff( EventTime, Initiator )
-  self:F( { EventTime, Initiator } )
+  _SafeTraceF( self, { EventTime, Initiator } )
 
   local Event = {
     id = world.event.S_EVENT_TAKEOFF,
@@ -870,7 +876,7 @@ end
   -- @param #BASE self
   -- @param Wrapper.Unit#UNIT PlayerUnit The aircraft unit the player entered.
   function BASE:CreateEventPlayerEnterAircraft( PlayerUnit )
-    self:F( { PlayerUnit } )
+    _SafeTraceF( self, { PlayerUnit } )
   
     local Event = {
       id = EVENTS.PlayerEnterAircraft,
@@ -885,7 +891,7 @@ end
   -- @param #BASE self
   -- @param Wrapper.DynamicCargo#DYNAMICCARGO DynamicCargo the dynamic cargo object
   function BASE:CreateEventNewDynamicCargo(DynamicCargo)
-    self:F({DynamicCargo})
+    _SafeTraceF( self, { DynamicCargo } )
     local Event = {
       id = EVENTS.NewDynamicCargo,
       time = timer.getTime(),
@@ -899,7 +905,7 @@ end
   -- @param #BASE self
   -- @param Wrapper.DynamicCargo#DYNAMICCARGO DynamicCargo the dynamic cargo object
   function BASE:CreateEventDynamicCargoLoaded(DynamicCargo)
-    self:F({DynamicCargo})
+    _SafeTraceF( self, { DynamicCargo } )
     local Event = {
       id = EVENTS.DynamicCargoLoaded,
       time = timer.getTime(),
@@ -913,7 +919,7 @@ end
   -- @param #BASE self
   -- @param Wrapper.DynamicCargo#DYNAMICCARGO DynamicCargo the dynamic cargo object
   function BASE:CreateEventDynamicCargoUnloaded(DynamicCargo)
-    self:F({DynamicCargo})
+    _SafeTraceF( self, { DynamicCargo } )
     local Event = {
       id = EVENTS.DynamicCargoUnloaded,
       time = timer.getTime(),
@@ -927,7 +933,7 @@ end
   -- @param #BASE self
   -- @param Wrapper.DynamicCargo#DYNAMICCARGO DynamicCargo the dynamic cargo object
   function BASE:CreateEventDynamicCargoRemoved(DynamicCargo)
-    self:F({DynamicCargo})
+    _SafeTraceF( self, { DynamicCargo } )
     local Event = {
       id = EVENTS.DynamicCargoRemoved,
       time = timer.getTime(),
