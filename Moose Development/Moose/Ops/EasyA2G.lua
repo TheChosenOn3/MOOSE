@@ -570,47 +570,9 @@ end
 -- @param #number WingSize Calculated number of Flights
 -- @return #boolean assigned
 -- @return #number leftover
-function EASYA2G:_TryAssignMission(ReadyFlightGroups,Auftrag,Group,WingSize)
-  self:T("_TryAssignMission for size "..WingSize or 1)
-  local assigned = false
-  local wingsize = WingSize or 1
-  local mindist = 0
-  local disttable = {}
-  if Group and Group:IsAlive() then
-    local gcoord = Group:GetCoordinate() or COORDINATE:New(0,0,0)
-    self:T(self.lid..string.format("Assignment for %s",Group:GetName()))
-    for _name,_FG in pairs(ReadyFlightGroups or {}) do
-      local FG = _FG -- Ops.FlightGroup#FLIGHTGROUP
-      local fcoord = FG:GetCoordinate()
-      local dist = math.floor(UTILS.Round(fcoord:Get2DDistance(gcoord)/1000,1))
-      self:T(self.lid..string.format("FG %s Distance %dkm",_name,dist))
-      disttable[#disttable+1] = { FG=FG, dist=dist}
-      if dist>mindist then mindist=dist end
-    end
-    
-    local function sortDistance(a, b)
-      return a.dist < b.dist
-    end
-    
-    table.sort(disttable, sortDistance)
-    
-    for _,_entry in ipairs(disttable) do
-      local FG = _entry.FG -- Ops.FlightGroup#FLIGHTGROUP
-      FG:AddMission(Auftrag)
-      local cm = FG:GetMissionCurrent()
-      if cm then cm:Cancel() end
-      wingsize = wingsize - 1
-      self:T(self.lid..string.format("Assigned to FG %s Distance %dkm",FG:GetName(),_entry.dist))
-      if wingsize == 0 then 
-        assigned = true
-        break 
-      end
-    end
-  end
-  
-  return assigned, wingsize
+function EASYA2G:_TryAssignMission(ReadyFlightGroups, Auftrag, Group, WingSize)
+  return self:_TryAssignTasking(ReadyFlightGroups, Auftrag, Group, WingSize, true)
 end
-
 --- Find a holding point closest to the group to be attacked (if any set)
 -- @param #EASYA2G self
 -- @param Wrapper.Group#GROUP Group
@@ -652,7 +614,7 @@ function EASYA2G:_AssignMission(Cluster)
   local MaxAliveMissions = self.MaxAliveMissions --* self.capgrouping
   local nogozoneset = self.NoGoZoneSet
   local conflictzoneset = self.ConflictZoneSet
-  local ReadyFlightGroups = self.ReadyFlightGroups
+  local ReadyFlightGroups = self:_CollectReadyFlightGroups(true)
   
   -- Aircraft?
   if Cluster.ctype == INTEL.Ctype.AIRCRAFT then return end
@@ -875,10 +837,7 @@ function EASYA2G:onafterStatus(From,Event,To)
       cleaned = true
     end
   end
-  if cleaned == true then
-    self.ListOfAuftrag = nil
-    self.ListOfAuftrag = cleanlist
-  end
+  self.ListOfAuftrag = cleanlist
   -- Gather Some Stats
   local function counttable(tbl)
     local count = 0
@@ -909,27 +868,8 @@ function EASYA2G:onafterStatus(From,Event,To)
     alert5mission = alert5mission + _wing[1]:CountMissionsInQueue({AUFTRAG.Type.ALERT5})
     assets = assets + count
     instock = instock + count2
-    local assetsonmission = _wing[1]:GetAssetsOnMission({AUFTRAG.Type.BAI,AUFTRAG.Type.ALERT5})
-    -- update ready groups
-    self.ReadyFlightGroups = nil
-    self.ReadyFlightGroups = {}
-    for _,_asset in pairs(assetsonmission or {}) do
-      local asset = _asset -- Functional.Warehouse#WAREHOUSE.Assetitem
-      local FG = asset.flightgroup -- Ops.FlightGroup#FLIGHTGROUP
-      if FG then
-        local name = FG:GetName()
-        local engage = FG:IsEngaging()
-        local hasmissiles = FG:CanAirToGround()
-        --self:T("Is Alert5? "..tostring(FG:GetMissionCurrent().type))
-        local isalert5 = (FG:GetMissionCurrent() ~= nil and FG:GetMissionCurrent().type == AUFTRAG.Type.ALERT5) and true or false 
-        local ready = hasmissiles and FG:IsFuelGood() and (FG:IsAirborne() or isalert5)
-        self:T(string.format("Flightgroup %s Engaging = %s Ready = %s (HasAmmo = %s HasFuel = %s Alert5 = %s)",tostring(name),tostring(engage),tostring(ready),tostring(hasmissiles),tostring(FG:IsFuelGood()), tostring(isalert5)))
-        if ready then
-          self.ReadyFlightGroups[name] = FG
-        end
-      end
-    end
   end
+  self.ReadyFlightGroups = self:_CollectReadyFlightGroups(true)
   if self.Monitor then
     local threatcount = #self.Intel.Clusters or 0
     local text =  self.alias
