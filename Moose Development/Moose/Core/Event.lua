@@ -187,19 +187,17 @@ EVENT = {
   CreateMarkCoordinateOnEvent = false,
 }
 
-world.event.S_EVENT_NEW_CARGO = world.event.S_EVENT_MAX + 1000
-world.event.S_EVENT_DELETE_CARGO = world.event.S_EVENT_MAX + 1001
-world.event.S_EVENT_NEW_ZONE = world.event.S_EVENT_MAX + 1002
-world.event.S_EVENT_DELETE_ZONE = world.event.S_EVENT_MAX + 1003
-world.event.S_EVENT_NEW_ZONE_GOAL = world.event.S_EVENT_MAX + 1004
-world.event.S_EVENT_DELETE_ZONE_GOAL = world.event.S_EVENT_MAX + 1005
-world.event.S_EVENT_REMOVE_UNIT = world.event.S_EVENT_MAX + 1006
-world.event.S_EVENT_PLAYER_ENTER_AIRCRAFT = world.event.S_EVENT_MAX + 1007
+world.event.S_EVENT_NEW_ZONE = world.event.S_EVENT_MAX + 1000
+world.event.S_EVENT_DELETE_ZONE = world.event.S_EVENT_MAX + 1001
+world.event.S_EVENT_NEW_ZONE_GOAL = world.event.S_EVENT_MAX + 1002
+world.event.S_EVENT_DELETE_ZONE_GOAL = world.event.S_EVENT_MAX + 1003
+world.event.S_EVENT_REMOVE_UNIT = world.event.S_EVENT_MAX + 1004
+world.event.S_EVENT_PLAYER_ENTER_AIRCRAFT = world.event.S_EVENT_MAX + 1005
 -- dynamic cargo
-world.event.S_EVENT_NEW_DYNAMIC_CARGO = world.event.S_EVENT_MAX + 1008
-world.event.S_EVENT_DYNAMIC_CARGO_LOADED = world.event.S_EVENT_MAX + 1009
-world.event.S_EVENT_DYNAMIC_CARGO_UNLOADED = world.event.S_EVENT_MAX + 1010
-world.event.S_EVENT_DYNAMIC_CARGO_REMOVED = world.event.S_EVENT_MAX + 1011
+world.event.S_EVENT_NEW_DYNAMIC_CARGO = world.event.S_EVENT_MAX + 1006
+world.event.S_EVENT_DYNAMIC_CARGO_LOADED = world.event.S_EVENT_MAX + 1007
+world.event.S_EVENT_DYNAMIC_CARGO_UNLOADED = world.event.S_EVENT_MAX + 1008
+world.event.S_EVENT_DYNAMIC_CARGO_REMOVED = world.event.S_EVENT_MAX + 1009
 
 
 --- The different types of events supported by MOOSE.
@@ -234,8 +232,6 @@ EVENTS = {
   MarkChange =        world.event.S_EVENT_MARK_CHANGE,
   MarkRemoved =       world.event.S_EVENT_MARK_REMOVED,
   -- Moose Events
-  NewCargo =          world.event.S_EVENT_NEW_CARGO,
-  DeleteCargo =       world.event.S_EVENT_DELETE_CARGO,
   NewZone =           world.event.S_EVENT_NEW_ZONE,
   DeleteZone =        world.event.S_EVENT_DELETE_ZONE,
   NewZoneGoal =       world.event.S_EVENT_NEW_ZONE_GOAL,
@@ -511,16 +507,6 @@ local _EVENTMETA = {
      Side = "I",
      Event = "OnEventMarkRemoved",
      Text = "S_EVENT_MARK_REMOVED"
-   },
-   [EVENTS.NewCargo] = {
-     Order = 1,
-     Event = "OnEventNewCargo",
-     Text = "S_EVENT_NEW_CARGO"
-   },
-   [EVENTS.DeleteCargo] = {
-     Order = 1,
-     Event = "OnEventDeleteCargo",
-     Text = "S_EVENT_DELETE_CARGO"
    },
    [EVENTS.NewZone] = {
      Order = 1,
@@ -1336,7 +1322,6 @@ function EVENT:onEvent( Event )
             Event.IniDynamicCargoName = Event.IniUnitName
             Event.IniPlayerName = string.match(Event.IniUnitName,"^(.+)|%d%d:%d%d|PKG%d+")
           else
-            --Event.IniUnit = CARGO:FindByName( Event.IniDCSUnitName )
             Event.IniUnit = STATIC:FindByName( Event.IniDCSUnitName, false )
           end
           Event.IniCoalition = Event.IniDCSUnit:getCoalition()
@@ -1468,7 +1453,12 @@ function EVENT:onEvent( Event )
       -- Weapon.
       if Event.weapon and type(Event.weapon) == "table" and Event.weapon.isExist and Event.weapon:isExist() then
         Event.Weapon = Event.weapon
-        Event.WeaponName = Event.weapon:isExist() and Event.weapon:getTypeName() or "Unknown Weapon"
+        if Event.weapon_name == "ZELL Booster" then 
+          Event.WeaponName = "ZELL Booster"
+        else
+          Event.WeaponName = Event.weapon:isExist() and Event.weapon.getTypeName and Event.weapon:getTypeName() or "Unknown Weapon"
+        end
+        if Event.weapon_name == "ZELL Booster" then Event.WeaponName = "ZELL Booster" end
         Event.WeaponUNIT = CLIENT:Find( Event.Weapon, '', true ) -- Sometimes, the weapon is a player unit!
         Event.WeaponPlayerName = Event.WeaponUNIT and Event.Weapon.getPlayerName and Event.Weapon:getPlayerName()
         --Event.WeaponPlayerName = Event.WeaponUNIT and Event.Weapon:getPlayerName()
@@ -1508,12 +1498,6 @@ function EVENT:onEvent( Event )
         Event.MarkGroupID = Event.groupID
       end
 
-      -- Cargo object.
-      if Event.cargo then
-        Event.Cargo = Event.cargo
-        Event.CargoName = Event.cargo.Name
-      end
-      
       -- Dynamic cargo Object
       if Event.dynamiccargo then
         Event.IniDynamicCargo = Event.dynamiccargo
@@ -1675,20 +1659,13 @@ function EVENT:onEvent( Event )
         end
       end
 
-      -- When cargo was deleted, it may probably be because of an S_EVENT_DEAD.
-      -- However, in the loading logic, an S_EVENT_DEAD is also generated after a Destroy() call.
-      -- And this is a problem because it will remove all entries from the SET_CARGOs.
-      -- To prevent this from happening, the Cargo object has a flag NoDestroy.
-      -- When true, the SET_CARGO won't Remove the Cargo object from the set.
-      -- But we need to switch that flag off after the event handlers have been called.
-      if Event.id == EVENTS.DeleteCargo then
-        Event.Cargo.NoDestroy = nil
-      end
     else
       self:T( { EventMeta.Text, Event } )
     end
   else
-    self:E(string.format("WARNING: Could not get EVENTMETA data for event ID=%d! Is this an unknown/new DCS event?", tostring(Event.id)))
+    if Event.id ~= 61 then --- TODO Event 61 is new, but seems to have no real data to be useable, something like option changed.
+      self:E(string.format("WARNING: Could not get EVENTMETA data for event ID=%d! Is this an unknown/new DCS event?", tostring(Event.id)))
+    end
   end
 
   Event = nil

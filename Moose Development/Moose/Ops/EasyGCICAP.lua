@@ -21,7 +21,7 @@
 -- 
 -------------------------------------------------------------------------
 -- Date: September 2023
--- Last Update: Jan 2026
+-- Last Update: June 2026
 -------------------------------------------------------------------------
 --
 --- **Ops** - Easy GCI & CAP Manager
@@ -135,6 +135,7 @@
 --          local mywing = EASYGCICAP:New("Blue CAP Operations",AIRBASE.Caucasus.Kutaisi,"blue","Blue EWR")
 --          
 --          -- Add a CAP patrol point belonging to our airbase, we'll be at 30k ft doing 400 kn, initial direction 90 degrees (East), leg 20NM
+--          -- NOTE - Skip this function and do not create CAP Points if you want GCI behaviour only.
 --          mywing:AddPatrolPointCAP(AIRBASE.Caucasus.Kutaisi,ZONE:FindByName("Blue Zone 1"):GetCoordinate(),30000,400,90,20)
 --          
 --          -- Add a Squadron with template "Blue Sq1 M2000c", 20 airframes, skill good, Modex starting with 102 and skin "Vendee Jeanne"
@@ -190,9 +191,10 @@
 -- * @{#EASYGCICAP.SetDefaultResurrection}: Set how many seconds the AirWing stays inoperable after the AirWing STATIC HQ ist destroyed, default 900 secs. 
 -- * @{#EASYGCICAP.SetDefaultCAPSpeed}: Set how many knots the CAP flights should do (will be altitude corrected), default 300 kn.
 -- * @{#EASYGCICAP.SetDefaultCAPAlt}: Set at which altitude (ASL) the CAP planes will fly, default 25,000 ft.
+-- * @{#EASYGCICAP.SetDefaultINTERCEPTAlt}: Set at which altitude (ASL) the Intercept planes will fly, default 25,000 ft.
 -- * @{#EASYGCICAP.SetDefaultCAPDirection}: Set the initial direction from the CAP point the planes will fly in degrees, default is 90°.
 -- * @{#EASYGCICAP.SetDefaultCAPLeg}: Set the length of the CAP leg, default is 15 NM.
--- * @{#EASYGCICAP.SetDefaultCAPGrouping}: Set how many planes will be spawned per mission (CVAP/GCI), defaults to 2.
+-- * @{#EASYGCICAP.SetDefaultCAPGrouping}: Set how many planes will be spawned per mission (CAP/GCI), defaults to 2.
 -- * @{#EASYGCICAP.SetDefaultMissionRange}: Set how many NM the planes can go from the home base, defaults to 100.
 -- * @{#EASYGCICAP.SetDefaultNumberAlert5Standby}: Set how many planes will be spawned on cold standby (Alert5), default 2.
 -- * @{#EASYGCICAP.SetDefaultEngageRange}: Set max engage range for CAP flights if they detect intruders, defaults to 50.
@@ -286,7 +288,7 @@ EASYGCICAP = {
 
 --- EASYGCICAP class version.
 -- @field #string version
-EASYGCICAP.version="0.1.34"
+EASYGCICAP.version="0.1.39"
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- 
@@ -355,6 +357,7 @@ function EASYGCICAP:New(Alias, AirbaseName, Coalition, EWRName)
   --               From State  -->   Event      -->      To State
   self:SetStartState("Stopped")
   self:AddTransition("Stopped", "Start",  "Running")
+  self:AddTransition("Stopped", "Restart",  "Running")
   self:AddTransition("Running", "Stop",   "Stopped")
   self:AddTransition("*",       "Status", "*")  
   
@@ -387,6 +390,20 @@ function EASYGCICAP:New(Alias, AirbaseName, Coalition, EWRName)
   
   --- On After "Status" event.
   -- @function [parent=#EASYGCICAP] OnAfterStatus
+  -- @param #EASYGCICAP self
+  -- @param #string From From state.
+  -- @param #string Event Event.
+  -- @param #string To To state.
+  
+  --- On Before "Restart" event. Use `myinstance:Restart()` in case you Stopped the instance before and want to restart it now.
+  -- @function [parent=#EASYGCICAP] OnBeforeRestart
+  -- @param #EASYGCICAP self
+  -- @param #string From From state.
+  -- @param #string Event Event.
+  -- @param #string To To state.
+  
+  --- On After "Restart" event. Use `myinstance:Restart()` in case you Stopped the instance before and want to restart it now.
+  -- @function [parent=#EASYGCICAP] OnAfterRestart
   -- @param #EASYGCICAP self
   -- @param #string From From state.
   -- @param #string Event Event.
@@ -447,7 +464,7 @@ end
 
 --- Set "fuel low" threshold for CAP and INTERCEPT flights.
 -- @param #EASYGCICAP self
--- @param #number Percent RTB if fuel at this percent. Values: 1..100, defaults to 25.
+-- @param #number Percent (Optional) RTB if fuel at this percent. Values: 1..100, defaults to 25.
 -- @return #EASYGCICAP self
 function EASYGCICAP:SetFuelLow(Percent)
   self:T(self.lid.."SetFuelLow")
@@ -470,7 +487,7 @@ end
 
 --- Set "fuel critical" threshold for CAP and INTERCEPT flights.
 -- @param #EASYGCICAP self
--- @param #number Percent RTB if fuel at this percent. Values: 1..100, defaults to 10.
+-- @param #number Percent (Optional) RTB if fuel at this percent. Values: 1..100, defaults to 10.
 -- @return #EASYGCICAP self
 function EASYGCICAP:SetFuelCritical(Percent)
   self:T(self.lid.."SetFuelCritical")
@@ -480,7 +497,7 @@ end
 
 --- Set CAP formation.
 -- @param #EASYGCICAP self
--- @param #number Formation Formation to fly, defaults to ENUMS.Formation.FixedWing.FingerFour.Group
+-- @param #number Formation (Optional) Formation to fly, defaults to ENUMS.Formation.FixedWing.FingerFour.Group
 -- @return #EASYGCICAP self
 function EASYGCICAP:SetCAPFormation(Formation)
   self:T(self.lid.."SetCAPFormation")
@@ -514,7 +531,7 @@ end
 
 --- Set Maximum of alive missions created by this instance to stop airplanes spamming the map
 -- @param #EASYGCICAP self
--- @param #number Maxiumum Maxmimum number of parallel missions allowed. Count is Intercept-Missions + Alert5-Missions, default is 8
+-- @param #number Maxiumum (Optional) Maxmimum number of parallel missions allowed. Count is Intercept-Missions + Alert5-Missions, default is 8
 -- @return #EASYGCICAP self 
 function EASYGCICAP:SetMaxAliveMissions(Maxiumum)
   self:T(self.lid.."SetMaxAliveMissions")
@@ -524,7 +541,7 @@ end
 
 --- Add default time to resurrect Airwing building if destroyed
 -- @param #EASYGCICAP self
--- @param #number Seconds Seconds, defaults to 900
+-- @param #number Seconds (Optional) Seconds, defaults to 900
 -- @return #EASYGCICAP self 
 function EASYGCICAP:SetDefaultResurrection(Seconds)
   self:T(self.lid.."SetDefaultResurrection")
@@ -534,7 +551,7 @@ end
 
 --- Add default repeat attempts if an Intruder intercepts fails.
 -- @param #EASYGCICAP self
--- @param #number Retries Retries, defaults to 3
+-- @param #number Retries (Optional) Retries, defaults to 3
 -- @return #EASYGCICAP self 
 function EASYGCICAP:SetDefaultRepeatOnFailure(Retries)
   self:T(self.lid.."SetDefaultRepeatOnFailure")
@@ -544,7 +561,7 @@ end
 
 --- Add default take off type for the airwings.
 -- @param #EASYGCICAP self
--- @param #string Takeoff Can be "hot", "cold", or "air" - default is "hot".
+-- @param #string Takeoff (Optional) Can be "hot", "cold", or "air" - default is "hot".
 -- @return #EASYGCICAP self 
 function EASYGCICAP:SetDefaultTakeOffType(Takeoff)
   self:T(self.lid.."SetDefaultTakeOffType")
@@ -554,7 +571,7 @@ end
 
 --- Set default CAP Speed in knots
 -- @param #EASYGCICAP self
--- @param #number Speed Speed defaults to 300
+-- @param #number Speed (Optional) Speed defaults to 300
 -- @return #EASYGCICAP self
 function EASYGCICAP:SetDefaultCAPSpeed(Speed)
   self:T(self.lid.."SetDefaultSpeed")
@@ -564,7 +581,7 @@ end
 
 --- Set default CAP Altitude in feet
 -- @param #EASYGCICAP self
--- @param #number Altitude Altitude defaults to 25000
+-- @param #number Altitude (Optional) Altitude defaults to 25000
 -- @return #EASYGCICAP self
 function EASYGCICAP:SetDefaultCAPAlt(Altitude)
   self:T(self.lid.."SetDefaultAltitude")
@@ -572,9 +589,20 @@ function EASYGCICAP:SetDefaultCAPAlt(Altitude)
   return self
 end
 
+--- Set default INTERCEPT Altitude in feet
+-- @param #EASYGCICAP self
+-- @param #number Altitude (Optional) Altitude defaults to 25000
+-- @return #EASYGCICAP self
+function EASYGCICAP:SetDefaultINTERCEPTAlt(Altitude)
+  self:T(self.lid.."SetDefaultINTERCEPTAlt")
+  self.interceptalt = Altitude or 25000
+  return self
+end
+--
+
 --- Set default CAP lieg initial direction in degrees
 -- @param #EASYGCICAP self
--- @param #number Direction Direction defaults to 90 (East)
+-- @param #number Direction (Optional) Direction defaults to 90 (East)
 -- @return #EASYGCICAP self
 function EASYGCICAP:SetDefaultCAPDirection(Direction)
   self:T(self.lid.."SetDefaultDirection")
@@ -584,7 +612,7 @@ end
 
 --- Set default leg length in NM
 -- @param #EASYGCICAP self
--- @param #number Leg Leg defaults to 15
+-- @param #number Leg (Optional) Leg defaults to 15
 -- @return #EASYGCICAP self
 function EASYGCICAP:SetDefaultCAPLeg(Leg)
   self:T(self.lid.."SetDefaultLeg")
@@ -594,7 +622,7 @@ end
 
 --- Set default grouping, i.e. how many airplanes per CAP point
 -- @param #EASYGCICAP self
--- @param #number Grouping Grouping defaults to 2
+-- @param #number Grouping (Optional) Grouping defaults to 2
 -- @return #EASYGCICAP self
 function EASYGCICAP:SetDefaultCAPGrouping(Grouping)
  self:T(self.lid.."SetDefaultCAPGrouping")
@@ -604,7 +632,7 @@ end
 
 --- Set default range planes can fly from their homebase in NM
 -- @param #EASYGCICAP self
--- @param #number Range Range defaults to 100 NM
+-- @param #number Range (Optional) Range defaults to 100 NM
 -- @return #EASYGCICAP self
 function EASYGCICAP:SetDefaultMissionRange(Range)
   self:T(self.lid.."SetDefaultMissionRange")
@@ -614,8 +642,8 @@ end
 
 --- Set default turnover times for squadrons in minutes
 -- @param #EASYGCICAP self
--- @param #number MaintenanceTime Time in minutes it takes until a flight is combat ready again. Default is 5 min.
--- @param #number RepairTime Time in minutes it takes to repair a flight for each life point taken. Default is 10 min.
+-- @param #number MaintenanceTime (Optional) Time in minutes it takes until a flight is combat ready again. Default is 5 min.
+-- @param #number RepairTime (Optional) Time in minutes it takes to repair a flight for each life point taken. Default is 10 min.
 -- @return #EASYGCICAP self
 function EASYGCICAP:SetDefaultTurnoverTime(MaintenanceTime,RepairTime)
   self:T(self.lid.."SetDefaultTurnoverTime")
@@ -626,7 +654,7 @@ end
 
 --- Set default number of airframes standing by for intercept tasks (visible on the airfield)
 -- @param #EASYGCICAP self
--- @param #number Airframes defaults to 2
+-- @param #number Airframes (Optional) defaults to 2
 -- @return #EASYGCICAP self
 function EASYGCICAP:SetDefaultNumberAlert5Standby(Airframes)
   self:T(self.lid.."SetDefaultNumberAlert5Standby")
@@ -636,7 +664,7 @@ end
 
 --- Set default engage range for intruders detected by CAP flights in NM.
 -- @param #EASYGCICAP self
--- @param #number Range defaults to 50NM
+-- @param #number Range (Optional) defaults to 50NM
 -- @return #EASYGCICAP self
 function EASYGCICAP:SetDefaultEngageRange(Range)
   self:T(self.lid.."SetDefaultEngageRange")
@@ -689,7 +717,7 @@ end
 
 --- Set which target types CAP flights will prefer to engage, defaults to {"Air"}
 -- @param #EASYGCICAP self
--- @param #table types Table of comma separated #string entries, defaults to {"Air"} (everything that flies and is not a weapon). Useful other options are e.g. {"Bombers"}, {"Fighters"}, 
+-- @param #table types (Optional) Table of comma separated #string entries, defaults to {"Air"} (everything that flies and is not a weapon). Useful other options are e.g. {"Bombers"}, {"Fighters"}, 
 -- or {"Helicopters"} or combinations like {"Bombers", "Fighters", "UAVs"}. See [Hoggit Wiki](https://wiki.hoggitworld.com/view/DCS_enum_attributes).
 -- @return #EASYGCICAP self
 function EASYGCICAP:SetCAPEngageTargetTypes(types)
@@ -739,6 +767,15 @@ end
 function EASYGCICAP:_AddAirwing(Airbasename, Alias)
   self:T(self.lid.."_AddAirwing "..Airbasename)
   
+    -- Gather Some Stats
+  local function counttable(tbl)
+    local count = 0
+    for _,_data in pairs(tbl) do
+      count = count + 1
+    end
+    return count
+  end
+  
   local CapFormation = self.CapFormation
   local DespawnAfterLanding = self.DespawnAfterLanding
   local DespawnAfterHolding = self.DespawnAfterHolding
@@ -757,7 +794,12 @@ function EASYGCICAP:_AddAirwing(Airbasename, Alias)
   CAP_Wing:SetMarker(false)
   CAP_Wing:SetAirbase(AIRBASE:FindByName(Airbasename))
   CAP_Wing:SetRespawnAfterDestroyed()
-  CAP_Wing:SetNumberCAP(self.capgrouping)
+  
+  --- #DONE avoid wings with no CAP points starting CAP anyhow; AirWing uses this to start CAP and creates points when there are none.
+  local nCapPoints = counttable(self.ManagedCP)
+  if nCapPoints >0 then
+    CAP_Wing:SetNumberCAP(nCapPoints,self.capgrouping)
+  end
   CAP_Wing:SetCapCloseRaceTrack(true)
     
   if self.showpatrolpointmarks then
@@ -839,16 +881,18 @@ function EASYGCICAP:_AddAirwing(Airbasename, Alias)
   end
   
   if self.noalert5 > 0 then
-    local alert
-    if self.ClassName == "EASYGCICAP" then  
-      alert = AUFTRAG:NewALERT5(AUFTRAG.Type.INTERCEPT) 
-    elseif self.ClassName == "EASYA2G" then
-      alert = AUFTRAG:NewALERT5(AUFTRAG.Type.BAI) 
+    for i=1,self.noalert5 do
+      local alert
+      if self.ClassName == "EASYGCICAP" then  
+        alert = AUFTRAG:NewALERT5(AUFTRAG.Type.INTERCEPT) 
+      elseif self.ClassName == "EASYA2G" then
+        alert = AUFTRAG:NewALERT5(AUFTRAG.Type.BAI) 
+      end
+      alert:SetRequiredAssets(self.capgrouping)
+      alert:SetRepeat(99) 
+      CAP_Wing:AddMission(alert)
+      table.insert(self.ListOfAuftrag,alert)
     end
-    alert:SetRequiredAssets(self.noalert5)
-    alert:SetRepeat(99) 
-    CAP_Wing:AddMission(alert)
-    table.insert(self.ListOfAuftrag,alert)
   end
     
   self.wings[Airbasename] = { CAP_Wing, AIRBASE:FindByName(Airbasename):GetZone(), Airbasename }
@@ -860,10 +904,10 @@ end
 -- @param #EASYGCICAP self
 -- @param #string AirbaseName Name of the Wing's airbase
 -- @param Core.Point#COORDINATE Coordinate. Can be handed as a Core.Zone#ZONE object (e.g. in case you want  the point to align with a moving zone).
--- @param #number Altitude Defaults to 25000 feet ASL.
--- @param #number Speed  Defaults to 300 knots TAS.
--- @param #number Heading Defaults to 90 degrees (East).
--- @param #number LegLength Defaults to 15 NM.
+-- @param #number Altitude (Optional) Defaults to 25000 feet ASL.
+-- @param #number Speed  (Optional) Defaults to 300 knots TAS.
+-- @param #number Heading (Optional) Defaults to 90 degrees (East).
+-- @param #number LegLength(Optional)  Defaults to 15 NM.
 -- @return #EASYGCICAP self
 function EASYGCICAP:AddPatrolPointCAP(AirbaseName,Coordinate,Altitude,Speed,Heading,LegLength)
   self:T(self.lid.."AddPatrolPointCAP")--..Coordinate:ToStringLLDDM())
@@ -891,10 +935,10 @@ end
 -- @param #EASYGCICAP self
 -- @param #string AirbaseName Name of the Wing's airbase
 -- @param Core.Point#COORDINATE Coordinate. Can be handed as a Core.Zone#ZONE object (e.g. in case you want  the point to align with a moving zone).
--- @param #number Altitude Defaults to 25000 feet.
--- @param #number Speed  Defaults to 300 knots.
--- @param #number Heading Defaults to 90 degrees (East).
--- @param #number LegLength Defaults to 15 NM.
+-- @param #number Altitude (Optional) Defaults to 25000 feet.
+-- @param #number Speed  (Optional) Defaults to 300 knots.
+-- @param #number Heading (Optional) Defaults to 90 degrees (East).
+-- @param #number LegLength (Optional) Defaults to 15 NM.
 -- @return #EASYGCICAP self
 function EASYGCICAP:AddPatrolPointRecon(AirbaseName,Coordinate,Altitude,Speed,Heading,LegLength)
   self:T(self.lid.."AddPatrolPointRecon "..Coordinate:ToStringLLDDM())
@@ -916,10 +960,10 @@ end
 -- @param #EASYGCICAP self
 -- @param #string AirbaseName Name of the Wing's airbase
 -- @param Core.Point#COORDINATE Coordinate. Can be handed as a Core.Zone#ZONE object (e.g. in case you want  the point to align with a moving zone).
--- @param #number Altitude Defaults to 25000 feet.
--- @param #number Speed  Defaults to 300 knots.
--- @param #number Heading Defaults to 90 degrees (East).
--- @param #number LegLength Defaults to 15 NM.
+-- @param #number Altitude (Optional) Defaults to 25000 feet.
+-- @param #number Speed  (Optional) Defaults to 300 knots.
+-- @param #number Heading (Optional) Defaults to 90 degrees (East).
+-- @param #number LegLength (Optional) Defaults to 15 NM.
 -- @return #EASYGCICAP self
 function EASYGCICAP:AddPatrolPointTanker(AirbaseName,Coordinate,Altitude,Speed,Heading,LegLength)
   self:T(self.lid.."AddPatrolPointTanker "..Coordinate:ToStringLLDDM())
@@ -941,10 +985,10 @@ end
 -- @param #EASYGCICAP self
 -- @param #string AirbaseName Name of the Wing's airbase
 -- @param Core.Point#COORDINATE Coordinate. Can be handed as a Core.Zone#ZONE object (e.g. in case you want  the point to align with a moving zone).
--- @param #number Altitude Defaults to 25000 feet.
--- @param #number Speed  Defaults to 300 knots.
--- @param #number Heading Defaults to 90 degrees (East).
--- @param #number LegLength Defaults to 15 NM.
+-- @param #number Altitude (Optional) Defaults to 25000 feet.
+-- @param #number Speed  (Optional) Defaults to 300 knots.
+-- @param #number Heading (Optional) Defaults to 90 degrees (East).
+-- @param #number LegLength (Optional) Defaults to 15 NM.
 -- @return #EASYGCICAP self
 function EASYGCICAP:AddPatrolPointAwacs(AirbaseName,Coordinate,Altitude,Speed,Heading,LegLength)
   self:T(self.lid.."AddPatrolPointAwacs "..Coordinate:ToStringLLDDM())
@@ -1022,7 +1066,7 @@ function EASYGCICAP:_SetCAPPatrolPoints()
       MESSAGE:New(self.lid.."You are trying to create a CAP point for which there is no wing! "..tostring(data.AirbaseName),30,"CHECK"):ToAllIf(self.debug):ToLog()
       return
     end
-    local Wing = self.wings[data.AirbaseName][1] -- Ops.Airwing#AIRWING
+    local Wing = self.wings[data.AirbaseName][1] -- Ops.AirWing#AIRWING
     local Coordinate = data.Coordinate
     local Altitude = data.Altitude
     local Speed = data.Speed 
@@ -1239,10 +1283,11 @@ function EASYGCICAP:_AddSquadron(TemplateName, SquadName, AirbaseName, AirFrames
   Squadron_One:SetSkill(Skill or AI.Skill.AVERAGE)
   Squadron_One:SetMissionRange(self.missionrange)
   
-  local wing = self.wings[AirbaseName][1] -- Ops.Airwing#AIRWING
+  local wing = self.wings[AirbaseName][1] -- Ops.AirWing#AIRWING
   
   wing:AddSquadron(Squadron_One)
-  wing:NewPayload(TemplateName,-1,{AUFTRAG.Type.CAP, AUFTRAG.Type.GCICAP, AUFTRAG.Type.INTERCEPT, AUFTRAG.Type.PATROLRACETRACK, AUFTRAG.Type.ALERT5},75)
+  --local countsquads = UTILS.TableLength(wing.cohorts)
+  wing:NewPayload(TemplateName,-1,{AUFTRAG.Type.CAP, AUFTRAG.Type.GCICAP, AUFTRAG.Type.INTERCEPT, AUFTRAG.Type.PATROLRACETRACK, AUFTRAG.Type.ALERT5},100)
   
   return self
 end
@@ -1487,6 +1532,7 @@ function EASYGCICAP:_AssignIntercept(Cluster)
   local overhead = self.overhead
   local capspeed = self.capspeed + 100
   local capalt = self.capalt
+  local interalt = self.interceptalt or self.capalt
   local maxsize = self.maxinterceptsize
   local repeatsonfailure = self.repeatsonfailure
   
@@ -1574,6 +1620,7 @@ function EASYGCICAP:_AssignIntercept(Cluster)
           :SetRepeatOnFailure(repeats)
           :SetMissionSpeed(UTILS.KnotsToAltKIAS(capspeed,capalt))
           :SetMissionAltitude(capalt)
+          :SetEngageAltitude(interalt)
           
           if nogozoneset:Count() > 0 then
             InterceptAuftrag:AddConditionSuccess(
@@ -1797,8 +1844,32 @@ end
 function EASYGCICAP:onafterStop(From,Event,To)
   self:T({From,Event,To})
   self.Intel:Stop()
+  -- self.wings[Airbasename] = { CAP_Wing, AIRBASE:FindByName(Airbasename):GetZone(), Airbasename }
   for _,_wing in pairs(self.wings or {}) do
-    _wing:Stop()
+    for _,_aw in pairs(_wing) do
+      _wing[1]:Stop()
+    end
   end
+  return self
+end
+
+--- (Internal) FSM Function onafterRestart
+-- @param #EASYGCICAP self
+-- @param #string From
+-- @param #string Event
+-- @param #string To
+-- @return #EASYGCICAP self
+function EASYGCICAP:onafterRestart(From,Event,To)
+  self:T({From,Event,To})
+  if self:Is("Stopped") then
+  self.Intel:Start()
+  -- self.wings[Airbasename] = { CAP_Wing, AIRBASE:FindByName(Airbasename):GetZone(), Airbasename }
+    for _,_wing in pairs(self.wings or {}) do
+      for _,_aw in pairs(_wing) do
+        _wing[1]:Restart()
+      end
+    end
+  end
+  self:__Status(5)
   return self
 end

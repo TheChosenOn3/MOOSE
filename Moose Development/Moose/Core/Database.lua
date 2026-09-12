@@ -54,7 +54,6 @@
 --  * AIRBASES
 --  * PLAYERSJOINED
 --  * PLAYERS
---  * CARGOS
 --  * STORAGES (DCS warehouses)
 --  * DYNAMICCARGO
 --
@@ -81,7 +80,6 @@ DATABASE = {
   PLAYERSJOINED = {},
   PLAYERUNITS = {},
   CLIENTS = {},
-  CARGOS = {},
   AIRBASES = {},
   COUNTRY_ID = {},
   COUNTRY_NAME = {},
@@ -141,8 +139,6 @@ function DATABASE:New()
   self:HandleEvent( EVENTS.RemoveUnit, self._EventOnDeadOrCrash )
   self:HandleEvent( EVENTS.UnitLost, self._EventOnDeadOrCrash )  -- DCS 2.7.1 for Aerial units no dead event ATM
   self:HandleEvent( EVENTS.Hit, self.AccountHits )
-  self:HandleEvent( EVENTS.NewCargo )
-  self:HandleEvent( EVENTS.DeleteCargo )
   self:HandleEvent( EVENTS.NewZone )
   self:HandleEvent( EVENTS.DeleteZone )
   --self:HandleEvent( EVENTS.PlayerEnterUnit, self._EventOnPlayerEnterUnit ) -- This is not working anymore!, handling this through the birth event.
@@ -190,6 +186,8 @@ function DATABASE:AddUnit( DCSUnitName, force )
 
     -- Register unit
     self.UNITS[DCSunitName]=UNIT:Register(DCSunitName)
+  else
+    self.UNITS[DCSunitName]:ResetOptionCacheIfDCSObjectChanged()
   end
 
   return self.UNITS[DCSunitName]
@@ -746,102 +744,6 @@ do -- OpsZone
 
 end -- OpsZone
 
-do -- cargo
-
-  --- Adds a Cargo based on the Cargo Name in the DATABASE.
-  -- @param #DATABASE self
-  -- @param #string CargoName The name of the airbase
-  function DATABASE:AddCargo( Cargo )
-
-    if not self.CARGOS[Cargo.Name] then
-      self.CARGOS[Cargo.Name] = Cargo
-    end
-  end
-
-
-  --- Deletes a Cargo from the DATABASE based on the Cargo Name.
-  -- @param #DATABASE self
-  -- @param #string CargoName The name of the airbase
-  function DATABASE:DeleteCargo( CargoName )
-
-    self.CARGOS[CargoName] = nil
-  end
-
-  --- Finds an CARGO based on the CargoName.
-  -- @param #DATABASE self
-  -- @param #string CargoName
-  -- @return Cargo.Cargo#CARGO The found CARGO.
-  function DATABASE:FindCargo( CargoName )
-
-    local CargoFound = self.CARGOS[CargoName]
-    return CargoFound
-  end
-
-  --- Checks if the Template name has a #CARGO tag.
-  -- If yes, the group is a cargo.
-  -- @param #DATABASE self
-  -- @param #string TemplateName
-  -- @return #boolean
-  function DATABASE:IsCargo( TemplateName )
-
-    TemplateName = env.getValueDictByKey( TemplateName )
-
-    local Cargo = TemplateName:match( "#(CARGO)" )
-
-    return Cargo and Cargo == "CARGO"
-  end
-
-  --- Private method that registers new Static Templates within the DATABASE Object.
-  -- @param #DATABASE self
-  -- @return #DATABASE self
-  function DATABASE:_RegisterCargos()
-
-    local Groups = UTILS.DeepCopy( self.GROUPS ) -- This is a very important statement. CARGO_GROUP:New creates a new _DATABASE.GROUP entry, which will confuse the loop. I searched 4 hours on this to find the bug!
-
-    for CargoGroupName, CargoGroup in pairs( Groups ) do
-      if self:IsCargo( CargoGroupName ) then
-        local CargoInfo = CargoGroupName:match("#CARGO(.*)")
-        local CargoParam = CargoInfo and CargoInfo:match( "%((.*)%)")
-        local CargoName1 = CargoGroupName:match("(.*)#CARGO%(.*%)")
-        local CargoName2 = CargoGroupName:match(".*#CARGO%(.*%)(.*)")
-        local CargoName = CargoName1 .. ( CargoName2 or "" )
-        local Type = CargoParam and CargoParam:match( "T=([%a%d ]+),?")
-        local Name = CargoParam and CargoParam:match( "N=([%a%d]+),?") or CargoName
-        local LoadRadius = CargoParam and tonumber( CargoParam:match( "RR=([%a%d]+),?") )
-        local NearRadius = CargoParam and tonumber( CargoParam:match( "NR=([%a%d]+),?") )
-
-        self:I({"Register CargoGroup:",Type=Type,Name=Name,LoadRadius=LoadRadius,NearRadius=NearRadius})
-        CARGO_GROUP:New( CargoGroup, Type, Name, LoadRadius, NearRadius )
-      end
-    end
-
-    for CargoStaticName, CargoStatic in pairs( self.STATICS ) do
-      if self:IsCargo( CargoStaticName ) then
-        local CargoInfo = CargoStaticName:match("#CARGO(.*)")
-        local CargoParam = CargoInfo and CargoInfo:match( "%((.*)%)")
-        local CargoName = CargoStaticName:match("(.*)#CARGO")
-        local Type = CargoParam and CargoParam:match( "T=([%a%d ]+),?")
-        local Category = CargoParam and CargoParam:match( "C=([%a%d ]+),?")
-        local Name = CargoParam and CargoParam:match( "N=([%a%d]+),?") or CargoName
-        local LoadRadius = CargoParam and tonumber( CargoParam:match( "RR=([%a%d]+),?") )
-        local NearRadius = CargoParam and tonumber( CargoParam:match( "NR=([%a%d]+),?") )
-
-        if Category == "SLING" then
-          self:I({"Register CargoSlingload:",Type=Type,Name=Name,LoadRadius=LoadRadius,NearRadius=NearRadius})
-          CARGO_SLINGLOAD:New( CargoStatic, Type, Name, LoadRadius, NearRadius )
-        else
-          if Category == "CRATE" then
-            self:I({"Register CargoCrate:",Type=Type,Name=Name,LoadRadius=LoadRadius,NearRadius=NearRadius})
-            CARGO_CRATE:New( CargoStatic, Type, Name, LoadRadius, NearRadius )
-          end
-        end
-      end
-    end
-
-  end
-
-end -- cargo
-
 --- Finds a CLIENT based on the ClientName.
 -- @param #DATABASE self
 -- @param #string ClientName - Note this is the UNIT name of the client!
@@ -902,6 +804,8 @@ function DATABASE:AddGroup( GroupName, force )
   if not self.GROUPS[GroupName] or force == true then
     self:T( { "Add GROUP:", GroupName } )
     self.GROUPS[GroupName] = GROUP:Register( GroupName )
+  else
+    self.GROUPS[GroupName]:ResetOptionCacheIfDCSObjectChanged()
   end
 
   return self.GROUPS[GroupName]
@@ -1196,7 +1100,7 @@ function DATABASE:GetNextSADL(octal,unitname)
     first = 0
   end
   for i=first+1,4095 do
-    if self.STNS[i] == nil then
+    if self.SADL[i] == nil then
       found = true
       nextoctal = UTILS.DecimalToOctal(i)
       self.SADL[i] = unitname
@@ -1278,10 +1182,10 @@ end
 --- Get a generic static cargo group template from scratch for dynamic cargo spawns register. Does not register the template!
 -- @param #DATABASE self
 -- @param #string Name Name of the static.
--- @param #string Typename Typename of the static. Defaults to "container_cargo".
--- @param #number Mass Mass of the static. Defaults to 0.
--- @param #number Coalition Coalition of the static. Defaults to coalition.side.BLUE.
--- @param #number Country Country of the static. Defaults to country.id.GERMANY.
+-- @param #string Typename (Optional) Typename of the static. Defaults to "container_cargo".
+-- @param #number Mass (Optional) Mass of the static. Defaults to 0.
+-- @param #number Coalition (Optional) Coalition of the static. Defaults to coalition.side.BLUE.
+-- @param #number Country (Optional) Country of the static. Defaults to country.id.GERMANY.
 -- @return #table Static template table.
 function DATABASE:_GetGenericStaticCargoGroupTemplate(Name,Typename,Mass,Coalition,Country)
   local StaticTemplate = {}
@@ -1480,12 +1384,12 @@ function DATABASE:_RegisterDynamicGroup(Groupname)
       local DCSUnitName = DCSUnit:getName()
   
       -- Add unit.
-      self:I(string.format("Register Unit: %s", tostring(DCSUnitName)))
+      self:T(string.format("Register Unit: %s", tostring(DCSUnitName)))
       self:AddUnit( tostring(DCSUnitName), true )
   
     end
   else
-    self:E({"Group does not exist: ", DCSGroup})
+    self:T({"Group does not exist: ", DCSGroup})
   end
   return self
 end
@@ -1588,27 +1492,28 @@ end
 -- @return #DATABASE self
 function DATABASE:_RegisterAirbase(airbase)
   
-  local IsSyria = UTILS.GetDCSMap() == "Syria" and true or false
-  local countHSyria = 0
+  --local IsSyria = UTILS.GetDCSMap() == "Syria" and true or false
+  --local countHSyria = 0
   
   if airbase then
 
     -- Get the airbase name.
     local DCSAirbaseName = airbase:getName()
     
-    -- DCS 2.9.8.1107 added 143 helipads all named H with the same object ID ..
+    --[[ DCS 2.9.8.1107 added 143 helipads all named H with the same object ID ..
     if IsSyria and DCSAirbaseName == "H" and countHSyria > 0 then
-      --[[
+      --
       local p = airbase:getPosition().p
       local mgrs = COORDINATE:New(p.x,p.z,p.y):ToStringMGRS()
       self:I("Airbase on Syria map named H @ "..mgrs)
       countHSyria = countHSyria + 1
       if countHSyria > 1 then return self end
-      --]]
+      --
       return self
     elseif IsSyria and DCSAirbaseName == "H" and countHSyria == 0 then
       countHSyria = countHSyria + 1
     end
+    --]]
     
     -- This gave the incorrect value to be inserted into the airdromeID for DCS 2.5.6. Is fixed now.
     local airbaseID=airbase:getID()
@@ -2050,19 +1955,6 @@ function DATABASE:ForEachClient( IteratorFunction, FinalizeFunction, ... )
   return self
 end
 
---- Iterate the DATABASE and call an iterator function for each CARGO, providing the CARGO object to the function and optional parameters.
--- @param #DATABASE self
--- @param #function IteratorFunction The function that will be called for each object in the database. The function needs to accept a CLIENT parameter.
--- @return #DATABASE self
-function DATABASE:ForEachCargo( IteratorFunction, FinalizeFunction, ... )
-  self:F2( arg )
-
-  self:ForEach( IteratorFunction, FinalizeFunction, arg, self.CARGOS )
-
-  return self
-end
-
-
 --- Handles the OnEventNewCargo event.
 -- @param #DATABASE self
 -- @param Core.Event#EVENTDATA EventData
@@ -2189,7 +2081,10 @@ function DATABASE:FindOpsGroupFromUnit(unitname)
   end
 
   if unit then
-    groupname=unit:GetGroup():GetName()
+    local group=unit:GetGroup()
+    if group then
+      groupname=group:GetName()
+    end
   end
 
   if groupname then
@@ -2277,17 +2172,29 @@ function DATABASE:_RegisterTemplates()
 
                 if ((type(obj_type_data) == 'table') and obj_type_data.group and (type(obj_type_data.group) == 'table') and (#obj_type_data.group > 0)) then  --there's a group!
 
-                  --self.Units[coa_name][countryName][category] = {}
-
                   for group_num, Template in pairs(obj_type_data.group) do
+                  
+                    local CategoryID=_DATABASECategory[string.lower(CategoryName)]
+                  
+                    -- Try to identify if we have a train. They are also under "vehicle" category but have Group.Category.TRAIN=4, which is important for spawning!
+                    if string.lower(CategoryName)=="vehicle" then
+                      if Template.units and #Template.units>0 then
+                        local unit=Template.units[1]
+                        if unit and unit.type then
+                          if unit.type=="Train" then --This is the only usable info to determine, if it is a train or a ground group.
+                            CategoryID=Group.Category.TRAIN
+                          end
+                        end
+                      end                                          
+                    end
 
                     if obj_type_name ~= "static" and Template and Template.units and type(Template.units) == 'table' then  --making sure again- this is a valid group
                       
-                      self:_RegisterGroupTemplate(Template, CoalitionSide, _DATABASECategory[string.lower(CategoryName)], CountryID)
+                      self:_RegisterGroupTemplate(Template, CoalitionSide, CategoryID, CountryID)
 
                     else
 
-                      self:_RegisterStaticTemplate(Template, CoalitionSide, _DATABASECategory[string.lower(CategoryName)], CountryID)
+                      self:_RegisterStaticTemplate(Template, CoalitionSide, CategoryID, CountryID)
 
                     end --if GroupTemplate and GroupTemplate.units then
                   end --for group_num, GroupTemplate in pairs(obj_type_data.group) do

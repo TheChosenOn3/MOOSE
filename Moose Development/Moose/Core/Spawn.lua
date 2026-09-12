@@ -802,7 +802,7 @@ end
 
 --- [Airplane - F15/16/18/AWACS/B1B/Tanker only] Set the STN Link16 starting number of the Group; each unit of the spawned group will have a consecutive STN set.
 -- @param #SPAWN self
--- @param #number Octal The octal number (digits 1..7, max 5 digits, i.e. 1..77777) to set the STN to. Every STN needs to be unique!
+-- @param #number Octal The octal number (digits 0..7, max 5 digits, i.e. 1..77777, cannot be zero) to set the STN to. Every STN needs to be unique!
 -- @return #SPAWN self
 function SPAWN:InitSTN(Octal)
   --self:F( { Octal = Octal } )
@@ -820,7 +820,7 @@ end
 
 --- [Airplane - A10-C II only] Set the SADL TN starting number of the Group; each unit of the spawned group will have a consecutive SADL set.
 -- @param #SPAWN self
--- @param #number Octal The octal number (digits 1..7, max 4 digits, i.e. 1..7777) to set the SADL to. Every SADL needs to be unique!
+-- @param #number Octal The octal number (digits 0..7, max 4 digits, i.e. 1..7777, cannot be zero) to set the SADL to. Every SADL needs to be unique!
 -- @return #SPAWN self
 function SPAWN:InitSADL(Octal)
   --self:F( { Octal = Octal } )
@@ -1184,6 +1184,7 @@ end
 
 --- This method provides the functionality to randomize the spawning of the Groups at a given list of zones of different types.
 -- @param #SPAWN self
+-- @param #table SpawnZoneTable A table with @{Core.Zone} objects. If nil or empty, the method returns self without effect.
 -- @param #table SpawnZoneTable A table with @{Core.Zone} objects. If this table is given, then each spawn will be executed within the given list of @{Core.Zone}s objects.
 -- @param #boolean RandomizePositionInZone If nil or true, also the position inside the selected random zone will be randomized. Set to false to use the center of the zone.
 -- @return #SPAWN self
@@ -1201,6 +1202,9 @@ end
 function SPAWN:InitRandomizeZones( SpawnZoneTable, RandomizePositionInZone )
   --self:F( { self.SpawnTemplatePrefix, SpawnZoneTable } )
   
+  if not SpawnZoneTable then 
+    return self 
+  end
   local temptable = {}
   for _,_temp in pairs(SpawnZoneTable) do
     temptable[#temptable+1] = _temp
@@ -1239,6 +1243,16 @@ function SPAWN:InitCallSign(ID,Name,Minor,Major)
   self.SpawnInitCallSignMajor = Major or 1 
   self.SpawnInitCallSignName=string.lower(Name):gsub("^%l", string.upper)
   return self
+end
+
+--- [RED AIR only!] This method sets a specific callsign for a spawned group. 
+-- @param #SPAWN self
+-- @param #number ID The number with which to start for the first unit, e.g. 100, further units would then be 101, 102 .. etc.
+-- @return #SPAWN self
+function SPAWN:InitCallSignRed(ID)
+  self.SpawnInitCallSign = true
+  self.SpawnInitCallSignID = ID or 100
+  self.SpawnInitCallSignRED = true 
 end
 
 --- This method sets a spawn position for the group that is different from the location of the template.
@@ -1295,7 +1309,7 @@ end
 
 --- Respawn group after landing.
 -- @param #SPAWN self
--- @param #number WaitingTime Wait this many seconds before despawning the alive group after landing. Defaults to 3 .
+-- @param #number WaitingTime (Optional) Wait this many seconds before despawning the alive group after landing. Defaults to 3 .
 -- @return #SPAWN self
 -- @usage
 --
@@ -1601,7 +1615,7 @@ end
 -- This method can be used to "reset" the spawn counter to a specific index number.
 -- This will actually enable a respawn of groups from the specific index.
 -- @param #SPAWN self
--- @param #string SpawnIndex The index of the group from where the spawning will start again. The default value would be 0, which means a complete reset of the spawnindex.
+-- @param #string SpawnIndex (Optional) The index of the group from where the spawning will start again. The default value would be 0, which means a complete reset of the spawnindex.
 -- @return #SPAWN self
 function SPAWN:SetSpawnIndex( SpawnIndex )
   self.SpawnIndex = SpawnIndex or 0
@@ -1866,6 +1880,11 @@ function SPAWN:SpawnWithIndex( SpawnIndex, NoBirth )
         --            SpawnTemplate.uncontrolled = self.SpawnUnControlled
         --          end
         --        end
+
+
+        if self.BeforeTemplateSpawnFunc then
+            self:BeforeTemplateSpawnFunc(SpawnTemplate, SpawnIndex)
+        end
       end
 
       if not NoBirth then
@@ -1978,6 +1997,31 @@ function SPAWN:SpawnScheduleStop()
   --self:F( { self.SpawnTemplatePrefix } )
 
   self.SpawnScheduler:Stop()
+  return self
+end
+
+--- Allows to place a CallFunction hook just before spawning the group to tweak the template.
+-- The provided method will be called just before a new group is spawned, including its given parameters.
+-- The first parameter of the BeforeTemplateSpawnFunc is the raw Template used to spawn the group, the second is the SpawnIndex.
+-- @param #SPAWN self
+-- @param #function BeforeTemplateSpawnFunc The function to be called before the group spawns.
+-- @return #SPAWN
+-- @usage
+--
+--    -- Declare SpawnObject and call a function when a new Group is spawned.
+--    local SpawnObject = SPAWN:New( "SpawnObject" )
+--                             :InitLimit( 2, 10 )
+--                             :OnBeforeTemplateSpawnGroup( function( Spawn, SpawnTemplate, SpawnIndex )
+                                        -- Tweaking the template units
+--                                 end
+--                               )
+--                             :SpawnScheduled( 300, 0.3 )
+--
+function SPAWN:OnBeforeTemplateSpawnGroup( BeforeTemplateSpawnFunc )
+  --self:F( "OnBeforeTemplateSpawnGroup" )
+
+  self.BeforeTemplateSpawnFunc = BeforeTemplateSpawnFunc
+
   return self
 end
 
@@ -2139,6 +2183,7 @@ function SPAWN:SpawnAtAirbase( SpawnAirbase, Takeoff, TakeoffAltitude, TerminalT
       local parkingspots = {}
       local parkingindex = {}
       local spots
+      local useexplicitspots = false
 
       -- Spawn happens on ground, i.e. at an airbase, a FARP or a ship.
       if spawnonground and not SpawnTemplate.parked then
@@ -2168,15 +2213,41 @@ function SPAWN:SpawnAtAirbase( SpawnAirbase, Takeoff, TakeoffAltitude, TerminalT
         local scanscenery = false
         local verysafe = false
 
+        -- Use exact parking data when provided, otherwise let helicopters on ships/FARPs
+        -- use the smarter parking search before falling back to the procedural queue path.
         -- Number of free parking spots at the airbase.
-        if autoparking then
+        if Parkingdata~=nil then
+          -- Parking data explicitly set by user as input parameter.
+          nfree = #Parkingdata
+          spots = Parkingdata
+          useexplicitspots = true
+        elseif autoparking and AirbaseCategory == Airbase.Category.HELIPAD and ishelo then
+          if termtype == nil then
+            -- Helo is spawned. Try exclusive helo spots first.
+            spots = SpawnAirbase:FindFreeParkingSpotForAircraft( group, AIRBASE.TerminalType.HelicopterOnly, scanradius, scanunits, scanstatics, scanscenery, verysafe, nunits, nil )
+            nfree = #spots
+            if nfree < nunits then
+              -- Not enough helo ports. Let's try also other terminal types.
+              spots = SpawnAirbase:FindFreeParkingSpotForAircraft( group, AIRBASE.TerminalType.HelicopterUsable, scanradius, scanunits, scanstatics, scanscenery, verysafe, nunits, nil )
+              nfree = #spots
+            end
+          else
+            -- Terminal type explicitly given.
+            spots = SpawnAirbase:FindFreeParkingSpotForAircraft( group, termtype, scanradius, scanunits, scanstatics, scanscenery, verysafe, nunits, nil )
+            nfree = #spots
+          end
+
+          if nfree >= nunits then
+            useexplicitspots = true
+          else
+            -- These places work procedural and have some kind of build in queue ==> Less effort.
+            nfree = SpawnAirbase:GetFreeParkingSpotsNumber( termtype, true )
+            spots = SpawnAirbase:GetFreeParkingSpotsTable( termtype, true )
+          end
+        elseif autoparking then
           -- These places work procedural and have some kind of build in queue ==> Less effort.
           nfree = SpawnAirbase:GetFreeParkingSpotsNumber( termtype, true )
           spots = SpawnAirbase:GetFreeParkingSpotsTable( termtype, true )
-        elseif Parkingdata~=nil then
-          -- Parking data explicitly set by user as input parameter. (This was commented out for some unknown reason. But I need it this way.)
-          nfree=#Parkingdata
-          spots=Parkingdata
         else
           if ishelo then
             if termtype == nil then
@@ -2228,7 +2299,7 @@ function SPAWN:SpawnAtAirbase( SpawnAirbase, Takeoff, TakeoffAltitude, TerminalT
         local _notenough = false
 
         -- Need to differentiate some cases again.
-        if autoparking then
+        if autoparking and not useexplicitspots then
 
           -- On free spot required in these cases.
           if nfree >= 1 then
@@ -2261,6 +2332,10 @@ function SPAWN:SpawnAtAirbase( SpawnAirbase, Takeoff, TakeoffAltitude, TerminalT
           end
         end
 
+        if useexplicitspots and parkingspots[1] then
+          PointVec3 = parkingspots[1]
+        end
+
         -- Not enough spots ==> Prepare airstart.
         if _notenough then
 
@@ -2285,9 +2360,16 @@ function SPAWN:SpawnAtAirbase( SpawnAirbase, Takeoff, TakeoffAltitude, TerminalT
             end
 
             Takeoff = GROUP.Takeoff.Air
-          else
+            spawnonground = false
+          else       
+           if not Takeoff == GROUP.Takeoff.Runway then
             self:E( string.format( "WARNING: Group %s has no parking spots at %s ==> No emergency air start or uncontrolled spawning ==> No spawn!", self.SpawnTemplatePrefix, SpawnAirbase:GetName() ) )
             return nil
+            else
+            Takeoff = GROUP.Takeoff.Runway
+            spawnonground = false
+            self:E( string.format( "WARNING: Group %s set to runway spawning at %s, this only works in Single Player!", self.SpawnTemplatePrefix, SpawnAirbase:GetName() ) )
+            end
           end
         end
 
@@ -2328,7 +2410,7 @@ function SPAWN:SpawnAtAirbase( SpawnAirbase, Takeoff, TakeoffAltitude, TerminalT
           if spawnonground then
 
             -- Ships and FARPS seem to have a build in queue.
-            if autoparking then
+            if autoparking and not useexplicitspots then
 
               -- Spawn on ship. We take only the position of the ship.
               SpawnTemplate.units[UnitID].x = PointVec3.x -- TX
@@ -2346,7 +2428,7 @@ function SPAWN:SpawnAtAirbase( SpawnAirbase, Takeoff, TakeoffAltitude, TerminalT
 
           else
 
-            -- Spawn in air as requested initially. Original template orientation is perserved, altitude is already correctly set.
+            -- Spawn in air as requested initially. Original template orientation is preserved, altitude is already correctly set.
             SpawnTemplate.units[UnitID].x = TX
             SpawnTemplate.units[UnitID].y = TY
             SpawnTemplate.units[UnitID].alt = PointVec3.y
@@ -2379,7 +2461,7 @@ function SPAWN:SpawnAtAirbase( SpawnAirbase, Takeoff, TakeoffAltitude, TerminalT
       if Takeoff == GROUP.Takeoff.Air then
         for UnitID, UnitSpawned in pairs( GroupSpawned:GetUnits() ) do
           --SCHEDULER:New( nil, BASE.CreateEventTakeoff, { GroupSpawned, timer.getTime(), UnitSpawned:GetDCSObject() }, 5 )  --No need to create a new SCHEDULER instance every time!
-          self:ScheduleOnce(5, BASE.CreateEventTakeoff, {GroupSpawned, timer.getTime(), UnitSpawned:GetDCSObject()})
+          self:ScheduleOnce(5, BASE.CreateEventTakeoff, GroupSpawned, timer.getTime(), UnitSpawned:GetDCSObject())
         end
       end
 
@@ -2571,21 +2653,51 @@ function SPAWN:ParkAircraft( SpawnAirbase, TerminalType, Parkingdata, SpawnIndex
       local scanscenery = false
       local verysafe = false
 
-      -- Number of free parking spots at the airbase.
-      if spawnonship or spawnonfarp or spawnonrunway then
-        -- These places work procedural and have some kind of build in queue ==> Less effort.
-        --self:T2( string.format( "Group %s is spawned on farp/ship/runway %s.", self.SpawnTemplatePrefix, SpawnAirbase:GetName() ) )
-        nfree = SpawnAirbase:GetFreeParkingSpotsNumber( termtype, true )
-        spots = SpawnAirbase:GetFreeParkingSpotsTable( termtype, true )
-        --[[
-      elseif Parkingdata~=nil then
-        -- Parking data explicitly set by user as input parameter.
-        nfree=#Parkingdata
-        spots=Parkingdata
-      ]]
-      else
-        if ishelo then
+        -- Use exact parking data when provided, otherwise let helicopters on FARPs
+        -- use the smarter parking search before falling back to the procedural queue path.
+        local useexplicitspots = false
+
+        -- Number of free parking spots at the airbase.
+        if Parkingdata~=nil then
+          -- Parking data explicitly set by user as input parameter.
+          nfree = #Parkingdata
+          spots = Parkingdata
+          useexplicitspots = true
+        elseif spawnonfarp and ishelo then
           if termtype == nil then
+            -- Helo is spawned. Try exclusive helo spots first.
+            --self:T2( string.format( "Helo group %s is at %s using terminal type %d.", self.SpawnTemplatePrefix, SpawnAirbase:GetName(), AIRBASE.TerminalType.HelicopterOnly ) )
+            spots = SpawnAirbase:FindFreeParkingSpotForAircraft( TemplateGroup, AIRBASE.TerminalType.HelicopterOnly, scanradius, scanunits, scanstatics, scanscenery, verysafe, nunits, nil )
+            nfree = #spots
+            if nfree < nunits then
+              -- Not enough helo ports. Let's try also other terminal types.
+              --self:T2( string.format( "Helo group %s is at %s using terminal type %d.", self.SpawnTemplatePrefix, SpawnAirbase:GetName(), AIRBASE.TerminalType.HelicopterUsable ) )
+              spots = SpawnAirbase:FindFreeParkingSpotForAircraft( TemplateGroup, AIRBASE.TerminalType.HelicopterUsable, scanradius, scanunits, scanstatics, scanscenery, verysafe, nunits, nil )
+              nfree = #spots
+            end
+          else
+            -- Terminal type explicitly given.
+            --self:T2( string.format( "Helo group %s is at %s using terminal type %d.", self.SpawnTemplatePrefix, SpawnAirbase:GetName(), termtype ) )
+            spots = SpawnAirbase:FindFreeParkingSpotForAircraft( TemplateGroup, termtype, scanradius, scanunits, scanstatics, scanscenery, verysafe, nunits, nil )
+            nfree = #spots
+          end
+
+          if nfree >= nunits then
+            useexplicitspots = true
+          else
+            -- These places work procedural and have some kind of build in queue ==> Less effort.
+            --self:T2( string.format( "Group %s is spawned on farp %s using procedural spots.", self.SpawnTemplatePrefix, SpawnAirbase:GetName() ) )
+            nfree = SpawnAirbase:GetFreeParkingSpotsNumber( termtype, true )
+            spots = SpawnAirbase:GetFreeParkingSpotsTable( termtype, true )
+          end
+        elseif spawnonship or spawnonfarp or spawnonrunway then
+          -- These places work procedural and have some kind of build in queue ==> Less effort.
+          --self:T2( string.format( "Group %s is spawned on farp/ship/runway %s.", self.SpawnTemplatePrefix, SpawnAirbase:GetName() ) )
+          nfree = SpawnAirbase:GetFreeParkingSpotsNumber( termtype, true )
+          spots = SpawnAirbase:GetFreeParkingSpotsTable( termtype, true )
+        else
+          if ishelo then
+            if termtype == nil then
             -- Helo is spawned. Try exclusive helo spots first.
             --self:T2( string.format( "Helo group %s is at %s using terminal type %d.", self.SpawnTemplatePrefix, SpawnAirbase:GetName(), AIRBASE.TerminalType.HelicopterOnly ) )
             spots = SpawnAirbase:FindFreeParkingSpotForAircraft( TemplateGroup, AIRBASE.TerminalType.HelicopterOnly, scanradius, scanunits, scanstatics, scanscenery, verysafe, nunits, Parkingdata )
@@ -2648,7 +2760,7 @@ function SPAWN:ParkAircraft( SpawnAirbase, TerminalType, Parkingdata, SpawnIndex
       local _notenough = false
 
       -- Need to differentiate some cases again.
-      if spawnonship or spawnonfarp or spawnonrunway then
+      if (spawnonship or spawnonfarp or spawnonrunway) and not useexplicitspots then
 
         -- On free spot required in these cases. 
         if nfree >= 1 then
@@ -3549,14 +3661,21 @@ function SPAWN:_Prepare( SpawnTemplatePrefix, SpawnIndex ) -- R2.2
   end
   
   if self.SpawnInitCallSign then
-    for UnitID = 1, #SpawnTemplate.units do
-      local Callsign = SpawnTemplate.units[UnitID].callsign
-      if Callsign and type( Callsign ) ~= "number" then
-        SpawnTemplate.units[UnitID].callsign[1] = self.SpawnInitCallSignID 
-        SpawnTemplate.units[UnitID].callsign[2] = self.SpawnInitCallSignMinor
-        SpawnTemplate.units[UnitID].callsign[3] = self.SpawnInitCallSignMajor
-        SpawnTemplate.units[UnitID].callsign["name"] = string.format("%s%d%d",self.SpawnInitCallSignName,self.SpawnInitCallSignMinor,self.SpawnInitCallSignMajor)
-        --UTILS.PrintTableToLog(SpawnTemplate.units[UnitID].callsign,1)
+    if self.SpawnInitCallSignRED == true then
+      for UnitID = 1, #SpawnTemplate.units do
+        SpawnTemplate.units[UnitID].callsign = self.SpawnInitCallSignID
+        self.SpawnInitCallSignID = self.SpawnInitCallSignID + 1
+      end
+    else
+      for UnitID = 1, #SpawnTemplate.units do
+        local Callsign = SpawnTemplate.units[UnitID].callsign
+        if Callsign and type( Callsign ) ~= "number" then
+          SpawnTemplate.units[UnitID].callsign[1] = self.SpawnInitCallSignID 
+          SpawnTemplate.units[UnitID].callsign[2] = self.SpawnInitCallSignMinor
+          SpawnTemplate.units[UnitID].callsign[3] = self.SpawnInitCallSignMajor
+          SpawnTemplate.units[UnitID].callsign["name"] = string.format("%s%d%d",self.SpawnInitCallSignName,self.SpawnInitCallSignMinor,self.SpawnInitCallSignMajor)
+          --UTILS.PrintTableToLog(SpawnTemplate.units[UnitID].callsign,1)
+        end
       end
     end
   end
@@ -3572,7 +3691,7 @@ function SPAWN:_Prepare( SpawnTemplatePrefix, SpawnIndex ) -- R2.2
         local CallsignLen = CallsignName:len()
         SpawnTemplate.units[UnitID].callsign[2] = UnitID
         SpawnTemplate.units[UnitID].callsign["name"] = CallsignName:sub( 1, CallsignLen ) .. SpawnTemplate.units[UnitID].callsign[2] .. SpawnTemplate.units[UnitID].callsign[3]
-      elseif type( Callsign ) == "number" then
+      elseif type( Callsign ) == "number" and self.SpawnInitCallSignRED ~= true then
         SpawnTemplate.units[UnitID].callsign = Callsign + SpawnIndex
       end
     end

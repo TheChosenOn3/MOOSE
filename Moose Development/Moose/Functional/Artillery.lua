@@ -419,14 +419,6 @@
 --      arty set, battery "Mortar Bravo", rearming group "Ammo Truck M939"
 -- Note that the name of the rearming group has to be given in quotation marks and spelt exactly as the group name defined in the mission editor.
 --
--- ## Transporting
---
--- ARTY groups can be transported to another location as @{Cargo.Cargo} by means of classes such as @{AI.AI_Cargo_APC}, @{AI.AI_Cargo_Dispatcher_APC},
--- @{AI.AI_Cargo_Helicopter}, @{AI.AI_Cargo_Dispatcher_Helicopter} or @{AI.AI_Cargo_Airplane}.
---
--- In order to do this, one needs to define an ARTY object via the @{#ARTY.NewFromCargoGroup}(*cargogroup*, *alias*) function.
--- The first argument *cargogroup* has to be a @{Cargo.CargoGroup#CARGO_GROUP} object. The second argument *alias* is a string which can be freely chosen by the user.
---
 -- ## Fine Tuning
 --
 -- The mission designer has a few options to tailor the ARTY object according to his needs.
@@ -511,24 +503,6 @@
 --     -- Start ARTY process.
 --     normandy:Start()
 --
--- ### Transportation as Cargo
--- This example demonstates how an ARTY group can be transported to another location as cargo.
---      -- Define a group as CARGO_GROUP
---      CargoGroupMortars=CARGO_GROUP:New(GROUP:FindByName("Mortars"), "Mortars", "Mortar Platoon Alpha", 100 , 10)
---
---      -- Define the mortar CARGO GROUP as ARTY object
---      mortars=ARTY:NewFromCargoGroup(CargoGroupMortars, "Mortar Platoon Alpha")
---
---      -- Start ARTY process
---      mortars:Start()
---
---      -- Setup AI cargo dispatcher for e.g. helos
---      SetHeloCarriers = SET_GROUP:New():FilterPrefixes("CH-47D"):FilterStart()
---      SetCargoMortars = SET_CARGO:New():FilterTypes("Mortars"):FilterStart()
---      SetZoneDepoly   = SET_ZONE:New():FilterPrefixes("Deploy"):FilterStart()
---      CargoHelo=AI_CARGO_DISPATCHER_HELICOPTER:New(SetHeloCarriers, SetCargoMortars, SetZoneDepoly)
---      CargoHelo:Start()
--- The ARTY group will be transported and resume its normal operation after it has been deployed. New targets can be assigned at any time also during the transportation process.
 --
 -- @field #ARTY
 ARTY={
@@ -1230,37 +1204,6 @@ function ARTY:New(group, alias)
   return self
 end
 
---- Creates a new ARTY object from a MOOSE CARGO_GROUP object.
--- @param #ARTY self
--- @param Cargo.CargoGroup#CARGO_GROUP cargogroup The CARGO GROUP object for which artillery tasks should be assigned.
--- @param alias (Optional) Alias name the group will be calling itself when sending messages. Default is the group name.
--- @return #ARTY ARTY object or nil if group does not exist or is not a ground or naval group.
-function ARTY:NewFromCargoGroup(cargogroup, alias)
-
-  if cargogroup then
-    BASE:T(string.format("ARTY script version %s. Added CARGO group %s.", ARTY.version, cargogroup:GetName()))
-  else
-    BASE:E("ERROR: Requested ARTY CARGO GROUP does not exist! (Has to be a MOOSE CARGO(!) group.)")
-    return nil
-  end
-
-  -- Get group belonging to the cargo group.
-  local group=cargogroup:GetObject()
-
-  -- Create ARTY object.
-  local arty=ARTY:New(group,alias)
-
-  -- Set iscargo flag.
-  arty.iscargo=true
-
-  -- Set cargo group object.
-  arty.cargogroup=cargogroup
-
-  return arty
-end
-
-
-
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- User Functions
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1448,7 +1391,7 @@ end
 -- @param #ARTY self
 -- @param Core.Point#COORDINATE coord Coordinates of the new position.
 -- @param #string time (Optional) Day time at which the group should start moving. Passed as a string in format "08:13:45". Default is now.
--- @param #number speed (Optinal) Speed in km/h the group should move at. Default 70% of max posible speed of group.
+-- @param #number speed (Optional) Speed in km/h the group should move at. Default 70% of max posible speed of group.
 -- @param #boolean onroad (Optional) If true, group will mainly use roads. Default off, i.e. go directly towards the specified coordinate.
 -- @param #boolean cancel (Optional) If true, cancel any running attack when move should begin. Default is false.
 -- @param #string name (Optional) Name of the coordinate. Default is LL DMS string of the coordinate. If the name was already given, the numbering "#01", "#02",... is appended automatically.
@@ -1559,7 +1502,7 @@ end
 
 --- Set minimum firing range. Targets closer than this distance are not engaged.
 -- @param #ARTY self
--- @param #number range Min range in kilometers. Default is 0.1 km.
+-- @param #number range (Optional) Min range in kilometers. Default is 0.1 km.
 -- @return self
 function ARTY:SetMinFiringRange(range)
   self:F({range=range})
@@ -1569,7 +1512,7 @@ end
 
 --- Set maximum firing range. Targets further away than this distance are not engaged.
 -- @param #ARTY self
--- @param #number range Max range in kilometers. Default is 1000 km.
+-- @param #number range (Optional) Max range in kilometers. Default is 1000 km.
 -- @return self
 function ARTY:SetMaxFiringRange(range)
   self:F({range=range})
@@ -1579,7 +1522,7 @@ end
 
 --- Set time interval between status updates. During the status check, new events are triggered.
 -- @param #ARTY self
--- @param #number interval Time interval in seconds. Default 10 seconds.
+-- @param #number interval (Optional) Time interval in seconds. Default 10 seconds.
 -- @return self
 function ARTY:SetStatusInterval(interval)
   self:F({interval=interval})
@@ -1589,7 +1532,7 @@ end
 
 --- Set time interval for weapon tracking.
 -- @param #ARTY self
--- @param #number interval Time interval in seconds. Default 0.2 seconds.
+-- @param #number interval (Optional) Time interval in seconds. Default 0.2 seconds.
 -- @return self
 function ARTY:SetTrackInterval(interval)
   self.dtTrack=interval or 0.2
@@ -1598,7 +1541,7 @@ end
 
 --- Set time how it is waited a unit the first shot event happens. If no shot is fired after this time, the task to fire is aborted and the target removed.
 -- @param #ARTY self
--- @param #number waittime Time in seconds. Default 300 seconds.
+-- @param #number waittime (Optional) Time in seconds. Default 300 seconds.
 -- @return self
 function ARTY:SetWaitForShotTime(waittime)
   self:F({waittime=waittime})
@@ -1608,7 +1551,7 @@ end
 
 --- Define the safe distance between ARTY group and rearming unit or rearming place at which rearming process is possible.
 -- @param #ARTY self
--- @param #number distance Safe distance in meters. Default is 100 m.
+-- @param #number distance (Optional) Safe distance in meters. Default is 100 m.
 -- @return self
 function ARTY:SetRearmingDistance(distance)
   self:F({distance=distance})
@@ -1870,7 +1813,7 @@ end
 
 --- Set nuclear warhead explosion strength.
 -- @param #ARTY self
--- @param #number strength Explosion strength in kilo tons TNT. Default is 0.075 kt.
+-- @param #number strength (Optional) Explosion strength in kilo tons TNT. Default is 0.075 kt.
 -- @return self
 function ARTY:SetTacNukeWarhead(strength)
   self.nukewarhead=strength or 0.075
@@ -3960,7 +3903,7 @@ end
 
 --- Get the number of shells a unit or group currently has. For a group the ammo count of all units is summed up.
 -- @param #ARTY self
--- @param #boolean display Display ammo table as message to all. Default false.
+-- @param #boolean display (Optional) Display ammo table as message to all. Default false.
 -- @return #number Total amount of ammo the whole group has left.
 -- @return #number Number of shells the group has left.
 -- @return #number Number of rockets the group has left.

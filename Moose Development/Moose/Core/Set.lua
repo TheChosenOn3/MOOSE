@@ -24,7 +24,6 @@
 --   * @{#SET_STATIC}: Defines a collection of @{Wrapper.Static}s filtered by filter criteria.
 --   * @{#SET_CLIENT}: Defines a collection of @{Wrapper.Client}s filtered by filter criteria.
 --   * @{#SET_AIRBASE}: Defines a collection of @{Wrapper.Airbase}s filtered by filter criteria.
---   * @{#SET_CARGO}: Defines a collection of @{Cargo.Cargo}s filtered by filter criteria.
 --   * @{#SET_ZONE}: Defines a collection of @{Core.Zone}s filtered by filter criteria.
 --   * @{#SET_SCENERY}: Defines a collection of @{Wrapper.Scenery}s added via a filtered @{#SET_ZONE}.
 --   * @{#SET_DYNAMICCARGO}: Defines a collection of @{Wrapper.DynamicCargo}s filtered by filter criteria.
@@ -55,7 +54,7 @@
 
 do -- SET_BASE
   
-  ---
+  --- SET_BASE class.
   -- @type SET_BASE
   -- @field #table Filter Table of filters.
   -- @field #table Set Table of objects.
@@ -63,6 +62,8 @@ do -- SET_BASE
   -- @field #table List Unused table.
   -- @field Core.Scheduler#SCHEDULER CallScheduler
   -- @field #SET_BASE.Filters Filter Filters
+  -- @field #boolean filterNoRegex If true, FilterPrefix ignores special characters and evaluates plain string. Defaults to false.
+  -- @field #boolean filterReplaceDash If true then if filterNoRegex is false, replace dashes with regex pattern friendly pattern. Defaults to true
   -- @extends Core.Base#BASE
 
   --- The @{Core.Set#SET_BASE} class defines the core functions that define a collection of objects.
@@ -101,6 +102,8 @@ do -- SET_BASE
         ["neutral"] = coalition.side.NEUTRAL,
         },
       },
+    filterNoRegex=false,
+    filterReplaceDash=true,
   }
 
   --- Filters
@@ -243,6 +246,37 @@ do -- SET_BASE
 
     local ObjectFound = self.Set[ObjectName]
     return ObjectFound
+  end
+
+
+  --- Compares string for FilterPrefix function.
+  -- @param #SET_BASE self
+  -- @param #string Name The Name of the object.
+  -- @param #string Pattern The pattern that is contained in the Name.
+  -- @param #boolean NoRegex (Optional) If `true`, special characters in the Name are interpreted as plain text and not regular expressions. Default is `self.filterNoregex`. 
+  -- @param #boolean ReplaceDash If `true`, dashes are not used as regex.
+  -- @return #boolean Returns `true`, if the pattern is contained in the name and false otherwise.
+  function SET_BASE:_SearchPattern(Name, Pattern, NoRegex, ReplaceDash)
+    NoRegex=NoRegex or self.filterNoRegex
+    ReplaceDash=ReplaceDash or self.filterReplaceDash
+    if ReplaceDash==true and NoRegex ~= true then
+      -- Not sure why "-" is replaced by "%-" ?! - So we can still match group names with a dash in them
+      -- reason is that the string is interpreted as a pattern and "-" is a special character then. For interpreting it as a string, fourth parameter needs to be set to true.
+      Pattern=Pattern:gsub("-", "%%-")
+    end
+    local contain=string.find(Name, Pattern, 1, NoRegex)
+    return contain
+  end  
+  
+  ---Set Regex Options for FilterPrefix function.
+  -- @param #SET_BASE self
+  -- @param #boolean NoRegex If true, switch off Regex pattern matching for FilterPrefixes.
+  -- @param #boolean ReplaceDash If false, switch off dash "-" replacement in strings for FilterPrefixes.
+  -- @return #SET_BASE self
+  function SET_BASE:FilterSetRegex(NoRegex,ReplaceDash)
+    if NoRegex ~= nil then self.filterNoRegex = NoRegex end
+    self.filterReplaceDash = ReplaceDash or true
+    return self
   end
 
   --- Gets the Set.
@@ -552,7 +586,7 @@ do -- SET_BASE
 
   --- Define the SET iterator **"limit"**.
   -- @param #SET_BASE self
-  -- @param #number Limit Defines how many objects are evaluated of the set as part of the Some iterators. The default is 1.
+  -- @param #number Limit (Optional) Defines how many objects are evaluated of the set as part of the Some iterators. The default is 1.
   -- @return #SET_BASE self
   function SET_BASE:SetSomeIteratorLimit(Limit)
 
@@ -980,6 +1014,28 @@ do -- SET_BASE
 
     return ObjectNames
   end
+  
+  --- Checks whether all or optionally any objects is inside a given zone.
+  -- @param #SET_BASE self
+  -- @param Core.Zone#ZONE Zone The zone.
+  -- @param #boolean Any If `true`, at least one object has to be inside the zone. If `false` or `nil`, all objects need to be in the zone.
+  -- @return #boolean Retruns `true` if objects are in the zone and `false` otherwise.
+  function SET_BASE:IsInZone(Zone, Any)
+  
+    for ObjectName, Object in pairs(self.Set) do
+      local object=Object --Wrapper.Positionable#POSITIONABLE
+      local inzone=object:IsInZone(Zone)
+      if inzone and Any then
+        -- We want at least one and this one is
+        return true
+      elseif not inzone then
+        -- We want all but at least one is not
+        return false
+      end
+    end    
+  
+    return true
+  end  
 
   --- Flushes the current SET_BASE contents in the log ... (for debugging reasons).
   -- @param #SET_BASE self
@@ -1106,30 +1162,6 @@ do
   --          --self:F({ GroupObject = GroupObject:GetName() })
   --        end
   --
-  -- While this is a good example, there is a catch.
-  -- Imagine you want to execute the code above, the the self would need to be from the object declared outside (above) the OnAfterDead method.
-  -- So, the self would need to contain another object. Fortunately, this can be done, but you must use then the **`.`** notation for the method.
-  -- See the modified example:
-  --
-  --        -- Now we have a constructor of the class AI_CARGO_DISPATCHER, that receives the SetHelicopter as a parameter.
-  --        -- Within that constructor, we want to set an enclosed event handler OnAfterDead for SetHelicopter.
-  --        -- But within the OnAfterDead method, we want to refer to the self variable of the AI_CARGO_DISPATCHER.
-  --
-  --        function AI_CARGO_DISPATCHER:New(SetCarrier, SetCargo, SetDeployZones)
-  --
-  --          local self = BASE:Inherit(self, FSM:New()) -- #AI_CARGO_DISPATCHER
-  --
-  --          -- Put a Dead event handler on SetCarrier, to ensure that when a carrier is destroyed, that all internal parameters are reset.
-  --          -- Note the "." notation, and the explicit declaration of SetHelicopter, which would be using the ":" notation the implicit self variable declaration.
-  --
-  --          function SetHelicopter.OnAfterDead(SetHelicopter, From, Event, To, GroupObject)
-  --            SetHelicopter:F({ GroupObject = GroupObject:GetName() })
-  --            self.PickupCargo[GroupObject] = nil  -- So here I clear the PickupCargo table entry of the self object AI_CARGO_DISPATCHER.
-  --            self.CarrierHome[GroupObject] = nil
-  --          end
-  --
-  --        end
-  --
   -- ===
   -- @field #SET_GROUP SET_GROUP
   SET_GROUP = {
@@ -1179,7 +1211,21 @@ do
     -- @param #SET_GROUP self
     -- @return #SET_GROUP self
     
-    
+    ---Set Regex Options for FilterPrefix function.
+    -- @function [parent=#SET_GROUP] FilterSetRegex
+    -- @param #SET_GROUP self
+    -- @param #boolean NoRegex If true, switch off Regex pattern matching for FilterPrefixes.
+    -- @param #boolean ReplaceDash If false, switch off dash "-" replacement in strings for FilterPrefixes.
+    -- @return #SET_GROUP self
+  
+    --- Builds a set of objects of same coalitions.
+    -- Possible current coalitions are red, blue and neutral.
+    -- @function [parent=#SET_GROUP] FilterCoalitions
+    -- @param #SET_GROUP self
+    -- @param #string Coalitions Can take the following values: "red", "blue", "neutral" and coalition.side.RED, coalition.side.BLUE,coalition.side.NEUTRAL
+    -- @param #boolean Clear If `true`, clear any previously defined filters.
+    -- @return #SET_GROUP self
+  
   end
   
   --- Get a *new* set table that only contains alive groups.
@@ -1559,7 +1605,7 @@ do
   
   --- Set filter timer interval for FilterZones if using active filtering with FilterStart().
   -- @param #SET_GROUP self
-  -- @param #number Seconds Seconds between check intervals, defaults to 30. **Caution** - do not be too agressive with timing! Groups are usually not moving fast enough
+  -- @param #number Seconds (Optional) Seconds between check intervals, defaults to 30. **Caution** - do not be too agressive with timing! Groups are usually not moving fast enough
   -- to warrant a check of below 10 seconds.
   -- @return #SET_GROUP self
   function SET_GROUP:FilterZoneTimer(Seconds)
@@ -2097,19 +2143,16 @@ do
     if self.Filter.GroupPrefixes and MGroupInclude then
       local MGroupPrefix = false
       for GroupPrefixId, GroupPrefix in pairs(self.Filter.GroupPrefixes) do
-        --self:I({ "Prefix:", MGroup:GetName(), GroupPrefix })
-        if string.find(MGroup:GetName(), string.gsub(GroupPrefix,"-","%%-"),1) then
+        if self:_SearchPattern(MGroup:GetName(), GroupPrefix, self.filterNoRegex, self.filterReplaceDash) then
           MGroupPrefix = true
         end
       end
       MGroupInclude = MGroupInclude and MGroupPrefix
-      --self:I("Is Included: "..tostring(MGroupInclude))
     end
     
     if self.Filter.Zones and MGroupInclude then
       local MGroupZone = false
       for ZoneName, Zone in pairs(self.Filter.Zones) do
-        --self:T("Zone:", ZoneName)
         if MGroup:IsInZone(Zone) then
           MGroupZone = true
         end
@@ -2123,7 +2166,6 @@ do
       MGroupInclude = MGroupInclude and MGroupFunc
     end
      
-    --self:I(MGroupInclude)
     return MGroupInclude
   end
 
@@ -2269,28 +2311,6 @@ do -- SET_UNIT
   --          --self:F({ UnitObject = UnitObject:GetName() })
   --        end
   --
-  -- While this is a good example, there is a catch.
-  -- Imagine you want to execute the code above, the the self would need to be from the object declared outside (above) the OnAfterDead method.
-  -- So, the self would need to contain another object. Fortunately, this can be done, but you must use then the **`.`** notation for the method.
-  -- See the modified example:
-  --
-  --        -- Now we have a constructor of the class AI_CARGO_DISPATCHER, that receives the SetHelicopter as a parameter.
-  --        -- Within that constructor, we want to set an enclosed event handler OnAfterDead for SetHelicopter.
-  --        -- But within the OnAfterDead method, we want to refer to the self variable of the AI_CARGO_DISPATCHER.
-  --
-  --        function ACLASS:New(SetCarrier, SetCargo, SetDeployZones)
-  --
-  --          local self = BASE:Inherit(self, FSM:New()) -- #AI_CARGO_DISPATCHER
-  --
-  --          -- Put a Dead event handler on SetCarrier, to ensure that when a carrier is destroyed, that all internal parameters are reset.
-  --          -- Note the "." notation, and the explicit declaration of SetHelicopter, which would be using the ":" notation the implicit self variable declaration.
-  --
-  --          function SetHelicopter.OnAfterDead(SetHelicopter, From, Event, To, UnitObject)
-  --            SetHelicopter:F({ UnitObject = UnitObject:GetName() })
-  --            self.array[UnitObject] = nil  -- So here I clear the array table entry of the self object ACLASS.
-  --          end
-  --
-  --        end
   -- ===
   -- @field #SET_UNIT SET_UNIT
   SET_UNIT = {
@@ -2342,6 +2362,26 @@ do -- SET_UNIT
     --- Count Alive Units
     -- @function [parent=#SET_UNIT] CountAlive
     -- @param #SET_UNIT self
+    -- @return #SET_UNIT self
+    
+    --- Filter the set once
+    -- @function [parent=#SET_UNIT] FilterOnce
+    -- @param #SET_UNIT self
+    -- @return #SET_UNIT self
+    
+    ---Set Regex Options for FilterPrefix function.
+    -- @function [parent=#SET_UNIT] FilterSetRegex
+    -- @param #SET_UNIT self
+    -- @param #boolean NoRegex If true, switch off Regex pattern matching for FilterPrefixes.
+    -- @param #boolean ReplaceDash If false, switch off dash "-" replacement in strings for FilterPrefixes.
+    -- @return #SET_UNIT self
+    
+    --- Builds a set of objects of same coalitions.
+    -- Possible current coalitions are red, blue and neutral.
+    -- @function [parent=#SET_UNIT] FilterCoalitions
+    -- @param #SET_UNIT self
+    -- @param #string Coalitions Can take the following values: "red", "blue", "neutral" and coalition.side.RED, coalition.side.BLUE,coalition.side.NEUTRAL
+    -- @param #boolean Clear If `true`, clear any previously defined filters.
     -- @return #SET_UNIT self
     
     return self
@@ -2662,7 +2702,7 @@ do -- SET_UNIT
   
   --- Set filter timer interval for FilterZones if using active filtering with FilterStart().
   -- @param #SET_UNIT self
-  -- @param #number Seconds Seconds between check intervals, defaults to 30. **Caution** - do not be too agressive with timing! Groups are usually not moving fast enough
+  -- @param #number Seconds (Optional) Seconds between check intervals, defaults to 30. **Caution** - do not be too agressive with timing! Groups are usually not moving fast enough
   -- to warrant a check of below 10 seconds.
   -- @return #SET_UNIT self
   function SET_UNIT:FilterZoneTimer(Seconds)
@@ -3354,9 +3394,8 @@ do -- SET_UNIT
 
       if self.Filter.UnitPrefixes and MUnitInclude then
         local MUnitPrefix = false
-        for UnitPrefixId, UnitPrefix in pairs(self.Filter.UnitPrefixes) do
-          --self:T3({ "Prefix:", string.find(MUnit:GetName(), UnitPrefix, 1), UnitPrefix })
-          if string.find(MUnit:GetName(), UnitPrefix, 1) then
+        for UnitPrefixId, UnitPrefix in pairs(self.Filter.UnitPrefixes) do          
+          if self:_SearchPattern(MUnit:GetName(), UnitPrefix, self.filterNoRegex, self.filterReplaceDash) then
             MUnitPrefix = true
           end
         end
@@ -3552,7 +3591,27 @@ do -- SET_STATIC
 
     -- Inherits from BASE
     local self = BASE:Inherit(self, SET_BASE:New(_DATABASE.STATICS)) -- Core.Set#SET_STATIC
-
+    
+    --- Filter the set once
+    -- @function [parent=#SET_STATIC] FilterOnce
+    -- @param #SET_STATIC self
+    -- @return #SET_STATIC self
+    
+    ---Set Regex Options for FilterPrefix function.
+    -- @function [parent=#SET_STATIC] FilterSetRegex
+    -- @param #SET_STATIC self
+    -- @param #boolean NoRegex If true, switch off Regex pattern matching for FilterPrefixes.
+    -- @param #boolean ReplaceDash If false, switch off dash "-" replacement in strings for FilterPrefixes.
+    -- @return #SET_STATIC self
+    
+    --- Builds a set of objects of same coalitions.
+    -- Possible current coalitions are red, blue and neutral.
+    -- @function [parent=#SET_STATIC] FilterCoalitions
+    -- @param #SET_STATIC self
+    -- @param #string Coalitions Can take the following values: "red", "blue", "neutral" and coalition.side.RED, coalition.side.BLUE,coalition.side.NEUTRAL
+    -- @param #boolean Clear If `true`, clear any previously defined filters.
+    -- @return #SET_STATIC self
+    
     return self
   end
 
@@ -4127,8 +4186,7 @@ do -- SET_STATIC
     if self.Filter.StaticPrefixes then
       local MStaticPrefix = false
       for StaticPrefixId, StaticPrefix in pairs(self.Filter.StaticPrefixes) do
-        --self:T(3({ "Prefix:", string.find(MStatic:GetName(), StaticPrefix, 1), StaticPrefix })
-        if string.find(MStatic:GetName(), StaticPrefix, 1) then
+        if self:_SearchPattern(MStatic:GetName(), StaticPrefix, self.filterNoRegex, self.filterReplaceDash) then
           MStaticPrefix = true
         end
       end
@@ -4312,7 +4370,27 @@ do -- SET_CLIENT
     local self = BASE:Inherit(self, SET_BASE:New(_DATABASE.CLIENTS)) -- #SET_CLIENT
 
     self:FilterActive(false)
-
+    
+    --- Filter the set once
+    -- @function [parent=#SET_CLIENT] FilterOnce
+    -- @param #SET_CLIENT self
+    -- @return #SET_CLIENT self
+    
+    ---Set Regex Options for FilterPrefix function.
+    -- @function [parent=#SET_CLIENT] FilterSetRegex
+    -- @param #SET_CLIENT self
+    -- @param #boolean NoRegex If true, switch off Regex pattern matching for FilterPrefixes.
+    -- @param #boolean ReplaceDash If false, switch off dash "-" replacement in strings for FilterPrefixes.
+    -- @return #SET_CLIENT self
+    
+    --- Builds a set of objects of same coalitions.
+    -- Possible current coalitions are red, blue and neutral.
+    -- @function [parent=#SET_CLIENT] FilterCoalitions
+    -- @param #SET_CLIENT self
+    -- @param #string Coalitions Can take the following values: "red", "blue", "neutral" and coalition.side.RED, coalition.side.BLUE,coalition.side.NEUTRAL
+    -- @param #boolean Clear If `true`, clear any previously defined filters.
+    -- @return #SET_CLIENT self
+    
     return self
   end
 
@@ -4585,7 +4663,7 @@ do -- SET_CLIENT
 
   --- Set filter timer interval for FilterZones if using active filtering with FilterStart().
   -- @param #SET_CLIENT self
-  -- @param #number Seconds Seconds between check intervals, defaults to 30. **Caution** - do not be too agressive with timing! Groups are usually not moving fast enough
+  -- @param #number Seconds (Optional) Seconds between check intervals, defaults to 30. **Caution** - do not be too agressive with timing! Groups are usually not moving fast enough
   -- to warrant a check of below 10 seconds.
   -- @return #SET_CLIENT self
   function SET_CLIENT:FilterZoneTimer(Seconds)
@@ -4911,12 +4989,10 @@ do -- SET_CLIENT
       if self.Filter.ClientPrefixes and MClientInclude then
         local MClientPrefix = false
         for ClientPrefixId, ClientPrefix in pairs(self.Filter.ClientPrefixes) do
-          --self:T3({ "Prefix:", string.find(MClient.UnitName, ClientPrefix, 1), ClientPrefix })
-          if string.find(MClient.UnitName, ClientPrefix, 1) then
+          if self:_SearchPattern(MClient.UnitName, ClientPrefix, self.filterNoRegex, self.filterReplaceDash) then          
             MClientPrefix = true
           end
         end
-        --self:T({ "Evaluated Prefix", MClientPrefix })
         MClientInclude = MClientInclude and MClientPrefix
       end
 
@@ -4937,7 +5013,7 @@ do -- SET_CLIENT
       local playername = MClient:GetPlayerName() or "Unknown"
       --self:T(playername)
       for _,_Playername in pairs(self.Filter.Playernames) do
-        if playername and string.find(playername,_Playername) then
+        if playername and self:_SearchPattern(playername,_Playername,self.filterNoRegex, self.filterReplaceDash) then
           MClientPlayername = true
         end
       end
@@ -4950,7 +5026,7 @@ do -- SET_CLIENT
       local callsign = MClient:GetCallsign()
       --self:I(callsign)
       for _,_Callsign in pairs(self.Filter.Callsigns) do
-        if callsign and string.find(callsign,_Callsign,1,true) then
+        if callsign and self:_SearchPattern(callsign,_Callsign, self.filterNoRegex, self.filterReplaceDash) then
           MClientCallsigns = true
         end
       end
@@ -5371,12 +5447,10 @@ do -- SET_PLAYER
       if self.Filter.ClientPrefixes then
         local MClientPrefix = false
         for ClientPrefixId, ClientPrefix in pairs(self.Filter.ClientPrefixes) do
-          --self:T(3({ "Prefix:", string.find(MClient.UnitName, ClientPrefix, 1), ClientPrefix })
-          if string.find(MClient.UnitName, ClientPrefix, 1) then
+          if self:_SearchPattern(MClient.UnitName,ClientPrefix,self.filterNoRegex, self.filterReplaceDash) then
             MClientPrefix = true
           end
         end
-        --self:T(({ "Evaluated Prefix", MClientPrefix })
         MClientInclude = MClientInclude and MClientPrefix
       end
     end
@@ -5781,430 +5855,6 @@ do -- SET_AIRBASE
 
 end
 
-do -- SET_CARGO
-  
-  ---
-  -- @type SET_CARGO
-  -- @extends Core.Set#SET_BASE
-
-  --- Mission designers can use the @{Core.Set#SET_CARGO} class to build sets of cargos optionally belonging to certain:
-  --
-  --  * Coalitions
-  --  * Types
-  --  * Name or Prefix
-  --
-  -- ## SET_CARGO constructor
-  --
-  -- Create a new SET_CARGO object with the @{#SET_CARGO.New} method:
-  --
-  --    * @{#SET_CARGO.New}: Creates a new SET_CARGO object.
-  --
-  -- ## Add or Remove CARGOs from SET_CARGO
-  --
-  -- CARGOs can be added and removed using the @{Core.Set#SET_CARGO.AddCargosByName} and @{Core.Set#SET_CARGO.RemoveCargosByName} respectively.
-  -- These methods take a single CARGO name or an array of CARGO names to be added or removed from SET_CARGO.
-  --
-  -- ## SET_CARGO filter criteria
-  --
-  -- You can set filter criteria to automatically maintain the SET_CARGO contents.
-  -- Filter criteria are defined by:
-  --
-  --    * @{#SET_CARGO.FilterCoalitions}: Builds the SET_CARGO with the cargos belonging to the coalition(s).
-  --    * @{#SET_CARGO.FilterPrefixes}: Builds the SET_CARGO with the cargos containing the same string(s). **Attention!** LUA regular expression apply here, so special characters in names like minus, dot, hash (#) etc might lead to unexpected results. 
-  -- Have a read through here to understand the application of regular expressions: [LUA regular expressions](https://riptutorial.com/lua/example/20315/lua-pattern-matching)
-  --    * @{#SET_CARGO.FilterTypes}: Builds the SET_CARGO with the cargos belonging to the cargo type(s).
-  --    * @{#SET_CARGO.FilterCountries}: Builds the SET_CARGO with the cargos belonging to the country(ies).
-  --
-  -- Once the filter criteria have been set for the SET_CARGO, you can start filtering using:
-  --
-  --   * @{#SET_CARGO.FilterStart}: Starts the filtering of the cargos within the SET_CARGO.
-  --
-  -- ## SET_CARGO iterators
-  --
-  -- Once the filters have been defined and the SET_CARGO has been built, you can iterate the SET_CARGO with the available iterator methods.
-  -- The iterator methods will walk the SET_CARGO set, and call for each cargo within the set a function that you provide.
-  -- The following iterator methods are currently available within the SET_CARGO:
-  --
-  --   * @{#SET_CARGO.ForEachCargo}: Calls a function for each cargo it finds within the SET_CARGO.
-  --
-  -- @field #SET_CARGO SET_CARGO
-  SET_CARGO = {
-    ClassName = "SET_CARGO",
-    Cargos = {},
-    Filter = {
-      Coalitions = nil,
-      Types = nil,
-      Countries = nil,
-      ClientPrefixes = nil,
-    },
-    FilterMeta = {
-      Coalitions = {
-        red = coalition.side.RED,
-        blue = coalition.side.BLUE,
-        neutral = coalition.side.NEUTRAL,
-      },
-    },
-  }
-
-  --- Creates a new SET_CARGO object, building a set of cargos belonging to a coalitions and categories.
-  -- @param #SET_CARGO self
-  -- @return #SET_CARGO
-  -- @usage
-  -- -- Define a new SET_CARGO Object. The DatabaseSet will contain a reference to all Cargos.
-  -- DatabaseSet = SET_CARGO:New()
-  function SET_CARGO:New() -- R2.1
-    -- Inherits from BASE
-    local self = BASE:Inherit(self, SET_BASE:New(_DATABASE.CARGOS)) -- #SET_CARGO
-
-    return self
-  end
-
-  --- Add CARGO to SET_CARGO.
-  -- @param Core.Set#SET_CARGO self
-  -- @param Cargo.Cargo#CARGO Cargo A single cargo.
-  -- @return  Core.Set#SET_CARGO self
-  function SET_CARGO:AddCargo(Cargo) -- R2.4
-
-    self:Add(Cargo:GetName(), Cargo)
-
-    return self
-  end
-
-  --- Add CARGOs to SET_CARGO.
-  -- @param Core.Set#SET_CARGO self
-  -- @param #string AddCargoNames A single name or an array of CARGO names.
-  -- @return  Core.Set#SET_CARGO self
-  function SET_CARGO:AddCargosByName(AddCargoNames) -- R2.1
-
-    local AddCargoNamesArray = (type(AddCargoNames) == "table") and AddCargoNames or { AddCargoNames }
-
-    for AddCargoID, AddCargoName in pairs(AddCargoNamesArray) do
-      self:Add(AddCargoName, CARGO:FindByName(AddCargoName))
-    end
-
-    return self
-  end
-
-  --- Remove CARGOs from SET_CARGO.
-  -- @param Core.Set#SET_CARGO self
-  -- @param Cargo.Cargo#CARGO RemoveCargoNames A single name or an array of CARGO names.
-  -- @return Core.Set#SET_CARGO self
-  function SET_CARGO:RemoveCargosByName(RemoveCargoNames) -- R2.1
-
-    local RemoveCargoNamesArray = (type(RemoveCargoNames) == "table") and RemoveCargoNames or { RemoveCargoNames }
-
-    for RemoveCargoID, RemoveCargoName in pairs(RemoveCargoNamesArray) do
-      self:Remove(RemoveCargoName.CargoName)
-    end
-
-    return self
-  end
-
-  --- Finds a Cargo based on the Cargo Name.
-  -- @param #SET_CARGO self
-  -- @param #string CargoName
-  -- @return Cargo.Cargo#CARGO The found Cargo.
-  function SET_CARGO:FindCargo(CargoName) -- R2.1
-
-    local CargoFound = self.Set[CargoName]
-    return CargoFound
-  end
-  
-  --- Builds a set of cargos of coalitions.
-  -- Possible current coalitions are red, blue and neutral.
-  -- @param #SET_CARGO self
-  -- @param #string Coalitions Can take the following values: "red", "blue", "neutral".
-  -- @return #SET_CARGO self
-  
-  --- Builds a set of cargos of defined cargo types.
-  -- Possible current types are those types known within DCS world.
-  -- @param #SET_CARGO self
-  -- @param #string Types Can take those type strings known within DCS world.
-  -- @return #SET_CARGO self
-  function SET_CARGO:FilterTypes(Types) -- R2.1
-    if not self.Filter.Types then
-      self.Filter.Types = {}
-    end
-    if type(Types) ~= "table" then
-      Types = { Types }
-    end
-    for TypeID, Type in pairs(Types) do
-      self.Filter.Types[Type] = Type
-    end
-    return self
-  end
-
-  --- Builds a set of cargos of defined countries.
-  -- Possible current countries are those known within DCS world.
-  -- @param #SET_CARGO self
-  -- @param #string Countries Can take those country strings known within DCS world.
-  -- @return #SET_CARGO self
-  function SET_CARGO:FilterCountries(Countries) -- R2.1
-    if not self.Filter.Countries then
-      self.Filter.Countries = {}
-    end
-    if type(Countries) ~= "table" then
-      Countries = { Countries }
-    end
-    for CountryID, Country in pairs(Countries) do
-      self.Filter.Countries[Country] = Country
-    end
-    return self
-  end
-
-  --- Builds a set of CARGOs that contain a given string in their name.
-  -- **Attention!** Bad naming convention as this **does not** filter only **prefixes** but all cargos that **contain** the string. 
-  -- @param #SET_CARGO self
-  -- @param #string Prefixes The string pattern(s) that need to be in the cargo name. Can also be passed as a `#table` of strings.
-  -- @return #SET_CARGO self
-  function SET_CARGO:FilterPrefixes(Prefixes) -- R2.1
-    if not self.Filter.CargoPrefixes then
-      self.Filter.CargoPrefixes = {}
-    end
-    if type(Prefixes) ~= "table" then
-      Prefixes = { Prefixes }
-    end
-    for PrefixID, Prefix in pairs(Prefixes) do
-      self.Filter.CargoPrefixes[Prefix] = Prefix
-    end
-    return self
-  end
-
-  --- Starts the filtering.
-  -- @param #SET_CARGO self
-  -- @return #SET_CARGO self
-  function SET_CARGO:FilterStart() -- R2.1
-
-    if _DATABASE then
-      self:_FilterStart()
-      self:HandleEvent(EVENTS.NewCargo)
-      self:HandleEvent(EVENTS.DeleteCargo)
-    end
-
-    return self
-  end
-
-  --- Stops the filtering for the defined collection.
-  -- @param #SET_CARGO self
-  -- @return #SET_CARGO self
-  function SET_CARGO:FilterStop()
-
-    self:UnHandleEvent(EVENTS.NewCargo)
-    self:UnHandleEvent(EVENTS.DeleteCargo)
-
-    return self
-  end
-
-  --- Handles the Database to check on an event (birth) that the Object was added in the Database.
-  -- This is required, because sometimes the _DATABASE birth event gets called later than the SET_BASE birth event!
-  -- @param #SET_CARGO self
-  -- @param Core.Event#EVENTDATA Event
-  -- @return #string The name of the CARGO
-  -- @return #table The CARGO
-  function SET_CARGO:AddInDatabase(Event) -- R2.1
-    --self:F3({ Event })
-
-    return Event.IniDCSUnitName, self.Database[Event.IniDCSUnitName]
-  end
-
-  --- Handles the Database to check on any event that Object exists in the Database.
-  -- This is required, because sometimes the _DATABASE event gets called later than the SET_BASE event or vise versa!
-  -- @param #SET_CARGO self
-  -- @param Core.Event#EVENTDATA Event
-  -- @return #string The name of the CARGO
-  -- @return #table The CARGO
-  function SET_CARGO:FindInDatabase(Event) -- R2.1
-    --self:F3({ Event })
-
-    return Event.IniDCSUnitName, self.Database[Event.IniDCSUnitName]
-  end
-
-  --- Iterate the SET_CARGO and call an iterator function for each CARGO, providing the CARGO and optional parameters.
-  -- @param #SET_CARGO self
-  -- @param #function IteratorFunction The function that will be called when there is an alive CARGO in the SET_CARGO. The function needs to accept a CARGO parameter.
-  -- @return #SET_CARGO self
-  function SET_CARGO:ForEachCargo(IteratorFunction, ...) -- R2.1
-    --self:F2(arg)
-
-    self:ForEach(IteratorFunction, arg, self:GetSet())
-
-    return self
-  end
-
-  --- Iterate the SET_CARGO while identifying the nearest @{Cargo.Cargo#CARGO} from a @{Core.Point#COORDINATE}.
-  -- @param #SET_CARGO self
-  -- @param Core.Point#COORDINATE Coordinate A @{Core.Point#COORDINATE} object from where to evaluate the closest @{Cargo.Cargo#CARGO}.
-  -- @return Cargo.Cargo#CARGO The closest @{Cargo.Cargo#CARGO}.
-  function SET_CARGO:FindNearestCargoFromPointVec2(Coordinate) -- R2.1
-    --self:F2(Coordinate)
-
-    local NearestCargo = self:FindNearestObjectFromPointVec2(Coordinate)
-    return NearestCargo
-  end
-  
-  ---
-  -- @param #SET_CARGO self
-  function SET_CARGO:FirstCargoWithState(State)
-
-    local FirstCargo = nil
-
-    for CargoName, Cargo in pairs(self.Set) do
-      if Cargo:Is(State) then
-        FirstCargo = Cargo
-        break
-      end
-    end
-
-    return FirstCargo
-  end
-
-  ---
-  -- @param #SET_CARGO self
-  function SET_CARGO:FirstCargoWithStateAndNotDeployed(State)
-
-    local FirstCargo = nil
-
-    for CargoName, Cargo in pairs(self.Set) do
-      if Cargo:Is(State) and not Cargo:IsDeployed() then
-        FirstCargo = Cargo
-        break
-      end
-    end
-
-    return FirstCargo
-  end
-
-  --- Iterate the SET_CARGO while identifying the first @{Cargo.Cargo#CARGO} that is UnLoaded.
-  -- @param #SET_CARGO self
-  -- @return Cargo.Cargo#CARGO The first @{Cargo.Cargo#CARGO}.
-  function SET_CARGO:FirstCargoUnLoaded()
-    local FirstCargo = self:FirstCargoWithState("UnLoaded")
-    return FirstCargo
-  end
-
-  --- Iterate the SET_CARGO while identifying the first @{Cargo.Cargo#CARGO} that is UnLoaded and not Deployed.
-  -- @param #SET_CARGO self
-  -- @return Cargo.Cargo#CARGO The first @{Cargo.Cargo#CARGO}.
-  function SET_CARGO:FirstCargoUnLoadedAndNotDeployed()
-    local FirstCargo = self:FirstCargoWithStateAndNotDeployed("UnLoaded")
-    return FirstCargo
-  end
-
-  --- Iterate the SET_CARGO while identifying the first @{Cargo.Cargo#CARGO} that is Loaded.
-  -- @param #SET_CARGO self
-  -- @return Cargo.Cargo#CARGO The first @{Cargo.Cargo#CARGO}.
-  function SET_CARGO:FirstCargoLoaded()
-    local FirstCargo = self:FirstCargoWithState("Loaded")
-    return FirstCargo
-  end
-
-  --- Iterate the SET_CARGO while identifying the first @{Cargo.Cargo#CARGO} that is Deployed.
-  -- @param #SET_CARGO self
-  -- @return Cargo.Cargo#CARGO The first @{Cargo.Cargo#CARGO}.
-  function SET_CARGO:FirstCargoDeployed()
-    local FirstCargo = self:FirstCargoWithState("Deployed")
-    return FirstCargo
-  end
-
-  --- 
-  -- @param #SET_CARGO self
-  -- @param AI.AI_Cargo#AI_CARGO MCargo
-  -- @return #SET_CARGO self
-  function SET_CARGO:IsIncludeObject(MCargo) -- R2.1
-    --self:F2(MCargo)
-
-    local MCargoInclude = true
-
-    if MCargo then
-      local MCargoName = MCargo:GetName()
-
-      if self.Filter.Coalitions then
-        local MCargoCoalition = false
-        for CoalitionID, CoalitionName in pairs(self.Filter.Coalitions) do
-          local CargoCoalitionID = MCargo:GetCoalition()
-          --self:T(3({ "Coalition:", CargoCoalitionID, self.FilterMeta.Coalitions[CoalitionName], CoalitionName })
-          if self.FilterMeta.Coalitions[CoalitionName] and self.FilterMeta.Coalitions[CoalitionName] == CargoCoalitionID then
-            MCargoCoalition = true
-          end
-        end
-        --self:F({ "Evaluated Coalition", MCargoCoalition })
-        MCargoInclude = MCargoInclude and MCargoCoalition
-      end
-
-      if self.Filter.Types then
-        local MCargoType = false
-        for TypeID, TypeName in pairs(self.Filter.Types) do
-          --self:T(3({ "Type:", MCargo:GetType(), TypeName })
-          if TypeName == MCargo:GetType() then
-            MCargoType = true
-          end
-        end
-        --self:F({ "Evaluated Type", MCargoType })
-        MCargoInclude = MCargoInclude and MCargoType
-      end
-
-      if self.Filter.CargoPrefixes then
-        local MCargoPrefix = false
-        for CargoPrefixId, CargoPrefix in pairs(self.Filter.CargoPrefixes) do
-          --self:T(3({ "Prefix:", string.find(MCargo.Name, CargoPrefix, 1), CargoPrefix })
-          if string.find(MCargo.Name, CargoPrefix, 1) then
-            MCargoPrefix = true
-          end
-        end
-        --self:F({ "Evaluated Prefix", MCargoPrefix })
-        MCargoInclude = MCargoInclude and MCargoPrefix
-      end
-    end
-    
-    if self.Filter.Functions and MCargoInclude then
-      local MClientFunc = self:_EvalFilterFunctions(MCargo)
-      MCargoInclude = MCargoInclude and MClientFunc
-    end
-
-    --self:T(2(MCargoInclude)
-    return MCargoInclude
-  end
-
-  --- Handles the OnEventNewCargo event for the Set.
-  -- @param #SET_CARGO self
-  -- @param Core.Event#EVENTDATA EventData
-  function SET_CARGO:OnEventNewCargo(EventData) -- R2.1
-
-    --self:F({ "New Cargo", EventData })
-
-    if EventData.Cargo then
-      if EventData.Cargo and self:IsIncludeObject(EventData.Cargo) then
-        self:Add(EventData.Cargo.Name, EventData.Cargo)
-      end
-    end
-  end
-
-  --- Handles the OnDead or OnCrash event for alive units set.
-  -- @param #SET_CARGO self
-  -- @param Core.Event#EVENTDATA EventData
-  function SET_CARGO:OnEventDeleteCargo(EventData) -- R2.1
-    --self:F3({ EventData })
-
-    if EventData.Cargo then
-      local Cargo = _DATABASE:FindCargo(EventData.Cargo.Name)
-      if Cargo and Cargo.Name then
-
-        -- When cargo was deleted, it may probably be because of an S_EVENT_DEAD.
-        -- However, in the loading logic, an S_EVENT_DEAD is also generated after a Destroy() call.
-        -- And this is a problem because it will remove all entries from the SET_CARGOs.
-        -- To prevent this from happening, the Cargo object has a flag NoDestroy.
-        -- When true, the SET_CARGO won't Remove the Cargo object from the set.
-        -- This flag is switched off after the event handlers have been called in the EVENT class.
-        --self:F({ CargoNoDestroy = Cargo.NoDestroy })
-        if Cargo.NoDestroy then
-        else
-          self:Remove(Cargo.Name)
-        end
-      end
-    end
-  end
-
-end
 
 do -- SET_ZONE
   
@@ -6267,7 +5917,19 @@ do -- SET_ZONE
   function SET_ZONE:New()
     -- Inherits from BASE
     local self = BASE:Inherit(self, SET_BASE:New(_DATABASE.ZONES))
-
+    
+    --- Filter the set once
+    -- @function [parent=#SET_ZONE] FilterOnce
+    -- @param #SET_ZONE self
+    -- @return #SET_ZONE self
+    
+    ---Set Regex Options for FilterPrefix function.
+    -- @function [parent=#SET_ZONE] FilterSetRegex
+    -- @param #SET_ZONE self
+    -- @param #boolean NoRegex If true, switch off Regex pattern matching for FilterPrefixes.
+    -- @param #boolean ReplaceDash If false, switch off dash "-" replacement in strings for FilterPrefixes.
+    -- @return #SET_ZONE self
+    
     return self
   end
 
@@ -6449,12 +6111,12 @@ do -- SET_ZONE
 
   --- Draw all zones in the set on the F10 map.
   -- @param #SET_ZONE self
-  -- @param #number Coalition Coalition: All=-1, Neutral=0, Red=1, Blue=2. Default -1=All.
+  -- @param #number Coalition (Optional) Coalition: All=-1, Neutral=0, Red=1, Blue=2. Default -1=All.
   -- @param #table Color RGB color table {r, g, b}, e.g. {1,0,0} for red.
-  -- @param #number Alpha Transparency [0,1]. Default 1.
-  -- @param #table FillColor RGB color table {r, g, b}, e.g. {1,0,0} for red. Default is same as `Color` value.
-  -- @param #number FillAlpha Transparency [0,1]. Default 0.15.
-  -- @param #number LineType Line type: 0=No line, 1=Solid, 2=Dashed, 3=Dotted, 4=Dot dash, 5=Long dash, 6=Two dash. Default 1=Solid.
+  -- @param #number Alpha (Optional) Transparency [0,1]. Default 1.
+  -- @param #table FillColor (Optional) RGB color table {r, g, b}, e.g. {1,0,0} for red. Default is same as `Color` value.
+  -- @param #number FillAlpha (Optional) Transparency [0,1]. Default 0.15.
+  -- @param #number LineType (Optional) Line type: 0=No line, 1=Solid, 2=Dashed, 3=Dotted, 4=Dot dash, 5=Long dash, 6=Two dash. Default 1=Solid.
   -- @param #boolean ReadOnly (Optional) Mark is readonly and cannot be removed by users. Default false.
   -- @return #SET_ZONE self
   function SET_ZONE:DrawZone(Coalition, Color, Alpha, FillColor, FillAlpha, LineType, ReadOnly)
@@ -6505,12 +6167,10 @@ do -- SET_ZONE
       if self.Filter.Prefixes then
         local MZonePrefix = false
         for ZonePrefixId, ZonePrefix in pairs(self.Filter.Prefixes) do
-          --self:T(2({ "Prefix:", string.find(MZoneName, ZonePrefix, 1), ZonePrefix })
-          if string.find(MZoneName, ZonePrefix, 1) then
+          if self:_SearchPattern(MZoneName, ZonePrefix, self.filterNoRegex, self.filterReplaceDash) then
             MZonePrefix = true
           end
         end
-        --self:T(({ "Evaluated Prefix", MZonePrefix })
         MZoneInclude = MZoneInclude and MZonePrefix
       end
     end
@@ -6547,14 +6207,6 @@ do -- SET_ZONE
     if EventData.Zone then
       local Zone = _DATABASE:FindZone(EventData.Zone.ZoneName)
       if Zone and Zone.ZoneName then
-
-        -- When cargo was deleted, it may probably be because of an S_EVENT_DEAD.
-        -- However, in the loading logic, an S_EVENT_DEAD is also generated after a Destroy() call.
-        -- And this is a problem because it will remove all entries from the SET_ZONEs.
-        -- To prevent this from happening, the Zone object has a flag NoDestroy.
-        -- When true, the SET_ZONE won't Remove the Zone object from the set.
-        -- This flag is switched off after the event handlers have been called in the EVENT class.
-        --self:F({ ZoneNoDestroy = Zone.NoDestroy })
         if Zone.NoDestroy then
         else
           self:Remove(Zone.ZoneName)
@@ -6604,7 +6256,7 @@ do -- SET_ZONE
   
   --- Set the check time for SET_ZONE:Trigger()
   -- @param #SET_ZONE self
-  -- @param #number seconds Check every seconds for objects entering or leaving the zone. Defaults to 5 secs.
+  -- @param #number seconds (Optional) Check every seconds for objects entering or leaving the zone. Defaults to 5 secs.
   -- @return #SET_ZONE self
   function SET_ZONE:SetCheckTime(seconds)
     self.Checktime = seconds or 5
@@ -7024,12 +6676,10 @@ do -- SET_ZONE_GOAL
       if self.Filter.Prefixes then
         local MZonePrefix = false
         for ZonePrefixId, ZonePrefix in pairs(self.Filter.Prefixes) do
-          --self:T(3({ "Prefix:", string.find(MZoneName, ZonePrefix, 1), ZonePrefix })
-          if string.find(MZoneName, ZonePrefix, 1) then
+          if self:_SearchPattern(MZoneName, ZonePrefix, self.filterNoRegex, self.filterReplaceDash) then          
             MZonePrefix = true
           end
         end
-        --self:T(({ "Evaluated Prefix", MZonePrefix })
         MZoneInclude = MZoneInclude and MZonePrefix
       end
     end
@@ -7069,14 +6719,6 @@ do -- SET_ZONE_GOAL
     if EventData.ZoneGoal then
       local Zone = _DATABASE:FindZone(EventData.ZoneGoal.ZoneName)
       if Zone and Zone.ZoneName then
-
-        -- When cargo was deleted, it may probably be because of an S_EVENT_DEAD.
-        -- However, in the loading logic, an S_EVENT_DEAD is also generated after a Destroy() call.
-        -- And this is a problem because it will remove all entries from the SET_ZONE_GOALs.
-        -- To prevent this from happening, the Zone object has a flag NoDestroy.
-        -- When true, the SET_ZONE_GOAL won't Remove the Zone object from the set.
-        -- This flag is switched off after the event handlers have been called in the EVENT class.
-        --self:F({ ZoneNoDestroy = Zone.NoDestroy })
         if Zone.NoDestroy then
         else
           self:Remove(Zone.ZoneName)
@@ -7170,7 +6812,19 @@ do -- SET_OPSZONE
   
     -- Inherits from BASE
     local self = BASE:Inherit(self, SET_BASE:New(_DATABASE.OPSZONES))
-
+    
+    --- Filter the set once
+    -- @function [parent=#SET_OPSZONE] FilterOnce
+    -- @param #SET_OPSZONE self
+    -- @return #SET_OPSZONE self
+    
+    ---Set Regex Options for FilterPrefix function.
+    -- @function [parent=#SET_OPSZONE] FilterSetRegex
+    -- @param #SET_OPSZONE self
+    -- @param #boolean NoRegex If true, switch off Regex pattern matching for FilterPrefixes.
+    -- @param #boolean ReplaceDash If false, switch off dash "-" replacement in strings for FilterPrefixes.
+    -- @return #SET_OPSZONE self
+    
     return self
   end
 
@@ -7394,17 +7048,13 @@ do -- SET_OPSZONE
         -- Loop over prefixes.
         for ZonePrefixId, ZonePrefix in pairs(self.Filter.Prefixes) do
         
-          -- Prifix
-          --self:T(3({ "Prefix:", string.find(MZoneName, ZonePrefix, 1), ZonePrefix })
-          
-          if string.find(MZoneName, ZonePrefix, 1) then
+          -- Prefix
+          if self:_SearchPattern(MZoneName, ZonePrefix, self.filterNoRegex, self.filterReplaceDash) then
             MZonePrefix = true
             break --Break the loop as we found the prefix.
           end
           
         end
-        
-        --self:T(({ "Evaluated Prefix", MZonePrefix })
         
         MZoneInclude = MZoneInclude and MZonePrefix
       end
@@ -7465,14 +7115,6 @@ do -- SET_OPSZONE
     if EventData.ZoneGoal then
       local Zone = _DATABASE:FindZone(EventData.ZoneGoal.ZoneName)
       if Zone and Zone.ZoneName then
-
-        -- When cargo was deleted, it may probably be because of an S_EVENT_DEAD.
-        -- However, in the loading logic, an S_EVENT_DEAD is also generated after a Destroy() call.
-        -- And this is a problem because it will remove all entries from the SET_OPSZONEs.
-        -- To prevent this from happening, the Zone object has a flag NoDestroy.
-        -- When true, the SET_OPSZONE won't Remove the Zone object from the set.
-        -- This flag is switched off after the event handlers have been called in the EVENT class.
-        --self:F({ ZoneNoDestroy = Zone.NoDestroy })
         if Zone.NoDestroy then
         else
           self:Remove(Zone.ZoneName)
@@ -8201,7 +7843,7 @@ function SET_OPSGROUP:_EventOnBirth(Event)
       local MGroupPrefix = false
       
       for GroupPrefixId, GroupPrefix in pairs(self.Filter.GroupPrefixes) do
-        if string.find(MGroup:GetName(), GroupPrefix:gsub ("-", "%%-"), 1) then --Not sure why "-" is replaced by "%-" ?! - So we can still match group names with a dash in them
+        if self:_SearchPattern(MGroup:GetName(), GroupPrefix, self.filterNoRegex, self.filterReplaceDash) then
           MGroupPrefix = true
         end
       end
@@ -8329,7 +7971,7 @@ do -- SET_SCENERY
 
     local AddSceneryNamesArray = (type(AddSceneryNames) == "table") and AddSceneryNames or { AddSceneryNames }
 
-    --self:T((AddSceneryNamesArray)
+    --UTILS.PrintTableToLog(AddSceneryNamesArray)
     for AddSceneryID, AddSceneryName in pairs(AddSceneryNamesArray) do
       self:Add(AddSceneryName, SCENERY:FindByZoneName(AddSceneryName))
     end
@@ -8535,12 +8177,10 @@ do -- SET_SCENERY
       if self.Filter.Prefixes then
         local MSceneryPrefix = false
         for ZonePrefixId, ZonePrefix in pairs(self.Filter.Prefixes) do
-          --self:T(({ "Prefix:", string.find(MSceneryName, ZonePrefix, 1), ZonePrefix })
-          if string.find(MSceneryName, ZonePrefix, 1) then
+          if self:_SearchPattern(MSceneryName, ZonePrefix, self.filterNoRegex, self.filterReplaceDash) then
             MSceneryPrefix = true
           end
         end
-        --self:T(({ "Evaluated Prefix", MSceneryPrefix })
         MSceneryInclude = MSceneryInclude and MSceneryPrefix
       end
       
@@ -8760,7 +8400,19 @@ do -- SET_DYNAMICCARGO
 
     --- Inherits from BASE
     local self = BASE:Inherit(self, SET_BASE:New(_DATABASE.DYNAMICCARGO)) -- Core.Set#SET_DYNAMICCARGO
-
+      
+    --- Filter the set once
+    -- @function [parent=#SET_DYNAMICCARGO] FilterOnce
+    -- @param #SET_DYNAMICCARGO self
+    -- @return #SET_DYNAMICCARGO self
+    
+    ---Set Regex Options for FilterPrefix function.
+    -- @function [parent=#SET_DYNAMICCARGO] FilterSetRegex
+    -- @param #SET_DYNAMICCARGO self
+    -- @param #boolean NoRegex If true, switch off Regex pattern matching for FilterPrefixes.
+    -- @param #boolean ReplaceDash If false, switch off dash "-" replacement in strings for FilterPrefixes.
+    -- @return #SET_DYNAMICCARGO self
+    
     return self
   end
   
@@ -8808,8 +8460,7 @@ do -- SET_DYNAMICCARGO
     if self.Filter.StaticPrefixes then
       local DCargoPrefix = false
       for StaticPrefixId, StaticPrefix in pairs(self.Filter.StaticPrefixes) do
-        --self:T2({ "Prefix:", string.find(DCargo:GetName(), StaticPrefix, 1), StaticPrefix })
-        if string.find(DCargo:GetName(), StaticPrefix, 1) then
+        if self:_SearchPattern(DCargo:GetName(), StaticPrefix, self.filterNoRegex, self.filterReplaceDash) then
           DCargoPrefix = true
         end
       end
@@ -8977,7 +8628,7 @@ do -- SET_DYNAMICCARGO
   function SET_DYNAMICCARGO:FilterCurrentOwner(PlayerName)
     self:FilterFunction(
       function(cargo)
-        if cargo and cargo.Owner and string.find(cargo.Owner,PlayerName,1,true) then
+        if cargo and cargo.Owner and self:_SearchPattern(cargo.Owner, PlayerName, self.filterNoRegex, self.filterReplaceDash) then
           return true
         else
           return false
@@ -9103,7 +8754,7 @@ do -- SET_DYNAMICCARGO
   
   --- Set filter timer interval for FilterZones if using active filtering with FilterStart().
   -- @param #SET_DYNAMICCARGO self
-  -- @param #number Seconds Seconds between check intervals, defaults to 30. **Caution** - do not be too agressive with timing! Objects are usually not moving fast enough
+  -- @param #number Seconds (Optional) Seconds between check intervals, defaults to 30. **Caution** - do not be too agressive with timing! Objects are usually not moving fast enough
   -- to warrant a check of below 10 seconds.
   -- @return #SET_DYNAMICCARGO self
   function SET_DYNAMICCARGO:FilterZoneTimer(Seconds) 

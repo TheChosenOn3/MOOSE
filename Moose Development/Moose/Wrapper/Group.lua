@@ -604,7 +604,7 @@ end
 -- See [hoggit documentation](https://wiki.hoggitworld.com/view/DCS_func_hasAttribute).
 -- @param #GROUP self
 -- @param #string attribute The name of the attribute the group is supposed to have. Valid attributes can be found in the "db_attributes.lua" file which is located at in "C:\Program Files\Eagle Dynamics\DCS World\Scripts\Database".
--- @param #boolean all If true, all units of the group must have the attribute in order to return true. Default is only one unit of a heterogenious group needs to have the attribute.
+-- @param #boolean all (Optional) If true, all units of the group must have the attribute in order to return true. Default is only one unit of a heterogenious group needs to have the attribute.
 -- @return #boolean Group has this attribute.
 function GROUP:HasAttribute(attribute, all)
 
@@ -871,13 +871,14 @@ end
 
 --- Get the first unit of the group which is alive.
 -- @param #GROUP self
+-- @param #table Units (Optional) Existing list of Wrapper.Unit#UNIT objects from this group.
 -- @return Wrapper.Unit#UNIT First unit alive.
-function GROUP:GetFirstUnitAlive()
+function GROUP:GetFirstUnitAlive(Units)
   --self:F3({self.GroupName})
   local DCSGroup = self:GetDCSObject()
 
   if DCSGroup then
-    local units=self:GetUnits()
+    local units=Units or self:GetUnits()
     for _,_unit in pairs(units) do
       local unit=_unit --Wrapper.Unit#UNIT
       if unit and unit:IsAlive() then
@@ -2271,6 +2272,9 @@ function GROUP:Respawn( Template, Reset )
 
   -- Reset events.
   self:ResetEvents()
+  
+  -- Reset options.
+  self:ResetOptionCache()
 
   return self
 end

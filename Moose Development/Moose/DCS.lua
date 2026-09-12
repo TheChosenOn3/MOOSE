@@ -87,7 +87,8 @@ do -- world
   -- @field S_EVENT_SIMULATION_UNFREEZE = 58 
   -- @field S_EVENT_HUMAN_AIRCRAFT_REPAIR_START = 59 
   -- @field S_EVENT_HUMAN_AIRCRAFT_REPAIR_FINISH = 60   
-  -- @field S_EVENT_MAX = 61
+  -- @field S_EVENT_GROUP_CHANGE_OPTION = 61
+  -- @field S_EVENT_MAX = 62
   
   --- The birthplace enumerator is used to define where an aircraft or helicopter has spawned in association with birth events.
   -- @type world.BirthPlace
@@ -131,7 +132,7 @@ do -- world
 
   --- Returns a table of DCS airbase objects.
   -- @function [parent=#world] getAirbases
-  -- @param #number coalitionId The coalition side number ID. Default is all airbases are returned.
+  -- @param #number coalitionId (Optional) The coalition side number ID. Default is all airbases are returned.
   -- @return #table Table of DCS airbase objects.
 
 
@@ -1033,7 +1034,7 @@ do -- Spot
   --- Sets the number that is used to define the laser code for which laser designation can track.
   -- @function [parent=#Spot] setCode
   -- @param #Spot self
-  -- @param #number Code The laser code. Default value is 1688.
+  -- @param #number Code (Optional) The laser code. Default value is 1688.
   
   --- Destroys the spot.
   -- @function [parent=#Spot] destroy
@@ -1672,6 +1673,9 @@ do -- AI
   -- @field OPTION_RADIO_USAGE_KILL
   -- @field JETT_TANKS_IF_EMPTY
   -- @field FORCED_ATTACK
+  -- @field PREFER_VERTICAL
+  -- @field ALLOW_FORMATION_SIDE_SWAP  
+  -- @field AI_RUNWAY_LINE_UP
 
   ---
   -- @type AI.Option.Air.val

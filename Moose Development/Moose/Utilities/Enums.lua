@@ -131,14 +131,24 @@ ENUMS.WeaponFlag={
   Cannons              =  805306368, -- GUN_POD + BuiltInCannon
   --- Torpedo
   Torpedo              = 4294967296,
+  --- Decoy
+  Decoys               = 8589934592,
+  --- Shell  
+  SmokeShell                =  17179869184,
+  IlluminationShell         =  34359738368,
+  MarkerShell               =  51539607552,
+  MarkerWeapon              =  51539620864,
+  SubmunitionDispenserShell =  68719476736,
+  ConventionalShell         = 206963736576,
   ---
   -- Even More Genral
-  Auto                 = 3221225470, -- Any Weapon (AnyBomb + AnyRocket + AnyMissile + Cannons)
-  AutoDCS              = 1073741822, -- Something if often see
-  AnyAG                = 2956984318, -- Any Air-To-Ground Weapon
-  AnyAA                =  264241152, -- Any Air-To-Air Weapon
-  AnyUnguided          = 2952822768, -- Any Unguided Weapon
-  AnyGuided            =  268402702, -- Any Guided Weapon
+  Auto                 = 265214230526, -- Any Weapon (AnyBomb + AnyRocket + AnyMissile + Cannons + Torpedos)
+  AutoDCS              =   1073741822, -- Something if often see
+  AnyAG                =   2956984318, -- Any Air-To-Ground Weapon
+  AnyAA                =    264241152, -- Any Air-To-Air Weapon
+  AnyUnguided          =   2952822768, -- Any Unguided Weapon
+  AnyGuided            =    268402702, -- Any Guided Weapon
+  AnyShell             = 258503344128, -- Any Shell
 }
 
 --- Weapon types by category. See the [Weapon Flag](https://wiki.hoggitworld.com/view/DCS_enum_weapon_flag) enumerator on hoggit wiki.
@@ -220,11 +230,11 @@ ENUMS.WeaponType.Torpedo={
 }
 ENUMS.WeaponType.Any={
   -- General combinations
-  Weapon               = 3221225470, -- Any Weapon (AnyBomb + AnyRocket + AnyMissile + Cannons)
-  AG                   = 2956984318, -- Any Air-To-Ground Weapon
-  AA                   =  264241152, -- Any Air-To-Air Weapon
-  Unguided             = 2952822768, -- Any Unguided Weapon
-  Guided               =  268402702, -- Any Guided Weapon
+  Weapon               = 265214230526, -- Any Weapon (AnyBomb + AnyRocket + AnyMissile + Cannons + Torpedos)
+  AG                   =   2956984318, -- Any Air-To-Ground Weapon
+  AA                   =    264241152, -- Any Air-To-Air Weapon
+  Unguided             =   2952822768, -- Any Unguided Weapon
+  Guided               =    268402702, -- Any Guided Weapon
 }
 
 
@@ -513,7 +523,7 @@ ENUMS.ReportingName =
     Tornado = "Tornado",
     -- Transport / Bomber / Others
     Atlas = "A400",
-    Lancer = "B1-B",
+    Lancer = "B-1B",
     Stratofortress = "B-52H",
     Herc = "C-130",
     Hercules = "C-130J-30",
@@ -558,7 +568,7 @@ ENUMS.ReportingName =
     Apache = "AH-64",
     Chinook = "CH-47",
     Sea_Stallion = "CH-53",
-    Kiowa = "OH-58",
+    Kiowa = "OH58D",
     Seahawk = "SH-60",
     Blackhawk = "UH-60",
     Sea_King = "S-61",
@@ -1798,13 +1808,21 @@ ENUMS.Storage.weapons.missiles.Igla_S = 'weapons.missiles.Igla_S'
 ENUMS.Storage.weapons.gunmounts.AKAN_NO_TRC = 'weapons.gunmounts.{AKAN_NO_TRC}'
 ENUMS.Storage.weapons.gunmounts.AKAN = 'weapons.gunmounts.{AKAN}'
 ENUMS.Storage.weapons.shells.M882_9x19 = 'weapons.shells.9x19_m882'
+ENUMS.Storage.weapons.droptanks.fuel_tank_370gal = "weapons.droptanks.fuel_tank_370gal"
+ENUMS.Storage.weapons.droptanks.fuel_tank_300gal  = "weapons.droptanks.fuel_tank_300gal"
+
+-- NEW
 ENUMS.Storage.weapons.adapters.HB_F_4E_ORD_LAU_77 = 'weapons.adapters.HB_F-4E_ORD_LAU_77'
 ENUMS.Storage.weapons.adapters.hb_a_6e_lau7_adu299 = 'weapons.adapters.hb_a-6e_lau7_adu299'
+ENUMS.Storage.weapons.adapters.CHAP_AIM92LN = 'weapons.adapters.CHAP_AIM92LN'
+ENUMS.Storage.weapons.adapters.CHAP_HOT3LN = 'weapons.adapters.CHAP_HOT3LN'
+ENUMS.Storage.weapons.adapters.CHAP_FZ225 = 'weapons.adapters.CHAP_FZ225'
 
 ENUMS.Storage.weapons.bombs.AH6_SMOKE_BLUE = 'weapons.bombs.AH6_SMOKE_BLUE'
 ENUMS.Storage.weapons.bombs.AH6_SMOKE_GREEN = 'weapons.bombs.AH6_SMOKE_GREEN'
 ENUMS.Storage.weapons.bombs.AH6_SMOKE_RED = 'weapons.bombs.AH6_SMOKE_RED'
 ENUMS.Storage.weapons.bombs.AH6_SMOKE_YELLOW = 'weapons.bombs.AH6_SMOKE_YELLOW'
+ENUMS.Storage.weapons.bombs.AO_25SL = 'weapons.bombs.AO_25SL'
 
 ENUMS.Storage.weapons.missiles.HB_AGM_78 = 'weapons.missiles.HB_AGM_78'
 ENUMS.Storage.weapons.missiles.V_1 = 'weapons.missiles.V-1'
@@ -1851,6 +1869,10 @@ ENUMS.Storage.weapons.shells.M42A1_HE = 'weapons.shells.M42A1_HE'
 ENUMS.Storage.weapons.shells.HE_20x138B = 'weapons.shells.20x138B_HE'
 ENUMS.Storage.weapons.shells.HE_37x263 = 'weapons.shells.37x263_HE'
 ENUMS.Storage.weapons.shells.HE_2A20_115mm = 'weapons.shells.2A20_115mm_HE'
+ENUMS.Storage.weapons.shells.AP_20x99R = 'weapons.shells.20x99R_AP'
+ENUMS.Storage.weapons.shells.IranFAC_DShK_API_T = 'weapons.shells.IranFAC_DShK_API_T'
+ENUMS.Storage.weapons.shells.IranFAC_DShK_API = 'weapons.shells.IranFAC_DShK_API'
+ENUMS.Storage.weapons.shells.HE_T_20x99R = 'weapons.shells.20x99R_HE_T'
 
 ENUMS.Storage.weapons.gunmounts.B17_TailTurret_M2_L = 'weapons.gunmounts.B17_TailTurret_M2_L'
 ENUMS.Storage.weapons.gunmounts.AH6_M134L = 'weapons.gunmounts.{AH6_M134L}'
@@ -1881,6 +1903,11 @@ ENUMS.Storage.weapons.gunmounts.AH_6_FN_HMP400 = 'weapons.gunmounts.{AH-6_FN_HMP
 ENUMS.Storage.weapons.gunmounts.AH_6_M134L = 'weapons.gunmounts.AH-6_M134L'
 ENUMS.Storage.weapons.gunmounts.AH_6_M134R = 'weapons.gunmounts.AH-6_M134R'
 ENUMS.Storage.weapons.gunmounts.AH_6_HMP400 = 'weapons.gunmounts.AH-6_HMP400'
+ENUMS.Storage.weapons.gunmounts.AKAN_NO_TRC = 'weapons.gunmounts.{AKAN_NO_TRC}'
+ENUMS.Storage.weapons.gunmounts.AKAN = 'weapons.gunmounts.{AKAN}'
+ENUMS.Storage.weapons.gunmounts.CHAP_HMP400LC = 'weapons.gunmounts.{CHAP_HMP400LC}'
+ENUMS.Storage.weapons.gunmounts.HMP400LC = 'weapons.gunmounts.HMP400LC'
+ENUMS.Storage.weapons.gunmounts.SHVAK_GUN = 'weapons.gunmounts.SHVAK_GUN'
 
 ENUMS.Storage.weapons.droptanks.PTB_800 = 'weapons.droptanks.PTB-800'
 ENUMS.Storage.weapons.droptanks.PTB_275 = 'weapons.droptanks.PTB-275'
@@ -1931,6 +1958,7 @@ ENUMS.Storage.weapons.droptanks.S_3_PTB = 'weapons.droptanks.S-3-PTB'
 ENUMS.Storage.weapons.droptanks.fuel_tank_370gal = 'weapons.droptanks.fuel_tank_370gal'
 ENUMS.Storage.weapons.droptanks.MIG_23_PTB = 'weapons.droptanks.MIG-23-PTB'
 ENUMS.Storage.weapons.droptanks.f_18c_ptb = 'weapons.droptanks.f-18c-ptb'
+ENUMS.Storage.weapons.droptanks.CHAP_TigerUHT_fueltank = 'weapons.droptanks.CHAP_TigerUHT_fueltank'
 
 ENUMS.Storage.weapons.containers.FN_HMP400_100 = 'weapons.containers.{FN_HMP400_100}'
 ENUMS.Storage.weapons.containers.AN_M3 = 'weapons.containers.{AN-M3}'
@@ -2062,6 +2090,13 @@ ENUMS.Storage.weapons.containers.GIAT_M621_AP = 'weapons.containers.{GIAT_M621_A
 ENUMS.Storage.weapons.containers.M134_R = 'weapons.containers.M134_R'
 ENUMS.Storage.weapons.containers.OH58D_M3P_L300 = 'weapons.containers.OH58D_M3P_L300'
 ENUMS.Storage.weapons.containers.AH6_M134R = 'weapons.containers.{AH6_M134R}'
+ENUMS.Storage.weapons.containers.CHAP_HMP400LC = 'weapons.containers.{CHAP_HMP400LC}'
+
+ENUMS.Storage.weapons.missiles.C701_AShM = 'weapons.missiles.C701 AShM'
+ENUMS.Storage.weapons.missiles.IGLA_9M39 = 'weapons.missiles.9M39_IGLA'
+ENUMS.Storage.weapons.missiles.CHAP_AIM92 = 'weapons.missiles.CHAP_AIM92'
+ENUMS.Storage.weapons.missiles.AM39 = 'weapons.missiles.AM39'
+ENUMS.Storage.weapons.missiles.Shahed136_LM = 'weapons.missiles.Shahed136_LM'
 
 ENUMS.Storage.weapons.torpedoes.G7A_T1 = 'weapons.torpedoes.G7A_T1'
 
@@ -2090,6 +2125,56 @@ ENUMS.Storage.weapons.containers.UH60L_M60_GUNNER = 'weapons.containers.{UH60L_M
 ENUMS.Storage.weapons.containers.UH60_GAU19_RIGHT = 'weapons.containers.{UH60_GAU19_RIGHT}'
 ENUMS.Storage.weapons.containers.UH60_M230_RIGHT = 'weapons.containers.{UH60_M230_RIGHT}'
 ENUMS.Storage.weapons.containers.UH60L_M2_GUNNER = 'weapons.containers.{UH60L_M2_GUNNER}'
+
+
+ENUMS.Storage.weapons.adapters.GD_F100_SUU_13 = 'weapons.adapters.GD_F100_SUU-13'
+ENUMS.Storage.weapons.containers.GPU_5_POD = 'weapons.containers.{GPU_5_POD}'
+ENUMS.Storage.weapons.bombs.BOLT_117 = 'weapons.bombs.BOLT-117'
+ENUMS.Storage.weapons.shells.F100_M39_20_TP_T = 'weapons.shells.F100_M39_20_TP_T'
+ENUMS.Storage.weapons.gunmounts.M_39_F_100 = 'weapons.gunmounts.M-39 F-100'
+ENUMS.Storage.weapons.droptanks.GD_F100_TANK_275_L = 'weapons.droptanks.GD_F100_TANK_275_L'
+ENUMS.Storage.weapons.bombs.BLU_4B_R_GROUP_R = 'weapons.bombs.BLU-4B_R_GROUP_R'
+ENUMS.Storage.weapons.containers.F100_CAMERA_P2 = 'weapons.containers.F100_CAMERA_P2'
+ENUMS.Storage.weapons.containers.HB_ORD_SUU_7 = 'weapons.containers.HB_ORD_SUU_7'
+ENUMS.Storage.weapons.adapters.SidewinderPylon = 'weapons.adapters.SidewinderPylon'
+ENUMS.Storage.weapons.adapters.apu_470 = 'weapons.adapters.apu_470'
+ENUMS.Storage.weapons.droptanks.GD_F100_TANK_335_R = 'weapons.droptanks.GD_F100_TANK_335_R'
+ENUMS.Storage.weapons.bombs.BLU_3B_R_GROUP_R = 'weapons.bombs.BLU-3B_R_GROUP_R'
+ENUMS.Storage.weapons.droptanks.GD_F100_TANK_335_L = 'weapons.droptanks.GD_F100_TANK_335_L'
+ENUMS.Storage.weapons.adapters.mbdz_u2t = 'weapons.adapters.mbdz_u2t'
+ENUMS.Storage.weapons.containers.ZellRocket = 'weapons.containers.ZellRocket'
+ENUMS.Storage.weapons.containers.apu_73 = 'weapons.containers.apu-73'
+ENUMS.Storage.weapons.gunmounts.GAU_13 = 'weapons.gunmounts.GAU-13'
+ENUMS.Storage.weapons.shells.F100_M39_20_TP = 'weapons.shells.F100_M39_20_TP'
+ENUMS.Storage.weapons.shells.F100_M39_20_API = 'weapons.shells.F100_M39_20_API'
+ENUMS.Storage.weapons.adapters.bdz_umk2b = 'weapons.adapters.bdz_umk2b'
+ENUMS.Storage.weapons.droptanks.GD_F100_TANK_450 = 'weapons.droptanks.GD_F100_TANK_450'
+ENUMS.Storage.weapons.droptanks.GD_F100_TANK_275_R = 'weapons.droptanks.GD_F100_TANK_275_R'
+ENUMS.Storage.weapons.bombs.BLU_18_B_GROUP = 'weapons.bombs.BLU-18/B_GROUP'
+ENUMS.Storage.weapons.containers.ZELL_Booster = 'weapons.containers.ZELL Booster'
+ENUMS.Storage.weapons.adapters.apu_60 = 'weapons.adapters.apu_60'
+ENUMS.Storage.weapons.gunmounts.GPU_5_POD = 'weapons.gunmounts.{GPU_5_POD}'
+ENUMS.Storage.weapons.containers.F100_CAMERA_KA71A = 'weapons.containers.F100_CAMERA_KA71A'
+ENUMS.Storage.weapons.bombs.BLU_3_R_GROUP_R = 'weapons.bombs.BLU-3_R_GROUP_R'
+ENUMS.Storage.weapons.shells.F100_M39_20_HEI = 'weapons.shells.F100_M39_20_HEI'
+ENUMS.Storage.weapons.droptanks.GD_F100_TANK_200 = 'weapons.droptanks.GD_F100_TANK_200'
+ENUMS.Storage.weapons.adapters.apu_73 = 'weapons.adapters.apu-73'
+ENUMS.Storage.weapons.gunmounts.AKAN_NO_TRC = 'weapons.gunmounts.AKAN_NO_TRC'
+ENUMS.Storage.weapons.gunmounts.AKAN = 'weapons.gunmounts.AKAN'
+ENUMS.Storage.weapons.shells.F100_M39_20_HEI_T = 'weapons.shells.F100_M39_20_HEI_T'
+ENUMS.Storage.weapons.shells.F100_M39_20_API_T = 'weapons.shells.F100_M39_20_API_T'
+ENUMS.Storage.weapons.containers.GD_F100_STRIKE_CAMERA = 'weapons.containers.GD_F100_STRIKE_CAMERA'
+ENUMS.Storage.weapons.bombs.BLU_49_B = 'weapons.bombs.BLU-49/B'
+
+ENUMS.Storage.weapons.bombs.GBU_24E = 'weapons.bombs.GBU_24E'
+ENUMS.Storage.weapons.containers.GD_F100_SUU_13 = 'weapons.containers.GD_F100_SUU-13'
+ENUMS.Storage.weapons.gunmounts.AKAN = 'weapons.gunmounts.{AKAN}'
+ENUMS.Storage.weapons.gunmounts.AKAN_NO_TRC = 'weapons.gunmounts.{AKAN_NO_TRC}'
+ENUMS.Storage.weapons.gunmounts.SUU_23_POD_Wing = 'weapons.gunmounts.{SUU_23_POD_Wing}'
+ENUMS.Storage.weapons.containers.SUU_23_POD_Wing = 'weapons.containers.{SUU_23_POD_Wing}'
+ENUMS.Storage.weapons.containers.SUU_23_POD_Centerline = 'weapons.containers.{SUU_23_POD_Centerline}'
+ENUMS.Storage.weapons.gunmounts.SUU_23_POD_Centerline = 'weapons.gunmounts.{SUU_23_POD_Centerline}'
+ENUMS.Storage.weapons.containers.HB_F_4E_BRU_42 = 'weapons.containers.HB_F-4E_BRU-42'
 
 ---
 -- @type ENUMS.FARPType

@@ -22,6 +22,9 @@
 -- @field #number coalition Coalition side number, e.g. `coalition.side.RED`.
 -- @field #string alias Name of the agency.
 -- @field Core.Set#SET_GROUP detectionset Set of detection groups, aka agents.
+-- @field #number _detectionBatchSize [Internal] Optional groups per batch; nil keeps synchronous detection.
+-- @field #number _detectionBatchInterval [Internal] Seconds between batches when batching is enabled.
+-- @field #table _detectionSweep [Internal] Pending sweep membership, detected units, recces, cursor and timer.
 -- @field #table filterCategory Filter for unit categories.
 -- @field #table filterCategoryGroup Filter for group categories.
 -- @field Core.Set#SET_ZONE acceptzoneset Set of accept zones. If defined, only contacts in these zones are considered.
@@ -111,6 +114,12 @@ INTEL = {
   DetectAccoustic = false,
   DetectAccousticRadius = 1000,
   DetectAccousticUnitTypes =  {Unit.Category.HELICOPTER},
+  DopplerRadar        = false,
+  DopplerMinAltAGL    = 500,
+  DopplerNotchSin     = math.sin(math.rad(15)),
+  DopplerMinSpeedMps  = 50,
+  DopplerRCS          = true,
+  DopplerRadarRangeM  = 200 * 1000,
 }
 
 --- Detected item info.
@@ -170,6 +179,161 @@ INTEL.Ctype={
 --- INTEL class version.
 -- @field #string version
 INTEL.version="0.3.10"
+
+---
+-- ══════════════════════════════════════════════════════════════════
+--  INTEL Doppler radar extension
+--
+--  Models four phenomena of a 1970/80s pulse-Doppler ground radar
+--  (representative types: Soviet P-18 Spoon Rest, P-37 Bar Lock,
+--   P-80 Back Net / NATO AN/TPS-43 / Hughes AN/TPS-70):
+--
+--   A) GROUND CLUTTER (AGL threshold)
+--      Low-flying targets blend into terrain returns. Below DopplerMinAltAGL
+--      detection probability drops linearly to 0 at 0 m AGL.
+--
+--   B) VELOCITY NOTCH (beam aspect)
+--      The MTI (Moving Target Indicator) filter suppresses returns with
+--      near-zero Doppler shift. Targets flying perpendicular to the radar
+--      beam (radial-velocity fraction < sin(NotchHalfDeg)) are rejected.
+--      Classic P-18/P-37 notch was ≈ ±12–18° around 90° aspect.
+--
+--   C) MINIMUM SPEED GATE
+--      Very slow targets (taxiing aircraft, hovering) cannot be separated
+--      from ground clutter by their Doppler shift alone.
+--
+--   D) RADAR CROSS SECTION (RCS)
+--      Larger targets are detectable at longer ranges. The radar range
+--      equation gives R_max ∝ σ^0.25, so detection range is scaled by
+--      (σ / σ_ref)^0.25 relative to a reference aircraft (default: 5 m²).
+--      RCS also varies with aspect: nose-on ≈ 15% of side-on value.
+--      Known DCS aircraft values are stored in INTEL.RCS_Table; unknowns
+--      fall back to a category default (fighter/bomber/helicopter).
+--      Values are approximate averages from public IISS/Jane's data.
+-- ══════════════════════════════════════════════════════════════════
+--
+-- ── RCS lookup table (nominal side-on RCS in m²) ─────────────────
+-- Frontal (nose-on / tail-on) RCS is modelled as 15% of these values
+-- via aspect interpolation in _GetAspectRCS().
+-- Sources: public declassified estimates, Jane's, IISS assessments.
+--- @field INTEL.RCS_Table
+INTEL.RCS_Table = {
+    -- ── US / NATO fixed-wing ──────────────────────────────────────
+    ["A-10C"]              =  8.0,   -- large, flat surfaces, no LO shaping
+    ["A-10C_2"]            =  8.0,
+    ["F-14A-135-GR"]       =  6.0,   -- variable-sweep; larger than F-16
+    ["F-14B"]              =  6.0,
+    ["F-15C"]              =  5.0,
+    ["F-15E"]              =  5.0,   -- CFTs add modest signature
+    ["F-15ESE"]            =  5.0,
+    ["F-16A"]              =  1.2,
+    ["F-16C bl.50"]        =  1.2,
+    ["F-16C bl.52d"]       =  1.2,
+    ["F/A-18C"]            =  1.5,
+    ["FA-18C_hornet"]      =  1.5,
+    ["F/A-18C_hornet"]     =  1.5,
+    ["F/A-18F"]            =  2.0,   -- slightly larger two-seater
+    ["F-117A"]             =  0.003, -- faceted LO design
+    ["F-22A"]              =  0.0001,-- VLO
+    ["F-35A"]              =  0.001, -- VLO, approx
+    ["B-52H"]              = 100.0,  -- very large, many flat reflectors
+    ["B-1B"]               =  0.75,  -- blended-wing LO shaping
+    ["B-2A"]               =  0.001, -- VLO flying wing
+    ["AV8BNA"]             =  2.0,
+    ["Harrier"]            =  2.0,
+    ["A-4E-C"]             =  3.0,
+    ["Tornado_IDS"]        =  5.0,
+    ["Tornado_GR4"]        =  5.0,
+    ["F-111F"]             =  5.0,
+    ["F-4E"]               =  6.0,   -- large, blunt nose
+    ["F-5E"]               =  1.0,   -- small fighter
+    ["F-5E-3"]             =  1.0,
+    ["Mirage-F1CE"]        =  2.5,
+    ["Mirage-F1EE"]        =  2.5,
+    ["M-2000C"]            =  2.0,
+    ["M-2000-5"]           =  2.0,
+    ["C-17A"]              = 50.0,
+    ["C-130"]              = 40.0,
+    ["KC-130"]             = 40.0,
+    ["KC-135"]             = 50.0,
+    ["IL-76MD"]            = 45.0,
+    ["E-3A"]               = 50.0,   -- plus large rotodome
+    -- ── Soviet / Russian fixed-wing ──────────────────────────────
+    ["MiG-15bis"]          =  4.0,
+    ["MiG-19P"]            =  3.5,
+    ["MiG-21Bis"]          =  2.5,   -- small delta
+    ["MiG-23MLD"]          =  7.0,   -- variable-sweep, large intakes
+    ["MiG-25PD"]           = 14.0,   -- very large, all-metal, Mach-3 design
+    ["MiG-25RBT"]          = 14.0,
+    ["MiG-29A"]            =  5.0,
+    ["MiG-29S"]            =  5.0,
+    ["MiG-29G"]            =  5.0,
+    ["MiG-29K"]            =  4.0,
+    ["MiG-31"]             = 14.0,   -- similar to MiG-25
+    ["Su-7B"]              =  6.0,
+    ["Su-17M4"]            =  7.0,   -- variable-sweep
+    ["Su-24M"]             =  6.0,
+    ["Su-24MR"]            =  6.0,
+    ["Su-25"]              = 10.0,
+    ["Su-25T"]             = 10.0,
+    ["Su-25TM"]            = 10.0,
+    ["Su-27"]              = 15.0,
+    ["Su-30"]              = 15.0,
+    ["Su-33"]              = 15.0,   -- wing fold + canards
+    ["Su-34"]              = 10.0,   -- some reduction vs Su-27
+    ["Su-57"]              =  0.01,  -- PAK-FA LO shaping
+    ["Tu-22M3"]            = 20.0,
+    ["Tu-95MS"]            = 80.0,
+    ["Tu-142"]             = 80.0,
+    ["Tu-160"]             = 12.0,   -- blended wing reduces vs Tu-95
+    ["An-26B"]             = 30.0,
+    ["An-30M"]             = 30.0,
+    ["IL-78M"]             = 45.0,
+    ["A-50"]               = 50.0,   -- plus rotodome
+    -- ── Helicopters ──────────────────────────────────────────────
+    ["Mi-8MT"]             =  5.0,
+    ["Mi-8MSB"]            =  5.0,
+    ["Mi-8MSB-V"]          =  5.0,
+    ["Mi-8AMTSh"]          =  5.0,
+    ["Mi-24V"]             =  3.5,
+    ["Mi-24P"]             =  3.5,
+    ["Mi-28N"]             =  2.5,
+    ["Ka-50"]              =  2.0,
+    ["Ka-52"]              =  2.0,
+    ["AH-64D"]             =  3.5,
+    ["AH-64D_BLK_II"]      =  3.5,
+    ["UH-1H"]              =  3.0,
+    ["UH-60L"]             =  3.0,
+    ["CH-47D"]             =  8.0,   -- large tandem-rotor
+    ["OH-58D"]             =  0.8,   -- small scout
+    ["SA342M"]             =  0.8,
+    ["SA342L"]             =  0.8,
+}
+
+---
+-- Category-based defaults for aircraft types not in the table.
+-- Keyed by DCS Group.Category integer.
+--- @type INTEL.RCS_CategoryDefault
+-- @field #number Group.Category.AIRPLANE RCS Airplane (fightrt) fallback == 5
+-- @field #number Group.Category.HELICOPTER RCS Helo fallback == 2.5
+INTEL.RCS_CategoryDefault = {
+    [Group.Category.AIRPLANE]   = 5.0,  -- generic fighter-sized
+    [Group.Category.HELICOPTER] = 2.5,  -- generic helicopter
+}
+
+---
+-- Reference RCS (m²) for range scaling.  Detection range in Set
+-- is the range at which this reference aircraft is reliably detected.
+-- @field INTEL.RCS_Reference
+INTEL.RCS_Reference = 5.0   -- m²
+
+---
+-- Nose-on/tail-on RCS as a fraction of the side-on value.
+-- Public estimates for conventional (non-LO) aircraft: ~0.10–0.20.
+-- @field INTEL.RCS_NoseOnFraction
+INTEL.RCS_NoseOnFraction = 0.15
+
+
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- ToDo list
@@ -278,6 +442,7 @@ function INTEL:New(DetectionSet, Coalition, Alias)
   self:SetRejectZones()
   self:SetCorridorZones()
   self:SetConflictZones()
+  self.DopplerRadar = false
 
   ------------------------
   --- Pseudo Functions ---
@@ -411,8 +576,8 @@ end
 
 --- Set to accept accoustic detection.
 -- @param #INTEL self
--- @param #number Radius Radius in which we can "hear" units. Defaults to 1000 meters.
--- @param #table UnitCategories Set what Unit Categories we can "hear". Defaults to `{Unit.Category.GROUND_UNIT,Unit.Category.HELICOPTER}`
+-- @param #number Radius (Optional) Radius in which we can "hear" units. Defaults to 1000 meters.
+-- @param #table UnitCategories(Optional)  Set what Unit Categories we can "hear". Defaults to `{Unit.Category.GROUND_UNIT,Unit.Category.HELICOPTER}`
 -- @return #INTEL self
 function INTEL:SetAccousticDetectionOn(Radius,UnitCategories)
   self.DetectAccoustic = true
@@ -572,7 +737,7 @@ end
 -- Previously known contacts that are not detected any more, are "lost" after this time.
 -- This avoids fast oscillations between a contact being detected and undetected.
 -- @param #INTEL self
--- @param #number TimeInterval Time interval in seconds. Default is 120 sec.
+-- @param #number TimeInterval (Optional) Time interval in seconds. Default is 120 sec.
 -- @return #INTEL self
 function INTEL:SetForgetTime(TimeInterval)
   return self
@@ -607,10 +772,10 @@ end
 
 --- Method to make the radar detection less accurate, e.g. for WWII scenarios.
 -- @param #INTEL self
--- @param #number minheight Minimum flight height to be detected, in meters AGL (above ground)
--- @param #number thresheight Threshold to escape the radar if flying below minheight, defaults to 90 (90% escape chance)
--- @param #number thresblur Threshold to be detected by the radar overall, defaults to 85 (85% chance to be found)
--- @param #number closing Closing-in in km - the limit of km from which on it becomes increasingly difficult to escape radar detection if flying towards the radar position. Should be about 1/3 of the radar detection radius in kilometers, defaults to 20.
+-- @param #number minheight (Optional) Minimum flight height to be detected, in meters AGL (above ground). Defaults to 250m.
+-- @param #number thresheight (Optional) Threshold to escape the radar if flying below minheight, defaults to 90 (90% escape chance)
+-- @param #number thresblur (Optional) Threshold to be detected by the radar overall, defaults to 85 (85% chance to be found)
+-- @param #number closing (Optional) Closing-in in km - the limit of km from which on it becomes increasingly difficult to escape radar detection if flying towards the radar position. Should be about 1/3 of the radar detection radius in kilometers, defaults to 20.
 -- @return #INTEL self
 function INTEL:SetRadarBlur(minheight,thresheight,thresblur,closing)
   self.RadarBlur = true
@@ -737,7 +902,7 @@ end
 
 --- Change radius of the Clusters.
 -- @param #INTEL self
--- @param #number radius The radius of the clusters in kilometers. Default 15 km.
+-- @param #number radius (Optional) The radius of the clusters in kilometers. Default 15 km.
 -- @return #INTEL self
 function INTEL:SetClusterRadius(radius)
   self.clusterradius = (radius or 15)*1000
@@ -854,22 +1019,51 @@ function INTEL:onafterStart(From, Event, To)
   return self
 end
 
---- On after "Status" event.
+--- On after "Status" event. In batch mode, contacts are published when the sweep completes.
 -- @param #INTEL self
 -- @param #string From From state.
 -- @param #string Event Event.
 -- @param #string To To state.
 function INTEL:onafterStatus(From, Event, To)
 
-  -- FSM state.
-  local fsmstate=self:GetState()
-
+  local batched=self._detectionSweep or self._detectionBatchSize
   -- Fresh arrays.
-  self.ContactsLost={}
-  self.ContactsUnknown={}
+  if not batched then
+    self.ContactsLost={}
+    self.ContactsUnknown={}
+  end
 
   -- Check if group has detected any units.
   self:UpdateIntel()
+
+  if not batched then self:_ReportIntelStatus() end
+
+  self:__Status(self.statusupdate)
+  return self
+end
+
+--- On after "Stop" event. Cancel an unfinished detection sweep.
+-- @param #INTEL self
+-- @param #string From From state.
+-- @param #string Event Event.
+-- @param #string To To state.
+-- @return #INTEL self
+function INTEL:onafterStop(From, Event, To)
+  local sweep=self._detectionSweep --#table
+  if sweep then
+    if sweep.timer then timer.removeFunction(sweep.timer) end
+    self._detectionSweep=nil
+  end
+  return self
+end
+
+--- [Internal] Report the contacts and clusters from a completed detection sweep.
+-- @param #INTEL self
+-- @return #INTEL self
+function INTEL:_ReportIntelStatus()
+
+  -- FSM state.
+  local fsmstate=self:GetState()
 
   -- Number of total contacts.
   local Ncontacts=#self.Contacts
@@ -896,146 +1090,202 @@ function INTEL:onafterStatus(From, Event, To)
     self:I(self.lid..text)
   end
 
-  self:__Status(self.statusupdate)
   return self
 end
 
 
---- Update detected items.
+--- Update detected items. Optional batches publish contacts after the complete sweep.
 -- @param #INTEL self
 function INTEL:UpdateIntel()
 
+  local sweep=self._detectionSweep --#table
+  if sweep and sweep.waiting then return self end
+  local groups=self.detectionset.Set or {}
+  if sweep or self._detectionBatchSize then
+    if not self:Is("Running") then return self end
+    if not sweep then
+      -- Snapshot membership once; resolve each group from the live set when its batch runs.
+      sweep={groups={},units={},recce={},objects={}}
+      for name in pairs(groups) do sweep.groups[#sweep.groups+1]=name end
+      sweep.interval=self._detectionBatchInterval
+      -- Finish within the status interval, including large detection sets.
+      local batches=math.max(1,math.floor(math.abs(self.statusupdate)/sweep.interval))
+      sweep.batchSize=math.max(self._detectionBatchSize,math.ceil(#sweep.groups/batches))
+      self._detectionSweep=sweep
+    end
+    groups=sweep.groups
+  end
+
   -- Set of all detected units.
-  local DetectedUnits={}
+  local DetectedUnits=sweep and sweep.units or {}
+  local DetectedObjects=sweep and sweep.objects or nil
 
   -- Set of which units was detected by which recce
-  local RecceDetecting = {}
+  local RecceDetecting = sweep and sweep.recce or {}
 
   -- Loop over all units providing intel.
-  for _,_group in pairs(self.detectionset.Set or {}) do
+  local scanned=0
+  for index,_group in next,groups,sweep and sweep.index or nil do
     local group=_group --Wrapper.Group#GROUP
+    if sweep then
+      sweep.index=index
+      group=self.detectionset.Set[_group]
+    end
 
     if group and group:IsAlive() then
 
-      for _,_recce in pairs(group:GetUnits()) do
+      local units = group:GetUnits()
+      for _,_recce in pairs(units) do
         local recce=_recce --Wrapper.Unit#UNIT
 
         -- Get detected units.
-        self:GetDetectedUnits(recce, DetectedUnits, RecceDetecting, self.DetectVisual, self.DetectOptical, self.DetectRadar, self.DetectIRST, self.DetectRWR, self.DetectDLINK)
-
+        if self.DopplerRadar == true then
+          self:GetDetectedUnitsDoppler(recce, DetectedUnits, RecceDetecting, self.DetectVisual, self.DetectOptical, self.DetectRadar, self.DetectIRST, self.DetectRWR, self.DetectDLINK, DetectedObjects)
+        else
+          self:GetDetectedUnits(recce, DetectedUnits, RecceDetecting, self.DetectVisual, self.DetectOptical, self.DetectRadar, self.DetectIRST, self.DetectRWR, self.DetectDLINK, DetectedObjects)
+        end
       end
       
       if self.DetectAccoustic then
-        local recce = group:GetFirstUnitAlive()
+        local recce = group:GetFirstUnitAlive(units) --Wrapper.Unit#UNIT
         local detectionzone = group:GetProperty("INTEL_DETECT_ACCZONE")
         if not detectionzone then
           detectionzone = ZONE_GROUP:New(group.IdentifiableName.."INTEL_DETECT_ACCZONE",group,self.DetectAccousticRadius or 2000)
           group:SetProperty("INTEL_DETECT_ACCZONE",detectionzone)
         end
         if recce and recce:IsGround() then
-          self:GetDetectedUnitsAccoustic(recce,DetectedUnits,RecceDetecting,detectionzone)
+          self:GetDetectedUnitsAccoustic(recce,DetectedUnits,RecceDetecting,detectionzone,DetectedObjects)
         end
       end
 
     end
+    if sweep then
+      scanned=scanned+1
+      if scanned>=sweep.batchSize then break end
+    end
+  end
+
+  if sweep then
+    if next(groups,sweep.index) then
+      sweep.waiting=true
+      if not sweep.timer then
+        sweep.timer=timer.scheduleFunction(function(_,time)
+          if self._detectionSweep~=sweep then return nil end
+          if not self:Is("Running") then self._detectionSweep=nil;return nil end
+          sweep.waiting=false
+          self:UpdateIntel()
+          if self._detectionSweep==sweep then return time+sweep.interval end
+          return nil
+        end,nil,timer.getTime()+sweep.interval)
+      end
+      return self
+    end
+    self._detectionSweep=nil
+    -- Keep the published contact state intact until the entire sweep has finished.
+    self.ContactsLost={}
+    self.ContactsUnknown={}
   end
 
   local remove={}
   for unitname,_unit in pairs(DetectedUnits) do
     local unit=_unit --Wrapper.Unit#UNIT
     
-    local inconflictzone=false
-    -- Check if unit is in any of the conflict zones.
-    if self.conflictzoneset:Count()>0 then
-      for _,_zone in pairs(self.conflictzoneset.Set) do
-        local zone=_zone --Core.Zone#ZONE
-        if unit:IsInZone(zone) then
-          inconflictzone=true
-          break
-        end
-      end
-    end
-    
-    -- Check if unit is in any of the accept zones.
-    if self.acceptzoneset:Count()>0 then
-      local inzone=false
-      for _,_zone in pairs(self.acceptzoneset.Set) do
-        local zone=_zone --Core.Zone#ZONE
-        if unit:IsInZone(zone) then
-          inzone=true
-          break
-        end
-      end
-
-      -- Unit is not in accept zone ==> remove!
-      if (not inzone) and (not inconflictzone) then
-        table.insert(remove, unitname)
-      end
-    end
-
-    -- Check if unit is in any of the reject zones.
-    if self.rejectzoneset:Count()>0 then
-      local inzone=false
-      for _,_zone in pairs(self.rejectzoneset.Set) do
-        local zone=_zone --Core.Zone#ZONE
-        if unit:IsInZone(zone) then
-          inzone=true
-          break
-        end
-      end
-
-      -- Unit is inside a reject zone ==> remove!
-      if inzone and (not inconflictzone) then
-        table.insert(remove, unitname)
-      end
-    end
-    
-    -- Check if unit is in any of the corridor zones.
-    if self.corridorzoneset:Count()>0 then
-      self:T("Corridorzone Check for unit "..unit:GetName())
-      local inzone = false
-      for _,_zone in pairs(self.corridorzoneset.Set) do
-        local zone=_zone --Core.Zone#ZONE
-        if unit:IsInZone(zone) then
-          local corridorfloor = zone:GetProperty("CorridorFloor") or self.corridorfloor
-          local corridorceiling = zone:GetProperty("CorridorCeiling") or self.corridorceiling
-          local debugtext = "Corridorzone Check for unit "..unit:GetName().."\n"
-          debugtext = debugtext .. string.format("IsAir %s | Alt %dft | Floor %dft | Ceil %dft",tostring(unit:IsAir()),tonumber(UTILS.MetersToFeet(unit:GetAltitude())),
-          tonumber(UTILS.MetersToFeet(corridorfloor)),tonumber(UTILS.MetersToFeet(corridorceiling)))
-          MESSAGE:New(debugtext,15,"INTEL"):ToAllIf(self.verbose>1):ToLogIf(self.verbose>1)
-          if unit:IsAir() and (corridorfloor ~= nil or corridorceiling ~= nil) then
-            local alt = unit:GetAltitude()
-            if corridorfloor and alt > corridorfloor then inzone = true end
-            if corridorceiling and (inzone == true or corridorfloor == nil) and alt < corridorceiling then inzone = true else inzone = false end
-            if inzone == true then break end
-          else  
-            inzone=true
+    if sweep and (not unit:IsAlive() or unit:GetDCSObject().id_ ~= DetectedObjects[unitname]) then
+      table.insert(remove,unitname)
+    else
+      local inconflictzone=false
+      -- Check if unit is in any of the conflict zones.
+      if self.conflictzoneset:Count()>0 then
+        for _,_zone in pairs(self.conflictzoneset.Set) do
+          local zone=_zone --Core.Zone#ZONE
+          if unit:IsInZone(zone) then
+            inconflictzone=true
             break
           end
         end
       end
-      -- Unit is inside a corridor zone ==> remove!
-      if inzone then
-        table.insert(remove, unitname)
-      end
-    end
+    
+      -- Check if unit is in any of the accept zones.
+      if self.acceptzoneset:Count()>0 then
+        local inzone=false
+        for _,_zone in pairs(self.acceptzoneset.Set) do
+          local zone=_zone --Core.Zone#ZONE
+          if unit:IsInZone(zone) then
+            inzone=true
+            break
+          end
+        end
 
-    -- Filter unit categories. Added check that we have a UNIT and not a STATIC object because :GetUnitCategory() is only available for units.
-    if #self.filterCategory>0 and unit:IsInstanceOf("UNIT") then
-      local unitcategory=unit:GetUnitCategory()
-      local keepit=false
-      for _,filtercategory in pairs(self.filterCategory) do
-        if unitcategory==filtercategory then
-          keepit=true
-          break
+        -- Unit is not in accept zone ==> remove!
+        if (not inzone) and (not inconflictzone) then
+          table.insert(remove, unitname)
         end
       end
-      if not keepit then
-        self:T(self.lid..string.format("Removing unit %s category=%d", unitname, unit:GetCategory()))
-        table.insert(remove, unitname)
-      end
-    end
 
+      -- Check if unit is in any of the reject zones.
+      if self.rejectzoneset:Count()>0 then
+        local inzone=false
+        for _,_zone in pairs(self.rejectzoneset.Set) do
+          local zone=_zone --Core.Zone#ZONE
+          if unit:IsInZone(zone) then
+            inzone=true
+            break
+          end
+        end
+
+        -- Unit is inside a reject zone ==> remove!
+        if inzone and (not inconflictzone) then
+          table.insert(remove, unitname)
+        end
+      end
+
+      -- Check if unit is in any of the corridor zones.
+      if self.corridorzoneset:Count()>0 then
+        self:T("Corridorzone Check for unit "..unit:GetName())
+        local inzone = false
+        for _,_zone in pairs(self.corridorzoneset.Set) do
+          local zone=_zone --Core.Zone#ZONE
+          if unit:IsInZone(zone) then
+            local corridorfloor = zone:GetProperty("CorridorFloor") or self.corridorfloor
+            local corridorceiling = zone:GetProperty("CorridorCeiling") or self.corridorceiling
+            local debugtext = "Corridorzone Check for unit "..unit:GetName().."\n"
+            debugtext = debugtext .. string.format("IsAir %s | Alt %dft | Floor %s | Ceil %s",tostring(unit:IsAir()),tonumber(UTILS.MetersToFeet(unit:GetAltitude())),
+            corridorfloor and string.format("%dft",UTILS.MetersToFeet(corridorfloor)) or "none",corridorceiling and string.format("%dft",UTILS.MetersToFeet(corridorceiling)) or "none")
+            MESSAGE:New(debugtext,15,"INTEL"):ToAllIf(self.verbose>1):ToLogIf(self.verbose>1)
+            if unit:IsAir() and (corridorfloor ~= nil or corridorceiling ~= nil) then
+              local alt = unit:GetAltitude()
+              if corridorfloor and alt > corridorfloor then inzone = true end
+              if (inzone == true or corridorfloor == nil) and (corridorceiling == nil or alt < corridorceiling) then inzone = true else inzone = false end
+              if inzone == true then break end
+            else
+              inzone=true
+              break
+            end
+          end
+        end
+        -- Unit is inside a corridor zone ==> remove!
+        if inzone then
+          table.insert(remove, unitname)
+        end
+      end
+
+      -- Filter unit categories. Added check that we have a UNIT and not a STATIC object because :GetUnitCategory() is only available for units.
+      if #self.filterCategory>0 and unit:IsInstanceOf("UNIT") then
+        local unitcategory=unit:GetUnitCategory()
+        local keepit=false
+        for _,filtercategory in pairs(self.filterCategory) do
+          if unitcategory==filtercategory then
+            keepit=true
+            break
+          end
+        end
+        if not keepit then
+          self:T(self.lid..string.format("Removing unit %s category=%d", unitname, unit:GetCategory()))
+          table.insert(remove, unitname)
+        end
+      end
+
+    end
   end
 
   -- Remove filtered units.
@@ -1072,6 +1322,7 @@ function INTEL:UpdateIntel()
     self:PaintPicture()
   end
 
+  if sweep then self:_ReportIntelStatus() end
   return self
 end
 
@@ -1105,6 +1356,15 @@ function INTEL:_UpdateContact(Contact)
         else
           Contact.maneuvering = false
         end
+        local typename = Contact.group:GetTypeName()
+        local base_rcs = INTEL.RCS_Table[typename]
+    
+        if not base_rcs then
+            -- Fallback: category default
+            local cat = Contact.group:GetCategory()
+            base_rcs = (cat and INTEL.RCS_CategoryDefault[cat]) or INTEL.RCS_Reference
+        end
+        Contact.rcs = base_rcs
       end
     end
 
@@ -1254,7 +1514,8 @@ end
 -- @param #boolean DetectIRST (Optional) If *false*, do not include targets detected by IRST.
 -- @param #boolean DetectRWR (Optional) If *false*, do not include targets detected by RWR.
 -- @param #boolean DetectDLINK (Optional) If *false*, do not include targets detected by data link.
-function INTEL:GetDetectedUnits(Unit, DetectedUnits, RecceDetecting, DetectVisual, DetectOptical, DetectRadar, DetectIRST, DetectRWR, DetectDLINK)
+-- @param #table DetectedObjects (Optional) Table of native object IDs for the current sweep.
+function INTEL:GetDetectedUnits(Unit, DetectedUnits, RecceDetecting, DetectVisual, DetectOptical, DetectRadar, DetectIRST, DetectRWR, DetectDLINK, DetectedObjects)
 
   -- Get detected DCS units.
   local reccename = Unit:GetName()
@@ -1315,6 +1576,7 @@ function INTEL:GetDetectedUnits(Unit, DetectedUnits, RecceDetecting, DetectVisua
            
           if DetectionAccepted then
             DetectedUnits[name]=unit
+            if DetectedObjects then DetectedObjects[name]=DetectedObject.id_ end
             RecceDetecting[name]=reccename
             self:T(string.format("Unit %s detect by %s", name, reccename))
           end
@@ -1324,6 +1586,7 @@ function INTEL:GetDetectedUnits(Unit, DetectedUnits, RecceDetecting, DetectVisua
             if static then
               --env.info("FF found static "..name)
               DetectedUnits[name]=static
+              if DetectedObjects then DetectedObjects[name]=DetectedObject.id_ end
               RecceDetecting[name]=reccename
             end
           end
@@ -1343,7 +1606,8 @@ end
 -- @param #table DetectedUnits Table of detected units to be filled.
 -- @param #table RecceDetecting Table of recce per unit to be filled.
 -- @param Core.Zone#ZONE_GROUP detectionzone The zone where to look.
-function INTEL:GetDetectedUnitsAccoustic(Recce,DetectedUnits,RecceDetecting,detectionzone)
+-- @param #table DetectedObjects (Optional) Table of native object IDs for the current sweep.
+function INTEL:GetDetectedUnitsAccoustic(Recce,DetectedUnits,RecceDetecting,detectionzone,DetectedObjects)
   local othercoalition = self.coalition == coalition.side.BLUE and coalition.side.RED or coalition.side.BLUE
   self:T("Other coalition = "..othercoalition)
   if detectionzone then
@@ -1357,6 +1621,7 @@ function INTEL:GetDetectedUnitsAccoustic(Recce,DetectedUnits,RecceDetecting,dete
       if _unit and _unit:IsAlive() and _unit:GetCoalition() ~= self.coalition then
         local name = _unit:GetName() or "none"
         DetectedUnits[name]=_unit
+        if DetectedObjects then DetectedObjects[name]=_unit:GetDCSObject().id_ end
         RecceDetecting[name]=reccename
         self:T("Unit name = "..name)
       end
@@ -1445,7 +1710,7 @@ end
 -- @param #INTEL self
 -- @param Wrapper.Positionable#POSITIONABLE Positionable Group or static object.
 -- @param #string RecceName Name of the recce group that detected this object.
--- @param #number Tdetected Abs. mission time in seconds, when the object is detected. Default now.
+-- @param #number Tdetected (Optional) Abs. mission time in seconds, when the object is detected. Default now.
 -- @return #INTEL self
 function INTEL:KnowObject(Positionable, RecceName, Tdetected)
 
@@ -2016,7 +2281,7 @@ end
 --- Calculate cluster future position after given seconds.
 -- @param #INTEL self
 -- @param #INTEL.Cluster cluster The cluster of contacts.
--- @param #number seconds Time interval in seconds. Default is `self.prediction`.
+-- @param #number seconds (Optional) Time interval in seconds. Default is `self.prediction`.
 -- @return Core.Point#COORDINATE Calculated future position of the cluster.
 function INTEL:CalcClusterFuturePosition(cluster, seconds)
 
@@ -2258,7 +2523,7 @@ end
 --- Get the coordinate of a cluster.
 -- @param #INTEL self
 -- @param #INTEL.Cluster Cluster The cluster.
--- @param #boolean Update If `true`, update the coordinate. Default is to just return the last stored position.
+-- @param #boolean Update (Optional) If `true`, update the coordinate. Default is to just return the last stored position.
 -- @return Core.Point#COORDINATE The coordinate of this cluster.
 function INTEL:GetClusterCoordinate(Cluster, Update)
 
@@ -2309,8 +2574,8 @@ end
 --- Check if the coordindate of the cluster changed.
 -- @param #INTEL self
 -- @param #INTEL.Cluster Cluster The cluster.
--- @param #number Threshold in meters. Default 100 m.
--- @param Core.Point#COORDINATE Coordinate Reference coordinate. Default is the last known coordinate of the cluster.
+-- @param #number (Optional) Threshold in meters. Default 100 m.
+-- @param Core.Point#COORDINATE Coordinate (Optional) Reference coordinate. Default is the last known coordinate of the cluster.
 -- @return #boolean If `true`, the coordinate changed by more than the given threshold.
 function INTEL:_CheckClusterCoordinateChanged(Cluster, Coordinate, Threshold)
 
@@ -2445,12 +2710,231 @@ function INTEL:GetHighestThreatContact(Cluster)
   return rcontact
 end
 
+--- Enable 70/80s era pulse-Doppler ground-clutter simulation.
+-- Only affects contacts detected via radar (DetectRadar=true paths).
+-- Has no effect on visual, optical, IRST, RWR or datalink detections.
+-- @param #INTEL self
+-- @param #number MinAltAGL     Min AGL altitude in metres for reliable detection.
+--                              Below this the detection probability drops linearly.
+--                              Default 500 m (≈ clutter floor for P-18 / P-37).
+-- @param #number NotchHalfDeg  Half-width of the velocity notch in degrees.
+--                              Targets with radial-velocity fraction < sin(NotchHalf)
+--                              are suppressed.  Default 15° (≈ P-18 / Bar Lock spec).
+-- @param #number MinSpeedMps   Minimum speed in m/s that the MTI filter can track.
+--                              Default 50 m/s (≈ 100 kt).
+-- @param #number RadarRangeKm  Nominal detection range in km for the reference aircraft
+--                              (RCS_Reference, default 5 m²). Used only for RCS range
+--                              scaling; has no effect when DopplerRCS is false.
+--                              Default 200 km (≈ P-37 instrumented range vs fighter).
+-- @param #boolean RCS          If false, disable RCS range scaling (keep A–C only).
+--                              Default true.
+-- @return #INTEL self
+function INTEL:SetDopplerRadar(MinAltAGL, NotchHalfDeg, MinSpeedMps, RadarRangeKm, RCS)
+  self:T(self.lid .. "SetDopplerRadar")
+    self.DopplerRadar        = true
+    self.DopplerMinAltAGL    = MinAltAGL    or 500
+    self.DopplerNotchSin     = math.sin(math.rad(NotchHalfDeg or 15))
+    self.DopplerMinSpeedMps  = MinSpeedMps  or 50
+    self.DopplerRCS          = (RCS ~= false)   -- default true
+    self.DopplerRadarRangeM  = (RadarRangeKm or 200) * 1000
+    return self
+end
+
+--- Disable Doppler radar simulation.
+-- @param #INTEL self
+-- @return #INTEL self
+function INTEL:SetDopplerRadarOff()
+  self:T(self.lid .. "SetDopplerRadarOff")
+    self.DopplerRadar = false
+    return self
+end
+
+--- Override the per-type RCS value for a DCS unit type name.
+-- Useful for modded aircraft or mission-specific tweaks.
+-- @param #INTEL self
+-- @param #string TypeName  DCS unit type name (e.g. "MiG-29A")
+-- @param #number RCS_m2    Side-on RCS in m²
+-- @return #INTEL self
+function INTEL:SetTypeRCS(TypeName, RCS_m2)
+  self:T(self.lid .. "SetTypeRCS")
+    INTEL.RCS_Table[TypeName] = RCS_m2
+    return self
+end
+
+--- (Internal) Compute the aspect-weighted RCS for a target unit as seen
+-- from a given radar position.
+--
+-- The model blends the side-on (maximum) and nose/tail-on (minimum) RCS
+-- using the geometry of the target's velocity relative to the radar line:
+--
+--   σ_eff = σ_base × ( f_nose + (1 − f_nose) × sin²(aspect_from_radial) )
+--
+-- where aspect_from_radial is 0° when the target flies toward/away from
+-- the radar (nose-on) and 90° when the target crosses the beam (side-on).
+--
+-- @param #INTEL self
+-- @param Wrapper.Unit#UNIT TargetUnit
+-- @param #table  rpos  Radar position as Vec3 {x,y,z}
+-- @param #number spd   Target speed in m/s (pre-computed for efficiency)
+-- @param DCS#Vec3 tvel  Target velocity vector (pre-computed)
+-- @return #number Effective RCS in m²
+function INTEL:_GetAspectRCS(TargetUnit, rpos, spd, tvel)
+  self:T(self.lid .. "_GetAspectRCS")
+    -- Look up base (side-on) RCS
+    local typename = TargetUnit:GetTypeName()
+    local base_rcs = INTEL.RCS_Table[typename]
+
+    if not base_rcs then
+        -- Fallback: category default
+        local cat = TargetUnit:GetGroup() and TargetUnit:GetGroup():GetCategory()
+        base_rcs = (cat and INTEL.RCS_CategoryDefault[cat]) or INTEL.RCS_Reference
+    end
+
+    -- Aspect-dependent factor
+    if spd < 1 then return base_rcs end
+
+    local tpos = TargetUnit:GetVec3()
+    local dx   = rpos.x - tpos.x   -- vector target → radar (horizontal)
+    local dz   = rpos.z - tpos.z
+    local d    = math.sqrt(dx * dx + dz * dz)
+    if d < 1 then return base_rcs end
+
+    -- cos of angle between target velocity and target→radar line
+    -- = 1: nose/tail directly toward radar; = 0: pure crossing (beam)
+    local cos_a = (tvel.x * dx + tvel.z * dz) / (spd * d)
+    -- sin²(aspect_from_radial) = 1 − cos² ; gives 0 nose-on, 1 beam-on
+    local sin2_a = 1.0 - cos_a * cos_a
+
+    local f = INTEL.RCS_NoseOnFraction
+    return base_rcs * (f + (1.0 - f) * sin2_a)
+end
+
+--- (Internal) Check whether a target unit would be detected by a 70/80s
+-- pulse-Doppler radar located at the given radar unit position.
+-- @param #INTEL self
+-- @param Wrapper.Unit#UNIT TargetUnit
+-- @param Wrapper.Unit#UNIT RadarUnit
+-- @return #boolean  true = detected
+-- @return #string   rejection reason: "speed" | "clutter" | "notch" | "rcs"
+function INTEL:_CheckDopplerDetection(TargetUnit, RadarUnit)
+  self:T(self.lid .. "_CheckDopplerDetection")
+    -- Pre-compute common geometry (shared by notch + RCS checks)
+    local spd  = TargetUnit:GetVelocityMPS()
+    local rpos = RadarUnit:GetVec3()
+    local tpos = TargetUnit:GetVec3()
+    local tvel = TargetUnit:GetVelocityVec3()
+
+    local dx    = tpos.x - rpos.x
+    local dz    = tpos.z - rpos.z
+    local slant = math.sqrt(dx * dx + dz * dz)  -- 2-D slant range in metres
+
+    -- ── A. Minimum speed gate ──────────────────────────────────
+    if spd < self.DopplerMinSpeedMps then
+        return false, "speed"
+    end
+
+    -- ── B. AGL ground-clutter rejection ───────────────────────
+    local agl = TargetUnit:GetAltitude(true)   -- metres AGL
+    if agl < self.DopplerMinAltAGL then
+        -- P(detect) rises linearly from 0 at deck to 1 at DopplerMinAltAGL
+        if math.random() > (agl / self.DopplerMinAltAGL) then
+            return false, "clutter"
+        end
+    end
+
+    -- ── C. Velocity notch ─────────────────────────────────────
+    if slant > 1 then
+        local nx     = dx / slant
+        local nz     = dz / slant
+        local vr     = tvel.x * nx + tvel.z * nz   -- radial velocity (m/s)
+        local vr_frac = math.abs(vr) / math.max(spd, 1)
+
+        if vr_frac < self.DopplerNotchSin then
+            return false, "notch"
+        end
+    end
+
+    -- ── D. RCS-based range scaling ─────────────────────────────
+    -- R_max ∝ σ^0.25  (from the radar range equation).
+    -- Effective detection range = DopplerRadarRangeM × (σ_eff / σ_ref)^0.25
+    -- Beyond that range: target not detected (hard cutoff at 100%; soft fade
+    -- starts at 80% of R_max to smooth the transition).
+    if self.DopplerRCS == true and slant > 1 then
+        local sigma = self:_GetAspectRCS(TargetUnit, rpos, spd, tvel)
+        -- (σ/σ_ref)^0.25 — clamp to avoid log of 0 for VLO aircraft
+        local scale  = (sigma / INTEL.RCS_Reference) ^ 0.25
+        local R_max  = self.DopplerRadarRangeM * scale
+
+        if slant > R_max then
+            return false, "rcs"
+        end
+
+        -- Soft fade zone: linear probability drop from 1 at 80% R_max to 0 at R_max
+        local fade_start = R_max * 0.80
+        if slant > fade_start then
+            local p = (R_max - slant) / (R_max - fade_start)  -- 1→0
+            if math.random() > p then
+                return false, "rcs"
+            end
+        end
+    end
+
+    return true
+end
+
+
+---(Internal) Return the detected target groups of the controllable as a table.
+-- We wrap the original function so the Doppler post-filter is transparent:
+-- the existing RadarBlur / RadarAcceptRange logic is unchanged, and the
+-- Doppler check runs once after all units have been collected.
+-- The optional parameters specify the detection methods that can be applied.
+-- If no detection method is given, the detection will use all the available methods by default.
+-- @param #INTEL self
+-- @param Wrapper.Unit#UNIT Unit The unit detecting.
+-- @param #table DetectedUnits Table of detected units to be filled.
+-- @param #table RecceDetecting Table of recce per unit to be filled.
+-- @param #boolean DetectVisual (Optional) If *false*, do not include visually detected targets.
+-- @param #boolean DetectOptical (Optional) If *false*, do not include optically detected targets.
+-- @param #boolean DetectRadar (Optional) If *false*, do not include targets detected by radar.
+-- @param #boolean DetectIRST (Optional) If *false*, do not include targets detected by IRST.
+-- @param #boolean DetectRWR (Optional) If *false*, do not include targets detected by RWR.
+-- @param #boolean DetectDLINK (Optional) If *false*, do not include targets detected by data link.
+-- @param #table DetectedObjects (Optional) Table of native object IDs for the current sweep.
+function INTEL:GetDetectedUnitsDoppler(Unit, DetectedUnits, RecceDetecting,DetectVisual, DetectOptical, DetectRadar,DetectIRST, DetectRWR, DetectDLINK, DetectedObjects)
+  self:T(self.lid .. "GetDetectedUnitsDoppler")
+    -- Run the original detection
+    self:GetDetectedUnits(Unit,DetectedUnits,RecceDetecting,DetectVisual,DetectOptical,DetectRadar,DetectIRST,DetectRWR,DetectDLINK,DetectedObjects)
+
+    -- Apply Doppler post-filter only when radar channel is active
+    if self.DopplerRadar == false then return end
+    if DetectRadar == false then return end
+
+    local remove = {}
+    for name, unit in pairs(DetectedUnits) do
+        -- Only filter live UNIT objects (not STATICs) that are airborne
+        if unit:IsInstanceOf("UNIT") and unit:IsAir() then
+            local ok, reason = self:_CheckDopplerDetection(unit, Unit)
+            if not ok then
+                table.insert(remove, name)
+                --if self.verbose and self.verbose >= 2 then
+                    self:T(string.format("%sDoppler: suppressed %s [%s] by %s",self.lid, name, reason, Unit:GetName()))
+                --end
+            end
+        end
+    end
+
+    for _, name in ipairs(remove) do
+        DetectedUnits[name]  = nil
+        RecceDetecting[name] = nil
+    end
+end
+
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------------------------
--- Start INTEL_DLINK
+-- TODO Start INTEL_DLINK
 ----------------------------------------------------------------------------------------------
 
 --- **Ops_DLink** - Support for Office of Military Intelligence.
@@ -2641,11 +3125,11 @@ end
 
   --- Function to set how long INTEL DLINK remembers contacts.
   -- @param #INTEL_DLINK self
-  -- @param #number seconds Remember this many seconds. Defaults to 180.
+  -- @param #number seconds (Optional) Remember this many seconds. Defaults to 120.
   -- @return #INTEL_DLINK self
   function INTEL_DLINK:SetDLinkCacheTime(seconds)
     self.cachetime = math.abs(seconds or 120)
-    self:I(self.lid.."Caching for "..self.cachetime.." seconds.")
+    self:T(self.lid.."Caching for "..self.cachetime.." seconds.")
     return self
   end
 
@@ -2735,7 +3219,7 @@ end
 function INTEL_DLINK:onafterStop(From, Event, To)
   self:T({From, Event, To})
   local text = string.format("Version %s stopped.", self.version)
-  self:I(self.lid .. text)
+  self:T(self.lid .. text)
   return self
 end
 

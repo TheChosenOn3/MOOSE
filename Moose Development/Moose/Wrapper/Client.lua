@@ -117,7 +117,7 @@ end
 -- @param #CLIENT self
 -- @param #string ClientName Name of the DCS **Unit** as defined within the Mission Editor.
 -- @param #string ClientBriefing Text that describes the briefing of the mission when a Player logs into the Client.
--- @param #boolean Error A flag that indicates whether an error should be raised if the CLIENT cannot be found. By default an error will be raised.
+-- @param #boolean Error (Optional) A flag that indicates whether an error should be raised if the CLIENT cannot be found. By default an error will be raised.
 -- @return #CLIENT
 -- @usage
 -- -- Create new Clients.
@@ -148,7 +148,7 @@ function CLIENT:FindByName( ClientName, ClientBriefing, Error )
   end
 end
 
---- Transport defines that the Client is a Transport. Transports show cargo.
+--- Register a client.
 -- @param #CLIENT self
 -- @param #string ClientName Name of the client unit.
 -- @return #CLIENT self
@@ -505,37 +505,6 @@ function CLIENT:GetClientGroupDCSUnit()
     self:T2( ClientDCSUnit )
     return ClientDCSUnit
   end
-end
-
-
---- Evaluates if the CLIENT is a transport.
--- @param #CLIENT self
--- @return #boolean true is a transport.
-function CLIENT:IsTransport()
-  self:F()
-  return self.ClientTransport
-end
-
---- Shows the @{AI.AI_Cargo#CARGO} contained within the CLIENT to the player as a message.
--- The @{AI.AI_Cargo#CARGO} is shown using the @{Core.Message#MESSAGE} distribution system.
--- @param #CLIENT self
-function CLIENT:ShowCargo()
-  self:F()
-
-  local CargoMsg = ""
-  
-  for CargoName, Cargo in pairs( CARGOS ) do
-    if self == Cargo:IsLoadedInClient() then
-      CargoMsg = CargoMsg .. Cargo.CargoName .. " Type:" ..  Cargo.CargoType .. " Weight: " .. Cargo.CargoWeight .. "\n"
-    end
-  end
-  
-  if CargoMsg == "" then
-    CargoMsg = "empty"
-  end
-  
-  self:Message( CargoMsg, 15, "Co-Pilot: Cargo Status", 30 )
-
 end
 
 --- The main message driver for the CLIENT.

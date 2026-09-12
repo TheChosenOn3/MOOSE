@@ -23,6 +23,7 @@
 -- @field #boolean isAirdrome Airbase is an airdrome.
 -- @field #boolean isHelipad Airbase is a helipad.
 -- @field #boolean isShip Airbase is a ship.
+-- @field #boolean isZell Airbase is a ZELL Booster.
 -- @field #table parking Parking spot data.
 -- @field #table parkingByID Parking spot data table with ID as key.
 -- @field #table parkingWhitelist List of parking spot terminal IDs considered for spawning.
@@ -458,115 +459,420 @@ AIRBASE.TheChannel = {
 
 --- Airbases of the Syria map
 --
--- * `AIRBASE.Syria.Abu_al_Duhur` Abu al-Duhur
--- * `AIRBASE.Syria.Adana_Sakirpasa` Adana Sakirpasa
--- * `AIRBASE.Syria.Akrotiri` Akrotiri
--- * `AIRBASE.Syria.Al_Qusayr` Al Qusayr
--- * `AIRBASE.Syria.Al_Dumayr` Al-Dumayr
--- * `AIRBASE.Syria.Aleppo` Aleppo
--- * `AIRBASE.Syria.An_Nasiriyah` An Nasiriyah
--- * `AIRBASE.Syria.At_Tanf` At Tanf
--- * `AIRBASE.Syria.Bassel_Al_Assad` Bassel Al-Assad
--- * `AIRBASE.Syria.Beirut_Rafic_Hariri` Beirut-Rafic Hariri
--- * `AIRBASE.Syria.Ben_Gurion` Ben Gurion
--- * `AIRBASE.Syria.Damascus` Damascus
--- * `AIRBASE.Syria.Deir_ez_Zor` Deir ez-Zor
--- * `AIRBASE.Syria.Ercan` Ercan
--- * `AIRBASE.Syria.Eyn_Shemer` Eyn Shemer
--- * `AIRBASE.Syria.Gaziantep` Gaziantep
--- * `AIRBASE.Syria.Gazipasa` Gazipasa
--- * `AIRBASE.Syria.Gecitkale` Gecitkale
--- * `AIRBASE.Syria.H` H
--- * `AIRBASE.Syria.H3` H3
--- * `AIRBASE.Syria.H3_Northwest` H3 Northwest
--- * `AIRBASE.Syria.H3_Southwest` H3 Southwest
--- * `AIRBASE.Syria.H4` H4
--- * `AIRBASE.Syria.Haifa` Haifa
--- * `AIRBASE.Syria.Hama` Hama
--- * `AIRBASE.Syria.Hatay` Hatay
--- * `AIRBASE.Syria.Hatzor` Hatzor
--- * `AIRBASE.Syria.Herzliya` Herzliya
--- * `AIRBASE.Syria.Incirlik` Incirlik
--- * `AIRBASE.Syria.Jirah` Jirah
--- * `AIRBASE.Syria.Khalkhalah` Khalkhalah
--- * `AIRBASE.Syria.Kharab_Ishk` Kharab Ishk
--- * `AIRBASE.Syria.King_Abdullah_II` King Abdullah II
--- * `AIRBASE.Syria.King_Hussein_Air_College` King Hussein Air College
--- * `AIRBASE.Syria.Kingsfield` Kingsfield
--- * `AIRBASE.Syria.Kiryat_Shmona` Kiryat Shmona
--- * `AIRBASE.Syria.Kuweires` Kuweires
--- * `AIRBASE.Syria.Lakatamia` Lakatamia
--- * `AIRBASE.Syria.Larnaca` Larnaca
--- * `AIRBASE.Syria.Marj_Ruhayyil` Marj Ruhayyil
--- * `AIRBASE.Syria.Marj_as_Sultan_North` Marj as Sultan North
--- * `AIRBASE.Syria.Marj_as_Sultan_South` Marj as Sultan South
--- * `AIRBASE.Syria.Marka` Marka
--- * `AIRBASE.Syria.Megiddo` Megiddo
--- * `AIRBASE.Syria.Mezzeh` Mezzeh
--- * `AIRBASE.Syria.Minakh` Minakh
--- * `AIRBASE.Syria.Muwaffaq_Salti` Muwaffaq Salti
--- * `AIRBASE.Syria.Naqoura` Naqoura
--- * `AIRBASE.Syria.Nicosia` Nicosia
--- * `AIRBASE.Syria.Palmachim` Palmachim
--- * `AIRBASE.Syria.Palmyra` Palmyra
--- * `AIRBASE.Syria.Paphos` Paphos
--- * `AIRBASE.Syria.Pinarbashi` Pinarbashi
--- * `AIRBASE.Syria.Prince_Hassan` Prince Hassan
--- * `AIRBASE.Syria.Qabr_as_Sitt` Qabr as Sitt
--- * `AIRBASE.Syria.Ramat_David` Ramat David
--- * `AIRBASE.Syria.Rayak` Rayak
--- * `AIRBASE.Syria.Rene_Mouawad` Rene Mouawad
--- * `AIRBASE.Syria.Rosh_Pina` Rosh Pina
--- * `AIRBASE.Syria.Ruwayshid` Ruwayshid
--- * `AIRBASE.Syria.Sanliurfa` Sanliurfa
--- * `AIRBASE.Syria.Sayqal` Sayqal
--- * `AIRBASE.Syria.Shayrat` Shayrat
--- * `AIRBASE.Syria.Tabqa` Tabqa
--- * `AIRBASE.Syria.Taftanaz` Taftanaz
--- * `AIRBASE.Syria.Tal_Siman` Tal Siman
--- * `AIRBASE.Syria.Tel_Nof` Tel Nof
--- * `AIRBASE.Syria.Tha_lah` Tha'lah
--- * `AIRBASE.Syria.Tiyas` Tiyas
--- * `AIRBASE.Syria.Wujah_Al_Hajar` Wujah Al Hajar
+-- * AIRBASE.Syria.Abu_al_Duhur
+-- * AIRBASE.Syria.Adana_Sakirpasa
+-- * AIRBASE.Syria.Adiyaman
+-- * AIRBASE.Syria.Akrotiri
+-- * AIRBASE.Syria.Al_Dumayr
+-- * AIRBASE.Syria.Al_Qusayr
+-- * AIRBASE.Syria.Aleppo
+-- * AIRBASE.Syria.An_Nasiriyah
+-- * AIRBASE.Syria.At_Tanf
+-- * AIRBASE.Syria.Bassel_Al_Assad
+-- * AIRBASE.Syria.Beirut_Rafic_Hariri
+-- * AIRBASE.Syria.Ben_Gurion
+-- * AIRBASE.Syria.Chukurova
+-- * AIRBASE.Syria.Damascus
+-- * AIRBASE.Syria.Deir_ez_Zor
+-- * AIRBASE.Syria.Diyarbakir
+-- * AIRBASE.Syria.Ercan
+-- * AIRBASE.Syria.Eyn_Shemer
+-- * AIRBASE.Syria.Gaziantep
+-- * AIRBASE.Syria.Gazipasa
+-- * AIRBASE.Syria.Gecitkale
+-- * AIRBASE.Syria.Gulechoba
+-- * AIRBASE.Syria.H3
+-- * AIRBASE.Syria.H3_Northwest
+-- * AIRBASE.Syria.H3_Southwest
+-- * AIRBASE.Syria.H4
+-- * AIRBASE.Syria.H4_Emergency
+-- * AIRBASE.Syria.HC01
+-- * AIRBASE.Syria.HC02
+-- * AIRBASE.Syria.HC03
+-- * AIRBASE.Syria.HC04
+-- * AIRBASE.Syria.HC05
+-- * AIRBASE.Syria.HC06
+-- * AIRBASE.Syria.HI01
+-- * AIRBASE.Syria.HI02
+-- * AIRBASE.Syria.HI03
+-- * AIRBASE.Syria.HI05
+-- * AIRBASE.Syria.HI06
+-- * AIRBASE.Syria.HI07
+-- * AIRBASE.Syria.HI08
+-- * AIRBASE.Syria.HI09
+-- * AIRBASE.Syria.HI11
+-- * AIRBASE.Syria.HI12
+-- * AIRBASE.Syria.HI13
+-- * AIRBASE.Syria.HI14
+-- * AIRBASE.Syria.HI15
+-- * AIRBASE.Syria.HI16
+-- * AIRBASE.Syria.HI17
+-- * AIRBASE.Syria.HI18
+-- * AIRBASE.Syria.HI20
+-- * AIRBASE.Syria.HI21
+-- * AIRBASE.Syria.HI22
+-- * AIRBASE.Syria.HI23
+-- * AIRBASE.Syria.HI24
+-- * AIRBASE.Syria.HI25
+-- * AIRBASE.Syria.HI26
+-- * AIRBASE.Syria.HJ01
+-- * AIRBASE.Syria.HJ02
+-- * AIRBASE.Syria.HJ03
+-- * AIRBASE.Syria.HJ04
+-- * AIRBASE.Syria.HL01
+-- * AIRBASE.Syria.HL02
+-- * AIRBASE.Syria.HL03
+-- * AIRBASE.Syria.HL04
+-- * AIRBASE.Syria.HL05
+-- * AIRBASE.Syria.HL06
+-- * AIRBASE.Syria.HL07
+-- * AIRBASE.Syria.HL08
+-- * AIRBASE.Syria.HL09
+-- * AIRBASE.Syria.HL10
+-- * AIRBASE.Syria.HL11
+-- * AIRBASE.Syria.HL12
+-- * AIRBASE.Syria.HL13
+-- * AIRBASE.Syria.HMed00
+-- * AIRBASE.Syria.HMed01
+-- * AIRBASE.Syria.HMed02
+-- * AIRBASE.Syria.HMed03
+-- * AIRBASE.Syria.HMed04
+-- * AIRBASE.Syria.HMed05
+-- * AIRBASE.Syria.HMed06
+-- * AIRBASE.Syria.HMed07
+-- * AIRBASE.Syria.HMed08
+-- * AIRBASE.Syria.HMed09
+-- * AIRBASE.Syria.HMed10
+-- * AIRBASE.Syria.HMed11
+-- * AIRBASE.Syria.HMed12
+-- * AIRBASE.Syria.HMed13
+-- * AIRBASE.Syria.HMed14
+-- * AIRBASE.Syria.HMed15
+-- * AIRBASE.Syria.HMed16
+-- * AIRBASE.Syria.HMed17
+-- * AIRBASE.Syria.HMed18
+-- * AIRBASE.Syria.HMed19
+-- * AIRBASE.Syria.HMed20
+-- * AIRBASE.Syria.HMed21
+-- * AIRBASE.Syria.HMed22
+-- * AIRBASE.Syria.HMed23
+-- * AIRBASE.Syria.HMed24
+-- * AIRBASE.Syria.HMed25
+-- * AIRBASE.Syria.HMed26
+-- * AIRBASE.Syria.HMed27
+-- * AIRBASE.Syria.HMed28
+-- * AIRBASE.Syria.HMed29
+-- * AIRBASE.Syria.HMed30
+-- * AIRBASE.Syria.HOil01
+-- * AIRBASE.Syria.HOil02
+-- * AIRBASE.Syria.HOil03
+-- * AIRBASE.Syria.HOil04
+-- * AIRBASE.Syria.HOil05
+-- * AIRBASE.Syria.HOil06
+-- * AIRBASE.Syria.HS02
+-- * AIRBASE.Syria.HS03
+-- * AIRBASE.Syria.HS04
+-- * AIRBASE.Syria.HS05
+-- * AIRBASE.Syria.HS06
+-- * AIRBASE.Syria.HS07
+-- * AIRBASE.Syria.HS08
+-- * AIRBASE.Syria.HS09
+-- * AIRBASE.Syria.HS10
+-- * AIRBASE.Syria.HS11
+-- * AIRBASE.Syria.HS12
+-- * AIRBASE.Syria.HS13
+-- * AIRBASE.Syria.HS14
+-- * AIRBASE.Syria.HS15
+-- * AIRBASE.Syria.HS16
+-- * AIRBASE.Syria.HS17
+-- * AIRBASE.Syria.HS18
+-- * AIRBASE.Syria.HS19
+-- * AIRBASE.Syria.HS20
+-- * AIRBASE.Syria.HS21
+-- * AIRBASE.Syria.HS22
+-- * AIRBASE.Syria.HS23
+-- * AIRBASE.Syria.HS24
+-- * AIRBASE.Syria.HS25
+-- * AIRBASE.Syria.HS26
+-- * AIRBASE.Syria.HS27
+-- * AIRBASE.Syria.HS28
+-- * AIRBASE.Syria.HS29
+-- * AIRBASE.Syria.HS30
+-- * AIRBASE.Syria.HS31
+-- * AIRBASE.Syria.HS32
+-- * AIRBASE.Syria.HS33
+-- * AIRBASE.Syria.HS34
+-- * AIRBASE.Syria.HS35
+-- * AIRBASE.Syria.HS36
+-- * AIRBASE.Syria.HS37
+-- * AIRBASE.Syria.HS38
+-- * AIRBASE.Syria.HS39
+-- * AIRBASE.Syria.HS40
+-- * AIRBASE.Syria.HS41
+-- * AIRBASE.Syria.HS42
+-- * AIRBASE.Syria.HStad01
+-- * AIRBASE.Syria.HStad02
+-- * AIRBASE.Syria.HStad03
+-- * AIRBASE.Syria.HStad04
+-- * AIRBASE.Syria.HStad05
+-- * AIRBASE.Syria.HStad06
+-- * AIRBASE.Syria.HT01
+-- * AIRBASE.Syria.HT02
+-- * AIRBASE.Syria.H_med_orig_01
+-- * AIRBASE.Syria.H_med_orig_02
+-- * AIRBASE.Syria.H_med_orig_03
+-- * AIRBASE.Syria.H_med_orig_04
+-- * AIRBASE.Syria.H_med_orig_05
+-- * AIRBASE.Syria.H_med_orig_06
+-- * AIRBASE.Syria.H_med_orig_07
+-- * AIRBASE.Syria.H_med_orig_08
+-- * AIRBASE.Syria.H_med_orig_09
+-- * AIRBASE.Syria.Haifa
+-- * AIRBASE.Syria.Hama
+-- * AIRBASE.Syria.Hatay
+-- * AIRBASE.Syria.Hatzerim
+-- * AIRBASE.Syria.Hatzor
+-- * AIRBASE.Syria.Herzliya
+-- * AIRBASE.Syria.Incirlik
+-- * AIRBASE.Syria.Jirah
+-- * AIRBASE.Syria.Kahramanmaras
+-- * AIRBASE.Syria.Kedem
+-- * AIRBASE.Syria.Khalkhalah
+-- * AIRBASE.Syria.Kharab_Ishk
+-- * AIRBASE.Syria.King_Abdullah_II
+-- * AIRBASE.Syria.King_Hussein_Air_College
+-- * AIRBASE.Syria.Kingsfield
+-- * AIRBASE.Syria.Kiryat_Shmona
+-- * AIRBASE.Syria.Konya
+-- * AIRBASE.Syria.Kuweires
+-- * AIRBASE.Syria.Lakatamia
+-- * AIRBASE.Syria.Larnaca
+-- * AIRBASE.Syria.Marj_Ruhayyil
+-- * AIRBASE.Syria.Marj_as_Sultan_North
+-- * AIRBASE.Syria.Marj_as_Sultan_South
+-- * AIRBASE.Syria.Marka
+-- * AIRBASE.Syria.Megiddo
+-- * AIRBASE.Syria.Mezzeh
+-- * AIRBASE.Syria.Minakh
+-- * AIRBASE.Syria.Muwaffaq_Salti
+-- * AIRBASE.Syria.Naqoura
+-- * AIRBASE.Syria.Nevatim
+-- * AIRBASE.Syria.Nicosia
+-- * AIRBASE.Syria.Palmachim
+-- * AIRBASE.Syria.Palmyra
+-- * AIRBASE.Syria.Paphos
+-- * AIRBASE.Syria.Pinarbashi
+-- * AIRBASE.Syria.Prince_Hassan
+-- * AIRBASE.Syria.Qabr_as_Sitt
+-- * AIRBASE.Syria.Ramat_David
+-- * AIRBASE.Syria.Rayak
+-- * AIRBASE.Syria.Rene_Mouawad
+-- * AIRBASE.Syria.Rosh_Pina
+-- * AIRBASE.Syria.Ruwayshid
+-- * AIRBASE.Syria.Sanliurfa
+-- * AIRBASE.Syria.Sanliurfa_Heliport
+-- * AIRBASE.Syria.Sayqal
+-- * AIRBASE.Syria.Shayrat
+-- * AIRBASE.Syria.T2
+-- * AIRBASE.Syria.T3
+-- * AIRBASE.Syria.Tabqa
+-- * AIRBASE.Syria.Taftanaz
+-- * AIRBASE.Syria.Tal_Siman
+-- * AIRBASE.Syria.Tel_Nof
+-- * AIRBASE.Syria.Teyman
+-- * AIRBASE.Syria.Tha_lah
+-- * AIRBASE.Syria.Tiyas
+-- * AIRBASE.Syria.Wujah_Al_Hajar
+-- * AIRBASE.Syria.Zarqa
+
 --
 -- @field Syria
 AIRBASE.Syria = {
   ["Abu_al_Duhur"] = "Abu al-Duhur",
   ["Adana_Sakirpasa"] = "Adana Sakirpasa",
+  ["Adiyaman"] = "Adiyaman",
   ["Akrotiri"] = "Akrotiri",
-  ["Al_Qusayr"] = "Al Qusayr",
   ["Al_Dumayr"] = "Al-Dumayr",
+  ["Al_Qusayr"] = "Al Qusayr",
   ["Aleppo"] = "Aleppo",
   ["An_Nasiriyah"] = "An Nasiriyah",
   ["At_Tanf"] = "At Tanf",
   ["Bassel_Al_Assad"] = "Bassel Al-Assad",
   ["Beirut_Rafic_Hariri"] = "Beirut-Rafic Hariri",
   ["Ben_Gurion"] = "Ben Gurion",
+  ["Chukurova"] = "Chukurova",
   ["Damascus"] = "Damascus",
   ["Deir_ez_Zor"] = "Deir ez-Zor",
+  ["Diyarbakir"] = "Diyarbakir",
   ["Ercan"] = "Ercan",
   ["Eyn_Shemer"] = "Eyn Shemer",
   ["Gaziantep"] = "Gaziantep",
   ["Gazipasa"] = "Gazipasa",
   ["Gecitkale"] = "Gecitkale",
-  ["H"] = "H",
+  ["Gulechoba"] = "Gulechoba",
   ["H3"] = "H3",
   ["H3_Northwest"] = "H3 Northwest",
   ["H3_Southwest"] = "H3 Southwest",
   ["H4"] = "H4",
+  ["H4_Emergency"] = "H4 Emergency",
+  ["HC01"] = "HC01",
+  ["HC02"] = "HC02",
+  ["HC03"] = "HC03",
+  ["HC04"] = "HC04",
+  ["HC05"] = "HC05",
+  ["HC06"] = "HC06",
+  ["HI01"] = "HI01",
+  ["HI02"] = "HI02",
+  ["HI03"] = "HI03",
+  ["HI05"] = "HI05",
+  ["HI06"] = "HI06",
+  ["HI07"] = "HI07",
+  ["HI08"] = "HI08",
+  ["HI09"] = "HI09",
+  ["HI11"] = "HI11",
+  ["HI12"] = "HI12",
+  ["HI13"] = "HI13",
+  ["HI14"] = "HI14",
+  ["HI15"] = "HI15",
+  ["HI16"] = "HI16",
+  ["HI17"] = "HI17",
+  ["HI18"] = "HI18",
+  ["HI20"] = "HI20",
+  ["HI21"] = "HI21",
+  ["HI22"] = "HI22",
+  ["HI23"] = "HI23",
+  ["HI24"] = "HI24",
+  ["HI25"] = "HI25",
+  ["HI26"] = "HI26",
+  ["HJ01"] = "HJ01",
+  ["HJ02"] = "HJ02",
+  ["HJ03"] = "HJ03",
+  ["HJ04"] = "HJ04",
+  ["HL01"] = "HL01",
+  ["HL02"] = "HL02",
+  ["HL03"] = "HL03",
+  ["HL04"] = "HL04",
+  ["HL05"] = "HL05",
+  ["HL06"] = "HL06",
+  ["HL07"] = "HL07",
+  ["HL08"] = "HL08",
+  ["HL09"] = "HL09",
+  ["HL10"] = "HL10",
+  ["HL11"] = "HL11",
+  ["HL12"] = "HL12",
+  ["HL13"] = "HL13",
+  ["HMed00"] = "HMed00",
+  ["HMed01"] = "HMed01",
+  ["HMed02"] = "HMed02",
+  ["HMed03"] = "HMed03",
+  ["HMed04"] = "HMed04",
+  ["HMed05"] = "HMed05",
+  ["HMed06"] = "HMed06",
+  ["HMed07"] = "HMed07",
+  ["HMed08"] = "HMed08",
+  ["HMed09"] = "HMed09",
+  ["HMed10"] = "HMed10",
+  ["HMed11"] = "HMed11",
+  ["HMed12"] = "HMed12",
+  ["HMed13"] = "HMed13",
+  ["HMed14"] = "HMed14",
+  ["HMed15"] = "HMed15",
+  ["HMed16"] = "HMed16",
+  ["HMed17"] = "HMed17",
+  ["HMed18"] = "HMed18",
+  ["HMed19"] = "HMed19",
+  ["HMed20"] = "HMed20",
+  ["HMed21"] = "HMed21",
+  ["HMed22"] = "HMed22",
+  ["HMed23"] = "HMed23",
+  ["HMed24"] = "HMed24",
+  ["HMed25"] = "HMed25",
+  ["HMed26"] = "HMed26",
+  ["HMed27"] = "HMed27",
+  ["HMed28"] = "HMed28",
+  ["HMed29"] = "HMed29",
+  ["HMed30"] = "HMed30",
+  ["HOil01"] = "HOil01",
+  ["HOil02"] = "HOil02",
+  ["HOil03"] = "HOil03",
+  ["HOil04"] = "HOil04",
+  ["HOil05"] = "HOil05",
+  ["HOil06"] = "HOil06",
+  ["HS02"] = "HS02",
+  ["HS03"] = "HS03",
+  ["HS04"] = "HS04",
+  ["HS05"] = "HS05",
+  ["HS06"] = "HS06",
+  ["HS07"] = "HS07",
+  ["HS08"] = "HS08",
+  ["HS09"] = "HS09",
+  ["HS10"] = "HS10",
+  ["HS11"] = "HS11",
+  ["HS12"] = "HS12",
+  ["HS13"] = "HS13",
+  ["HS14"] = "HS14",
+  ["HS15"] = "HS15",
+  ["HS16"] = "HS16",
+  ["HS17"] = "HS17",
+  ["HS18"] = "HS18",
+  ["HS19"] = "HS19",
+  ["HS20"] = "HS20",
+  ["HS21"] = "HS21",
+  ["HS22"] = "HS22",
+  ["HS23"] = "HS23",
+  ["HS24"] = "HS24",
+  ["HS25"] = "HS25",
+  ["HS26"] = "HS26",
+  ["HS27"] = "HS27",
+  ["HS28"] = "HS28",
+  ["HS29"] = "HS29",
+  ["HS30"] = "HS30",
+  ["HS31"] = "HS31",
+  ["HS32"] = "HS32",
+  ["HS33"] = "HS33",
+  ["HS34"] = "HS34",
+  ["HS35"] = "HS35",
+  ["HS36"] = "HS36",
+  ["HS37"] = "HS37",
+  ["HS38"] = "HS38",
+  ["HS39"] = "HS39",
+  ["HS40"] = "HS40",
+  ["HS41"] = "HS41",
+  ["HS42"] = "HS42",
+  ["HStad01"] = "HStad01",
+  ["HStad02"] = "HStad02",
+  ["HStad03"] = "HStad03",
+  ["HStad04"] = "HStad04",
+  ["HStad05"] = "HStad05",
+  ["HStad06"] = "HStad06",
+  ["HT01"] = "HT01",
+  ["HT02"] = "HT02",
+  ["H_med_orig_01"] = "H_med_orig_01",
+  ["H_med_orig_02"] = "H_med_orig_02",
+  ["H_med_orig_03"] = "H_med_orig_03",
+  ["H_med_orig_04"] = "H_med_orig_04",
+  ["H_med_orig_05"] = "H_med_orig_05",
+  ["H_med_orig_06"] = "H_med_orig_06",
+  ["H_med_orig_07"] = "H_med_orig_07",
+  ["H_med_orig_08"] = "H_med_orig_08",
+  ["H_med_orig_09"] = "H_med_orig_09",
   ["Haifa"] = "Haifa",
   ["Hama"] = "Hama",
   ["Hatay"] = "Hatay",
+  ["Hatzerim"] = "Hatzerim",
   ["Hatzor"] = "Hatzor",
   ["Herzliya"] = "Herzliya",
   ["Incirlik"] = "Incirlik",
   ["Jirah"] = "Jirah",
+  ["Kahramanmaras"] = "Kahramanmaras",
+  ["Kedem"] = "Kedem",
   ["Khalkhalah"] = "Khalkhalah",
   ["Kharab_Ishk"] = "Kharab Ishk",
   ["King_Abdullah_II"] = "King Abdullah II",
   ["King_Hussein_Air_College"] = "King Hussein Air College",
   ["Kingsfield"] = "Kingsfield",
   ["Kiryat_Shmona"] = "Kiryat Shmona",
+  ["Konya"] = "Konya",
   ["Kuweires"] = "Kuweires",
   ["Lakatamia"] = "Lakatamia",
   ["Larnaca"] = "Larnaca",
@@ -579,6 +885,7 @@ AIRBASE.Syria = {
   ["Minakh"] = "Minakh",
   ["Muwaffaq_Salti"] = "Muwaffaq Salti",
   ["Naqoura"] = "Naqoura",
+  ["Nevatim"] = "Nevatim",
   ["Nicosia"] = "Nicosia",
   ["Palmachim"] = "Palmachim",
   ["Palmyra"] = "Palmyra",
@@ -592,21 +899,26 @@ AIRBASE.Syria = {
   ["Rosh_Pina"] = "Rosh Pina",
   ["Ruwayshid"] = "Ruwayshid",
   ["Sanliurfa"] = "Sanliurfa",
+  ["Sanliurfa_Heliport"] = "Sanliurfa Heliport",
   ["Sayqal"] = "Sayqal",
   ["Shayrat"] = "Shayrat",
+  ["T2"] = "T2",
+  ["T3"] = "T3",
   ["Tabqa"] = "Tabqa",
   ["Taftanaz"] = "Taftanaz",
   ["Tal_Siman"] = "Tal Siman",
   ["Tel_Nof"] = "Tel Nof",
+  ["Teyman"] = "Teyman",
   ["Tha_lah"] = "Tha'lah",
   ["Tiyas"] = "Tiyas",
   ["Wujah_Al_Hajar"] = "Wujah Al Hajar",
+  ["Zarqa"] = "Zarqa",
 }
 
 --- Airbases of the Mariana Islands map
 --
 -- * `AIRBASE.MarianaIslands.Andersen_AFB` Andersen AFB
--- * `AIRBASE.MarianaIslands.Antonio_B._Won_Pat_Intl` Antonio B. Won Pat Intl
+-- * `AIRBASE.MarianaIslands.Antonio_B_Won_Pat_Intl` Antonio B. Won Pat Intl
 -- * `AIRBASE.MarianaIslands.North_West_Field` North West Field
 -- * `AIRBASE.MarianaIslands.Olf_Orote` Olf Orote
 -- * `AIRBASE.MarianaIslands.Pagan_Airstrip` Pagan Airstrip
@@ -617,7 +929,7 @@ AIRBASE.Syria = {
 -- @field MarianaIslands
 AIRBASE.MarianaIslands = {
   ["Andersen_AFB"] = "Andersen AFB",
-  ["Antonio_B._Won_Pat_Intl"] = "Antonio B. Won Pat Intl",
+  ["Antonio_B_Won_Pat_Intl"] = "Antonio B. Won Pat Intl",
   ["North_West_Field"] = "North West Field",
   ["Olf_Orote"] = "Olf Orote",
   ["Pagan_Airstrip"] = "Pagan Airstrip",
@@ -1673,6 +1985,7 @@ elseif self.category==Airbase.Category.SHIP then
     self.category=Airbase.Category.HELIPAD
     _DATABASE:AddStatic(AirbaseName)
   end
+  if self:GetTypeName() == "Zell" then self.isZell = true end
 else
   self:E("ERROR: Unknown airbase category!")
 end
@@ -2122,6 +2435,13 @@ function AIRBASE:IsShip()
   return self.isShip
 end
 
+--- Check if airbase is a ZELL booster.
+-- @param #AIRBASE self
+-- @return #boolean If true, airbase is a ZELL booster.
+function AIRBASE:IsZell()
+  return self.isZell
+end
+
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Parking
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2164,7 +2484,7 @@ end
 
 --- Get number of parking spots at an airbase. Optionally, a specific terminal type can be requested.
 -- @param #AIRBASE self
--- @param #AIRBASE.TerminalType termtype Terminal type of which the number of spots is counted. Default all spots but spawn points on runway.
+-- @param #AIRBASE.TerminalType termtype (Optional) Terminal type of which the number of spots is counted. Default all spots but spawn points on runway.
 -- @return #number Number of parking spots at this airbase.
 function AIRBASE:GetParkingSpotsNumber(termtype)
 
@@ -2184,7 +2504,7 @@ end
 --- Get number of free parking spots at an airbase.
 -- @param #AIRBASE self
 -- @param #AIRBASE.TerminalType termtype Terminal type.
--- @param #boolean allowTOAC If true, spots are considered free even though TO_AC is true. Default is off which is saver to avoid spawning aircraft on top of each other. Option might be enabled for FARPS and ships.
+-- @param #boolean allowTOAC (Optional) If true, spots are considered free even though TO_AC is true. Default is off which is saver to avoid spawning aircraft on top of each other. Option might be enabled for FARPS and ships.
 -- @return #number Number of free parking spots at this airbase.
 function AIRBASE:GetFreeParkingSpotsNumber(termtype, allowTOAC)
 
@@ -2207,7 +2527,7 @@ end
 --- Get the coordinates of free parking spots at an airbase.
 -- @param #AIRBASE self
 -- @param #AIRBASE.TerminalType termtype Terminal type.
--- @param #boolean allowTOAC If true, spots are considered free even though TO_AC is true. Default is off which is saver to avoid spawning aircraft on top of each other. Option might be enabled for FARPS and ships.
+-- @param #boolean allowTOAC (Optional) If true, spots are considered free even though TO_AC is true. Default is off which is saver to avoid spawning aircraft on top of each other. Option might be enabled for FARPS and ships.
 -- @return #table Table of coordinates of the free parking spots.
 function AIRBASE:GetFreeParkingSpotsCoordinates(termtype, allowTOAC)
 
@@ -2434,7 +2754,7 @@ end
 --- Get a table containing the coordinates, terminal index and terminal type of free parking spots at an airbase.
 -- @param #AIRBASE self
 -- @param #AIRBASE.TerminalType termtype Terminal type.
--- @param #boolean allowTOAC If true, spots are considered free even though TO_AC is true. Default is off which is saver to avoid spawning aircraft on top of each other. Option might be enabled for FARPS and ships.
+-- @param #boolean allowTOAC (Optional) If true, spots are considered free even though TO_AC is true. Default is off which is saver to avoid spawning aircraft on top of each other. Option might be enabled for FARPS and ships.
 -- @return #table Table free parking spots. Table has the elements ".Coordinate, ".TerminalID", ".TerminalType", ".TOAC", ".Free", ".TerminalID0", ".DistToRwy".
 function AIRBASE:GetFreeParkingSpotsTable(termtype, allowTOAC)
 
@@ -2486,7 +2806,7 @@ end
 --- Place markers of parking spots on the F10 map.
 -- @param #AIRBASE self
 -- @param #AIRBASE.TerminalType termtype Terminal type for which marks should be placed.
--- @param #boolean mark If false, do not place markers but only give output to DCS.log file. Default true.
+-- @param #boolean mark (Optional) If false, do not place markers but only give output to DCS.log file. Default true.
 function AIRBASE:MarkParkingSpots(termtype, mark)
 
   -- Default is true.
@@ -3266,7 +3586,7 @@ end
 --- Set the active runway for landing and takeoff.
 -- @param #AIRBASE self
 -- @param #string Name Name of the runway, e.g. "31" or "02L" or "90R". If not given, the runway is determined from the wind direction.
--- @param #boolean PreferLeft If `true`, perfer the left runway. If `false`, prefer the right runway. If `nil` (default), do not care about left or right.
+-- @param #boolean PreferLeft (Optional) If `true`, perfer the left runway. If `false`, prefer the right runway. If `nil` (default), do not care about left or right.
 function AIRBASE:SetActiveRunway(Name, PreferLeft)
 
   self:SetActiveRunwayTakeoff(Name, PreferLeft)
@@ -3278,7 +3598,7 @@ end
 --- Set the active runway for landing.
 -- @param #AIRBASE self
 -- @param #string Name Name of the runway, e.g. "31" or "02L" or "90R". If not given, the runway is determined from the wind direction.
--- @param #boolean PreferLeft If `true`, perfer the left runway. If `false`, prefer the right runway. If `nil` (default), do not care about left or right.
+-- @param #boolean PreferLeft (Optional) If `true`, perfer the left runway. If `false`, prefer the right runway. If `nil` (default), do not care about left or right.
 -- @return #AIRBASE.Runway The active runway for landing.
 function AIRBASE:SetActiveRunwayLanding(Name, PreferLeft)
 
@@ -3326,7 +3646,7 @@ end
 --- Set the active runway for takeoff.
 -- @param #AIRBASE self
 -- @param #string Name Name of the runway, e.g. "31" or "02L" or "90R". If not given, the runway is determined from the wind direction.
--- @param #boolean PreferLeft If `true`, perfer the left runway. If `false`, prefer the right runway. If `nil` (default), do not care about left or right.
+-- @param #boolean PreferLeft (Optional) If `true`, perfer the left runway. If `false`, prefer the right runway. If `nil` (default), do not care about left or right.
 -- @return #AIRBASE.Runway The active runway for landing.
 function AIRBASE:SetActiveRunwayTakeoff(Name, PreferLeft)
 
@@ -3351,7 +3671,7 @@ end
 --- Get the runway where aircraft would be taking of or landing into the direction of the wind.
 -- NOTE that this requires the wind to be non-zero as set in the mission editor.
 -- @param #AIRBASE self
--- @param #boolean PreferLeft If `true`, perfer the left runway. If `false`, prefer the right runway. If `nil` (default), do not care about left or right.
+-- @param #boolean PreferLeft (Optional) If `true`, perfer the left runway. If `false`, prefer the right runway. If `nil` (default), do not care about left or right.
 -- @return #AIRBASE.Runway Active runway data table.
 function AIRBASE:GetRunwayIntoWind(PreferLeft)
 
@@ -3407,7 +3727,7 @@ end
 
 --- Get name of a given runway, e.g. "31L".
 -- @param #AIRBASE self
--- @param #AIRBASE.Runway Runway The runway. Default is the active runway.
+-- @param #AIRBASE.Runway Runway (Optional) The runway. Default is the active runway.
 -- @param #boolean LongLeftRight If `true`, return "Left" or "Right" instead of "L" or "R".
 -- @return #string Name of the runway or "XX" if it could not be found.
 function AIRBASE:GetRunwayName(Runway, LongLeftRight)
@@ -3438,7 +3758,7 @@ end
 --- Function that checks if at leat one unit of a group has been spawned close to a spawn point on the runway.
 -- @param #AIRBASE self
 -- @param Wrapper.Group#GROUP group Group to be checked.
--- @param #number radius Radius around the spawn point to be checked. Default is 50 m.
+-- @param #number radius (Optional) Radius around the spawn point to be checked. Default is 50 m.
 -- @param #boolean despawn If true, the group is destroyed.
 -- @return #boolean True if group is within radius around spawn points on runway.
 function AIRBASE:CheckOnRunWay(group, radius, despawn)

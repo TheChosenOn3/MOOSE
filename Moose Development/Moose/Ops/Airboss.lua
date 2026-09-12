@@ -45,7 +45,7 @@
 -- **Supported Aircraft:**
 --
 --    * [F/A-18C Hornet Lot 20](https://forums.eagle.ru/forumdisplay.php?f=557) (Player & AI)
---    * [F-14A/B/A Early Tomcat](https://forums.eagle.ru/forumdisplay.php?f=395) (Player & AI)
+--    * [F-14A/B/B(U)/A Early Tomcat](https://forums.eagle.ru/forumdisplay.php?f=395) (Player & AI)
 --    * [A-4E Skyhawk Community Mod](https://forums.eagle.ru/showthread.php?t=224989) (Player & AI)
 --    * [AV-8B N/A Harrier](https://forums.eagle.ru/forumdisplay.php?f=555) (Player & AI)
 --    * [T-45C Goshawk](https://forum.dcs.world/topic/203816-vnao-t-45-goshawk/) (VNAO mod) (Player & AI)
@@ -178,7 +178,7 @@
 -- @field #AIRBOSS.Checkpoint Platform Case II/III descent at 2000 ft/min at 5000 ft platform.
 -- @field #AIRBOSS.Checkpoint DirtyUp Case II/III dirty up and on speed position at 1200 ft and 10-12 NM from the carrier.
 -- @field #AIRBOSS.Checkpoint Bullseye Case III intercept glideslope and follow ICLS aka "bullseye".
--- @field #number defaultcase Default recovery case. This is the case used if not specified otherwise.
+-- @field #number defaultcase Default recovery case policy: 0 for automatic selection, or a fixed case 1, 2 or 3.
 -- @field #number case Recovery case I, II or III currently in progress.
 -- @field #table recoverytimes List of time windows when aircraft are recovered including the recovery case and holding offset.
 -- @field #number defaultoffset Default holding pattern update if not specified otherwise.
@@ -677,7 +677,7 @@
 --    * ICSL channel is set to 1, see @{#AIRBOSS.SetICLS},
 --    * LSO radio is set to 264 MHz FM, see @{#AIRBOSS.SetLSORadio},
 --    * Marshal radio is set to 305 MHz FM, see @{#AIRBOSS.SetMarshalRadio},
---    * Default recovery case is set to 1, see @{#AIRBOSS.SetRecoveryCase},
+--    * Default recovery case is automatic (0); the active case is resolved to I, II or III, see @{#AIRBOSS.SetRecoveryCase},
 --    * Carrier Controlled Area (CCA) is set to 50 NM, see @{#AIRBOSS.SetCarrierControlledArea},
 --    * Default player skill "Flight Student" (easy), see @{#AIRBOSS.SetDefaultPlayerSkill},
 --    * Once the carrier reaches its final waypoint, it will restart its route, see @{#AIRBOSS.SetPatrolAdInfinitum}.
@@ -694,14 +694,16 @@
 --
 --   * *start*: The start time as a string. For example "8:00" for a window opening at 8 am. Or "13:30+1" for half past one on the next day. Default (nil) is ASAP.
 --   * *stop*: Time when the window closes as a string. Same format as *start*. Default is 90 minutes after start time.
---   * *case*: The recovery case during that window (1, 2 or 3). Default 1.
+--   * *case*: The recovery case during that window (1, 2 or 3), or 0 for automatic selection. If omitted, the configured default case is used (initially 0, automatic).
 --   * *holdingoffset*: Holding offset angle in degrees. Only for Case II or III recoveries. Default 0 deg. Common +-15 deg or +-30 deg.
 --
 -- If recovery is closed, AI flights will be send to marshal stacks and orbit there until the next window opens.
 -- Players can request marshal via the F10 menu and will also be given a marshal stack. Currently, human players can request commence via the F10 radio regardless of
 -- whether a window is open or not and will be allowed to enter the pattern (if not already full). This will probably change in the future.
 --
--- At the moment there is no automatic recovery case set depending on weather or daytime. So it is the AIRBOSS (i.e. you as mission designer) who needs to make that decision.
+-- With case 0, the recovery case is determined when the window is created using UTILS.GetRecoveryCase and the current carrier position and weather.
+-- Night is checked at one-minute intervals through the planned window, including its end; if detected, the entire window uses Case III.
+-- This is a planning decision, not a weather forecast. Later weather changes, carrier movement and automatic window extensions do not trigger recalculation.
 -- It is probably a good idea to synchronize the timing with the waypoints of the carrier. For example, setting up the waypoints such that the carrier
 -- already has turning into the wind, when a recovery window opens.
 --
@@ -1276,6 +1278,7 @@ AIRBOSS = {
 -- @field #string A4EC A-4E Community mod.
 -- @field #string HORNET F/A-18C Lot 20 Hornet by Eagle Dynamics.
 -- @field #string F14A F-14A by Heatblur.
+-- @field #string F14BU F-14BU by Heatblur. 
 -- @field #string F14A_Early F-14A-135-GR-Early by Heatblur.
 -- @field #string F14B F-14B by Heatblur.
 -- @field #string F14A_AI F-14A Tomcat (AI).
@@ -1297,6 +1300,7 @@ AIRBOSS.AircraftCarrier={
   F14A="F-14A-135-GR",
   F14A_Early="F-14A-135-GR-Early",
   F14B="F-14B",
+  F14BU="F-14BU",
   F14A_AI="F-14A",
   FA18C="F/A-18C",
   T45C="T-45",
@@ -1768,7 +1772,7 @@ AIRBOSS.MenuF10Root = nil
 
 --- Airboss class version.
 -- @field #string version
-AIRBOSS.version = "1.4.2"
+AIRBOSS.version = "1.5.0"
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- TODO list
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1963,7 +1967,7 @@ function AIRBOSS:New( carriername, alias )
   -- Mission uses static weather by default.
   self:SetStaticWeather()
 
-  -- Default recovery case. This sets self.defaultcase and self.case. Default Case I.
+  -- Default recovery case is automatic; initialize the active case to I, II or III.
   self:SetRecoveryCase()
 
   -- Set time the turn starts before the window opens.
@@ -2456,7 +2460,7 @@ end
 --- Set carrier controlled area (CCA).
 -- This is a large zone around the carrier, which is constantly updated wrt the carrier position.
 -- @param #AIRBOSS self
--- @param #number Radius Radius of zone in nautical miles (NM). Default 50 NM.
+-- @param #number Radius (Optional) Radius of zone in nautical miles (NM). Default 50 NM.
 -- @return #AIRBOSS self
 function AIRBOSS:SetCarrierControlledArea( Radius )
 
@@ -2470,7 +2474,7 @@ end
 --- Set carrier controlled zone (CCZ).
 -- This is a small zone (usually 5 NM radius) around the carrier, which is constantly updated wrt the carrier position.
 -- @param #AIRBOSS self
--- @param #number Radius Radius of zone in nautical miles (NM). Default 5 NM.
+-- @param #number Radius (Optional) Radius of zone in nautical miles (NM). Default 5 NM.
 -- @return #AIRBOSS self
 function AIRBOSS:SetCarrierControlledZone( Radius )
 
@@ -2483,7 +2487,7 @@ end
 
 --- Set distance up to which water ahead is scanned for collisions.
 -- @param #AIRBOSS self
--- @param #number Distance Distance in NM. Default 5 NM.
+-- @param #number Distance (Optional) Distance in NM. Default 5 NM.
 -- @return #AIRBOSS self
 function AIRBOSS:SetCollisionDistance( Distance )
   self.collisiondist = UTILS.NMToMeters( Distance or 5 )
@@ -2492,24 +2496,36 @@ end
 
 --- Set the default recovery case.
 -- @param #AIRBOSS self
--- @param #number Case Case of recovery. Either 1, 2 or 3. Default 1.
+-- @param #number Case (Optional) Case of recovery: 0 for automatic selection, or 1, 2 or 3. Default 0.
 -- @return #AIRBOSS self
 function AIRBOSS:SetRecoveryCase( Case )
 
-  -- Set default case or 1.
-  self.defaultcase = Case or 1
+  -- Keep the selection policy separate from the active recovery case.
+  self.defaultcase = Case or 0
 
-  -- Current case init.
-  self.case = self.defaultcase
+  -- The active case must always be I, II or III, never the automatic sentinel 0.
+  self.case = self:_ResolveRecoveryCase( self.defaultcase )
 
   return self
+end
+
+--- Resolve an instantaneous recovery case without changing the default policy.
+-- @param #AIRBOSS self
+-- @param #number Case (Optional) 0 for automatic selection, or 1, 2 or 3. Defaults to self.defaultcase.
+-- @return #number Resolved recovery case 1, 2 or 3.
+function AIRBOSS:_ResolveRecoveryCase( Case )
+  Case = Case or self.defaultcase or 0
+  if Case == 0 then
+    return UTILS.GetRecoveryCase( self:GetCoordinate() )
+  end
+  return Case
 end
 
 --- Set holding pattern offset from final bearing for Case II/III recoveries.
 -- Usually, this is +-15 or +-30 degrees. You should not use and offset angle >= 90 degrees, because this will cause a devision by zero in some of the equations used to calculate the approach corridor.
 -- So best stick to the defaults up to 30 degrees.
 -- @param #AIRBOSS self
--- @param #number Offset Offset angle in degrees. Default 0.
+-- @param #number Offset (Optional) Offset angle in degrees. Default 0.
 -- @return #AIRBOSS self
 function AIRBOSS:SetHoldingOffsetAngle( Offset )
 
@@ -2524,10 +2540,10 @@ end
 
 --- Enable F10 menu to manually start recoveries.
 -- @param #AIRBOSS self
--- @param #number Duration Default duration of the recovery in minutes. Default 30 min.
--- @param #number WindOnDeck Default wind on deck in knots. Default 25 knots.
--- @param #boolean Uturn U-turn after recovery window closes on=true or off=false/nil. Default off.
--- @param #number Offset Relative Marshal radial in degrees for Case II/III recoveries. Default 30°.
+-- @param #number Duration (Optional) Default duration of the recovery in minutes. Default 30 min.
+-- @param #number WindOnDeck(Optional)  Default wind on deck in knots. Default 25 knots.
+-- @param #boolean Uturn (Optional) U-turn after recovery window closes on=true or off=false/nil. Default off.
+-- @param #number Offset (Optional) Relative Marshal radial in degrees for Case II/III recoveries. Default 30°.
 -- @return #AIRBOSS self
 function AIRBOSS:SetMenuRecovery( Duration, WindOnDeck, Uturn, Offset )
 
@@ -2547,13 +2563,13 @@ end
 
 --- Add aircraft recovery time window and recovery case.
 -- @param #AIRBOSS self
--- @param #string starttime Start time, e.g. "8:00" for eight o'clock. Default now.
--- @param #string stoptime Stop time, e.g. "9:00" for nine o'clock. Default 90 minutes after start time.
--- @param #number case Recovery case for that time slot. Number between one and three.
--- @param #number holdingoffset Only for CASE II/III: Angle in degrees the holding pattern is offset.
+-- @param #string starttime (Optional) Start time, e.g. "8:00" for eight o'clock. Default now.
+-- @param #string stoptime (Optional) Stop time, e.g. "9:00" for nine o'clock. Default 90 minutes after start time.
+-- @param #number case (Optional) Recovery case 1, 2 or 3; 0 selects automatically at creation and uses Case III if night is detected within the planned window (one-minute checks including the end). If omitted, uses the configured default case (initially 0, automatic).
+-- @param #number holdingoffset (Optional) Only for CASE II/III: Angle in degrees the holding pattern is offset. Defaults to 0.
 -- @param #boolean turnintowind If true, carrier will turn into the wind 5 minutes before the recovery window opens.
--- @param #number speed Speed in knots during turn into wind leg.
--- @param #boolean uturn If true (or nil), carrier wil perform a U-turn and go back to where it came from before resuming its route to the next waypoint. If false, it will go directly to the next waypoint.
+-- @param #number speed (Optional) Speed in knots during turn into wind leg. Default is 20.
+-- @param #boolean uturn (Optional) If true (or nil), carrier wil perform a U-turn and go back to where it came from before resuming its route to the next waypoint. If false, it will go directly to the next waypoint.
 -- @return #AIRBOSS.Recovery Recovery window.
 function AIRBOSS:AddRecoveryWindow( starttime, stoptime, case, holdingoffset, turnintowind, speed, uturn )
 
@@ -2587,8 +2603,26 @@ function AIRBOSS:AddRecoveryWindow( starttime, stoptime, case, holdingoffset, tu
     return self
   end
 
-  -- Case or default value.
+  -- Apply the default policy before testing for automatic window selection.
   case = case or self.defaultcase
+
+  -- CASE 0 enables automatic selection for the planned recovery window.
+  if case == 0 then
+    local coordinate = self:GetCoordinate()
+
+    case = UTILS.GetRecoveryCase( coordinate, UTILS.SecondsToClock( Tstart ) )
+
+    -- Conservatively use CASE III for the entire window if it includes night.
+    -- Check at one-minute intervals, including the planned end time.
+    local time = Tstart
+    while case < 3 and time < Tstop do
+      time = math.min( time + 60, Tstop )
+
+      if coordinate:IsNight( UTILS.SecondsToClock( time ) ) then
+        case = 3
+      end
+    end
+  end
 
   -- Holding offset or default value.
   holdingoffset = holdingoffset or self.defaultoffset
@@ -2666,10 +2700,12 @@ function AIRBOSS:CloseCurrentRecoveryWindow( Delay )
     self:ScheduleOnce( Delay, self.CloseCurrentRecoveryWindow, self )
   else
     if self:IsRecovering() and self.recoverywindow and self.recoverywindow.OPEN then
+      -- RecoveryStop may select another window (or clear self.recoverywindow).
+      local window = self.recoverywindow
       self:RecoveryStop()
-      self.recoverywindow.OPEN = false
-      self.recoverywindow.OVER = true
-      self:DeleteRecoveryWindow( self.recoverywindow )
+      window.OPEN = false
+      window.OVER = true
+      self:DeleteRecoveryWindow( window )
     end
   end
 end
@@ -2680,8 +2716,13 @@ end
 -- @return #AIRBOSS self
 function AIRBOSS:DeleteAllRecoveryWindows( Delay )
 
-  -- Loop over all recovery windows.
+  -- Snapshot references: deletion and recovery callbacks can modify the live list.
+  local windows = {}
   for _, recovery in pairs( self.recoverytimes ) do
+    table.insert( windows, recovery )
+  end
+  for i = #windows, 1, -1 do
+    local recovery = windows[i]
     self:I( self.lid .. string.format( "Deleting recovery window ID %s", tostring( recovery.ID ) ) )
     self:DeleteRecoveryWindow( recovery, Delay )
   end
@@ -2717,17 +2758,27 @@ function AIRBOSS:DeleteRecoveryWindow( Window, Delay )
     self:ScheduleOnce( Delay, self.DeleteRecoveryWindow, self, Window )
   else
 
-    for i, _recovery in pairs( self.recoverytimes ) do
-      local recovery = _recovery -- #AIRBOSS.Recovery
+    if not Window then
+      return
+    end
 
-      if Window and Window.ID == recovery.ID then
-        if Window.OPEN then
-          -- Window is currently open.
-          self:RecoveryStop()
-        else
-          table.remove( self.recoverytimes, i )
-        end
+    -- If this window is currently open, stop recovery first. Mark it OVER so the
+    -- recovery time check cannot re-open it before/while we remove it.
+    if Window.OPEN then
+      Window.OPEN = false
+      Window.OVER = true
+      if self:IsRecovering() then
+        self:RecoveryStop()
+      end
+    end
 
+    -- Remove the window from the queue by its unique ID. Iterate over a numerically
+    -- indexed copy of the keys and remove via ipairs-safe reverse loop so that the
+    -- removal does not corrupt traversal (the window may appear once).
+    for i = #self.recoverytimes, 1, -1 do
+      local recovery = self.recoverytimes[i] -- #AIRBOSS.Recovery
+      if recovery and recovery.ID == Window.ID then
+        table.remove( self.recoverytimes, i )
       end
     end
   end
@@ -2735,7 +2786,7 @@ end
 
 --- Set time before carrier turns and recovery window opens.
 -- @param #AIRBOSS self
--- @param #number Interval Time interval in seconds. Default 300 sec.
+-- @param #number Interval (Optional) Time interval in seconds. Default 300 sec.
 -- @return #AIRBOSS self
 function AIRBOSS:SetRecoveryTurnTime( Interval )
   self.dTturn = Interval or 300
@@ -2744,7 +2795,7 @@ end
 
 --- Set multiplayer environment wire correction.
 -- @param #AIRBOSS self
--- @param #number Dcorr Correction distance in meters. Default 12 m.
+-- @param #number Dcorr (Optional) Correction distance in meters. Default 12 m.
 -- @return #AIRBOSS self
 function AIRBOSS:SetMPWireCorrection( Dcorr )
   self.mpWireCorrection = Dcorr or 12
@@ -2753,7 +2804,7 @@ end
 
 --- Set time interval for updating queues and other stuff.
 -- @param #AIRBOSS self
--- @param #number TimeInterval Time interval in seconds. Default 30 sec.
+-- @param #number TimeInterval (Optional) Time interval in seconds. Default 30 sec.
 -- @return #AIRBOSS self
 function AIRBOSS:SetQueueUpdateTime( TimeInterval )
   self.dTqueue = TimeInterval or 30
@@ -2762,7 +2813,7 @@ end
 
 --- Set time interval between LSO calls. Optimal time in the groove is ~16 seconds. So the default of 4 seconds gives around 3-4 correction calls in the groove.
 -- @param #AIRBOSS self
--- @param #number TimeInterval Time interval in seconds between LSO calls. Default 4 sec.
+-- @param #number TimeInterval (Optional) Time interval in seconds between LSO calls. Default 4 sec.
 -- @return #AIRBOSS self
 function AIRBOSS:SetLSOCallInterval( TimeInterval )
   self.LSOdT = TimeInterval or 4
@@ -2835,7 +2886,7 @@ end
 
 --- Give AI aircraft the refueling task if a recovery tanker is present or send them to the nearest divert airfield.
 -- @param #AIRBOSS self
--- @param #number LowFuelThreshold Low fuel threshold in percent. AI will go refueling if their fuel level drops below this value. Default 10 %.
+-- @param #number LowFuelThreshold (Optional) Low fuel threshold in percent. AI will go refueling if their fuel level drops below this value. Default 10 %.
 -- @return #AIRBOSS self
 function AIRBOSS:SetRefuelAI( LowFuelThreshold )
   self.lowfuelAI = LowFuelThreshold or 10
@@ -2844,7 +2895,7 @@ end
 
 --- Set max altitude to register flights in the initial zone. Aircraft above this altitude will not be registerered.
 -- @param #AIRBOSS self
--- @param #number MaxAltitude Max altitude in feet. Default 1300 ft.
+-- @param #number MaxAltitude (Optional) Max altitude in feet. Default 1300 ft.
 -- @return #AIRBOSS self
 function AIRBOSS:SetInitialMaxAlt( MaxAltitude )
   self.initialmaxalt = UTILS.FeetToMeters( MaxAltitude or 1300 )
@@ -2878,7 +2929,7 @@ end
 
 --- Set time interval for updating player status and other things.
 -- @param #AIRBOSS self
--- @param #number TimeInterval Time interval in seconds. Default 0.5 sec.
+-- @param #number TimeInterval (Optional) Time interval in seconds. Default 0.5 sec.
 -- @return #AIRBOSS self
 function AIRBOSS:SetStatusUpdateTime( TimeInterval )
   self.dTstatus = TimeInterval or 0.5
@@ -2887,7 +2938,7 @@ end
 
 --- Set duration how long messages are displayed to players.
 -- @param #AIRBOSS self
--- @param #number Duration Duration in seconds. Default 10 sec.
+-- @param #number Duration (Optional) Duration in seconds. Default 10 sec.
 -- @return #AIRBOSS self
 function AIRBOSS:SetDefaultMessageDuration( Duration )
   self.Tmessage = Duration or 10
@@ -2978,7 +3029,7 @@ end
 --- Set Case I Marshal radius. This is the radius of the valid zone around "the post" aircraft are supposed to be holding in the Case I Marshal stack.
 -- The post is 2.5 NM port of the carrier.
 -- @param #AIRBOSS self
--- @param #number Radius Radius in NM. Default 2.8 NM, which gives a diameter of 5.6 NM.
+-- @param #number Radius (Optional) Radius in NM. Default 2.8 NM, which gives a diameter of 5.6 NM.
 -- @return #AIRBOSS self
 function AIRBOSS:SetMarshalRadius( Radius )
   self.marshalradius = UTILS.NMToMeters( Radius or 2.8 )
@@ -3112,9 +3163,9 @@ end
 --- Set up SRS for usage without sound files
 -- @param #AIRBOSS self
 -- @param #string PathToSRS Path to SRS folder, e.g. "C:\\Program Files\\DCS-SimpleRadio\\ExternalAudio".
--- @param #number Port Port of the SRS server, defaults to 5002.
--- @param #string Culture (Optional, Airboss Culture)  Culture, defaults to "en-US".
--- @param #string Gender (Optional, Airboss Gender)  Gender, e.g. "male" or "female". Defaults to "male".
+-- @param #number Port (Optional) Port of the SRS server, defaults to 5002.
+-- @param #string Culture (Optional) (Optional, Airboss Culture)  Culture, defaults to "en-US".
+-- @param #string Gender (Optional) (Optional, Airboss Gender)  Gender, e.g. "male" or "female". Defaults to "male".
 -- @param #string Voice (Optional, Airboss Voice) Set to use a specific voice. Will **override gender and culture** settings.
 -- @param #string GoogleCreds (Optional) Path to Google credentials, e.g. "C:\\Program Files\\DCS-SimpleRadio-Standalone\\yourgooglekey.json".
 -- @param #number Volume (Optional) E.g. 0.75. Defaults to 1.0 (loudest).
@@ -3143,7 +3194,10 @@ function AIRBOSS:EnableSRS(PathToSRS,Port,Culture,Gender,Voice,GoogleCreds,Volum
     self.SRS:SetVoice(Voice)
   end
   if (not Voice) and self.SRS and self.SRS:GetProvider() == MSRS.Provider.GOOGLE then
-    self.SRS.voice = MSRS.poptions["gcloud"].voice or MSRS.Voices.Google.Standard.en_US_Standard_B
+    self.SRS.voice = MSRS.Voices.Google.Standard.en_US_Standard_B
+    if MSRS.poptions and MSRS.poptions["gcloud"] and MSRS.poptions["gcloud"].voice then
+      self.SRS.voice = MSRS.poptions["gcloud"].voice
+    end
   end
   --self.SRS:SetVolume(Volume or 1.0)
   -- SRSQUEUE
@@ -3362,7 +3416,7 @@ end
 
 --- Set number of aircraft units, which can be in the landing pattern before the pattern is full.
 -- @param #AIRBOSS self
--- @param #number nmax Max number. Default 4. Minimum is 1, maximum is 6.
+-- @param #number nmax (Optional) Max number. Default 4. Minimum is 1, maximum is 6.
 -- @return #AIRBOSS self
 function AIRBOSS:SetMaxLandingPattern( nmax )
   nmax = nmax or 4
@@ -3375,7 +3429,7 @@ end
 --- Set number available Case I Marshal stacks. If Marshal stacks are full, flights requesting Marshal will be told to hold outside 10 NM zone until a stack becomes available again.
 -- Marshal stacks for Case II/III are unlimited.
 -- @param #AIRBOSS self
--- @param #number nmax Max number of stacks available to players and AI flights. Default 3, i.e. angels 2, 3, 4. Minimum is 1.
+-- @param #number nmax (Optional) Max number of stacks available to players and AI flights. Default 3, i.e. angels 2, 3, 4. Minimum is 1.
 -- @return #AIRBOSS self
 function AIRBOSS:SetMaxMarshalStacks( nmax )
   self.Nmaxmarshal = nmax or 3
@@ -3397,7 +3451,7 @@ end
 
 --- Set maximum distance up to which section members are allowed (default: 100 meters).
 -- @param #AIRBOSS self
--- @param #number dmax Max distance in meters (default 100 m). Minimum is 10 m, maximum is 5000 m.
+-- @param #number dmax (Optional) Max distance in meters (default 100 m). Minimum is 10 m, maximum is 5000 m.
 -- @return #AIRBOSS self
 function AIRBOSS:SetMaxSectionDistance( dmax )
     if dmax then
@@ -3413,7 +3467,7 @@ end
 
 --- Set max number of flights per stack. All members of a section count as one "flight".
 -- @param #AIRBOSS self
--- @param #number nmax Number of max allowed flights per stack. Default is two. Minimum is one, maximum is 4.
+-- @param #number nmax (Optional) Number of max allowed flights per stack. Default is two. Minimum is one, maximum is 4.
 -- @return #AIRBOSS self
 function AIRBOSS:SetMaxFlightsPerStack( nmax )
   nmax = nmax or 2
@@ -3433,7 +3487,7 @@ end
 
 --- Will play the inbound calls, commencing, initial, etc. from the player when requesteing marshal
 -- @param #AIRBOSS self
--- @param #AIRBOSS status Boolean to activate (true) / deactivate (false) the radio inbound calls (default is ON)
+-- @param #AIRBOSS status (Optional) Boolean to activate (true) / deactivate (false) the radio inbound calls (default is ON)
 -- @return #AIRBOSS self
 function AIRBOSS:SetExtraVoiceOvers(status)
   self.xtVoiceOvers=status
@@ -3442,7 +3496,7 @@ end
 
 --- Will simulate the inbound call, commencing, initial, etc from the AI when requested by Airboss
 -- @param #AIRBOSS self
--- @param #AIRBOSS status Boolean to activate (true) / deactivate (false) the radio inbound calls (default is ON)
+-- @param #AIRBOSS status (Optional) Boolean to activate (true) / deactivate (false) the radio inbound calls (default is ON)
 -- @return #AIRBOSS self
 function AIRBOSS:SetExtraVoiceOversAI(status)
   self.xtVoiceOversAI=status
@@ -3481,7 +3535,7 @@ end
 -- * "Naval Aviator" = @{#AIRBOSS.Difficulty.Normal}
 -- * "TOPGUN Graduate" = @{#AIRBOSS.Difficulty.Hard}
 -- @param #AIRBOSS self
--- @param #string skill Player skill. Default "Naval Aviator".
+-- @param #string skill (Optional) Player skill. Default "Naval Aviator".
 -- @return #AIRBOSS self
 function AIRBOSS:SetDefaultPlayerSkill( skill )
 
@@ -3507,8 +3561,8 @@ end
 
 --- Enable auto save of player results each time a player is *finally* graded. *Finally* means after the player landed on the carrier! After intermediate passes (bolter or waveoff) the stats are *not* saved.
 -- @param #AIRBOSS self
--- @param #string path Path where to save the asset data file. Default is the DCS root installation directory or your "Saved Games\\DCS" folder if lfs was desanitized.
--- @param #string filename File name. Default is generated automatically from airboss carrier name/alias.
+-- @param #string path (Optional) Path where to save the asset data file. Default is the DCS root installation directory or your "Saved Games\\DCS" folder if lfs was desanitized.
+-- @param #string filename (Optional) File name. Default is generated automatically from airboss carrier name/alias.
 -- @return #AIRBOSS self
 function AIRBOSS:SetAutoSave( path, filename )
   self.autosave = true
@@ -3540,7 +3594,7 @@ end
 
 --- Set the magnetic declination (or variation). By default this is set to the standard declination of the map.
 -- @param #AIRBOSS self
--- @param #number declination Declination in degrees or nil for default declination of the map.
+-- @param #number declination (Optional) Declination in degrees or nil for default declination of the map.
 -- @return #AIRBOSS self
 function AIRBOSS:SetMagneticDeclination( declination )
   self.magvar = declination or UTILS.GetMagneticDeclination()
@@ -3559,8 +3613,8 @@ end
 --- Set FunkMan socket. LSO grades and trap sheets will be send to your Discord bot.
 -- **Requires running FunkMan program**.
 -- @param #AIRBOSS self
--- @param #number Port Port. Default `10042`.
--- @param #string Host Host. Default `"127.0.0.1"`.
+-- @param #number Port (Optional) Port. Default `10042`.
+-- @param #string Host (Optional) Host. Default `"127.0.0.1"`.
 -- @return #AIRBOSS self
 function AIRBOSS:SetFunkManOn(Port, Host)
 
@@ -3571,7 +3625,7 @@ end
 
 --- Get next time the carrier will start recovering aircraft.
 -- @param #AIRBOSS self
--- @param #boolean InSeconds If true, abs. mission time seconds is returned. Default is a clock #string.
+-- @param #boolean InSeconds (Optional) If true, abs. mission time seconds is returned. Default is a clock #string.
 -- @return #string Clock start (or start time in abs. seconds).
 -- @return #string Clock stop (or stop time in abs. seconds).
 function AIRBOSS:GetNextRecoveryTime( InSeconds )
@@ -4075,15 +4129,23 @@ function AIRBOSS:_CheckRecoveryTimes()
         if self:IsRecovering() then
           -- Carrier is already recovering.
           state = "in progress"
-        else
-          -- Start recovery.
+        elseif not recovery.OVER then
+          -- Start recovery. Only if the window has not already been closed/cancelled.
+          -- The OVER guard prevents a window that was stopped manually (e.g. via the
+          -- Skipper "Stop Recovery" menu) from being immediately re-opened on the next
+          -- status tick while its [START,STOP) range is still active.
           self:RecoveryStart( recovery.CASE, recovery.OFFSET )
           state = "starting now"
           recovery.OPEN = true
+        else
+          -- Window was already closed/cancelled within its active time range.
+          state = "cancelled"
         end
 
-        -- Set current recovery window.
-        currwindow = recovery
+        -- Set current recovery window (unless this window has been cancelled).
+        if not recovery.OVER then
+          currwindow = recovery
+        end
 
       else -- Stop time HAS passed.
 
@@ -4180,13 +4242,16 @@ function AIRBOSS:_CheckRecoveryTimes()
         -- Time into the wind 1 day or if longer recovery time + the 5 min early.
         local t = math.max( nextwindow.STOP - nextwindow.START + self.dTturn, 60 * 60 * 24 )
 
-        -- Recovery wind on deck in knots.
+         -- Recovery wind on deck in knots.
+        -- NOTE: Do NOT clamp the desired wind-over-deck (WOD) to the carrier's max hull
+        -- speed here. WOD = carrier speed + headwind, so a WOD target above the hull's
+        -- top speed is achievable whenever there is wind. CarrierTurnIntoWind ->
+        -- GetHeadingIntoWind already converts the WOD target into the required hull
+        -- speed and caps THAT at the carrier's max speed (Vmax) internally. Clamping the
+        -- WOD target itself capped achievable WOD at ~30 kts (the supercarrier's max
+        -- hull speed) even in strong wind, which made high-WOD recovery windows fall
+        -- short of their requested value.
         local v = UTILS.KnotsToMps( nextwindow.SPEED )
-
-        -- Check that we do not go above max possible speed.
-        local vmax = self.carrier:GetSpeedMax() / 3.6 -- convert to m/s
-        v = math.min( v, vmax )
-
         -- Route carrier into the wind. Sets self.turnintowind=true
         self:CarrierTurnIntoWind( t, v, uturn )
 
@@ -4243,7 +4308,7 @@ end
 function AIRBOSS:onbeforeRecoveryCase( From, Event, To, Case, Offset )
 
   -- Input or default value.
-  Case = Case or self.defaultcase
+  Case = self:_ResolveRecoveryCase( Case )
 
   -- Input or default value
   Offset = Offset or self.defaultoffset
@@ -4265,7 +4330,7 @@ end
 function AIRBOSS:onafterRecoveryCase( From, Event, To, Case, Offset )
 
   -- Input or default value.
-  Case = Case or self.defaultcase
+  Case = self:_ResolveRecoveryCase( Case )
 
   -- Input or default value
   Offset = Offset or self.defaultoffset
@@ -4319,16 +4384,16 @@ end
 function AIRBOSS:onafterRecoveryStart( From, Event, To, Case, Offset )
 
   -- Input or default value.
-  Case = Case or self.defaultcase
+  Case = self:_ResolveRecoveryCase( Case )
 
   -- Input or default value.
   Offset = Offset or self.defaultoffset
 
+  -- Apply the recovery case and offset before compiling the radio call.
+  self:RecoveryCase( Case, Offset )
+
   -- Radio message: "99, starting aircraft recovery case X ops. (Marshal radial XYZ degrees)"
   self:_MarshalCallRecoveryStart( Case )
-
-  -- Switch to case.
-  self:RecoveryCase( Case, Offset )
 end
 
 --- On after "RecoveryStop" event. Recovery of aircraft is stopped and carrier switches to state "Idle". Running recovery window is deleted.
@@ -4358,11 +4423,20 @@ function AIRBOSS:onafterRecoveryStop( From, Event, To )
     self:CarrierResumeRoute( coord )
   end
 
-  -- Delete current recovery window if open.
-  if self.recoverywindow and self.recoverywindow.OPEN == true then
+  -- Mark the current recovery window closed and cancelled, then remove it from the
+  -- queue. We do NOT gate this on Window.OPEN: that flag is only set by
+  -- _CheckRecoveryTimes (not by RecoveryStart), and the recovery time check nils and
+  -- rebuilds self.recoverywindow every status tick, so OPEN is not a reliable signal
+  -- here. Setting OVER=true is what actually prevents the window from being re-opened
+  -- on the next tick while its [START,STOP) range is still active.
+  --
+  -- The removal is deferred by one tick (Delay>0) so it does not mutate the
+  -- recoverytimes table while _CheckRecoveryTimes may be iterating over it (the natural
+  -- close path calls RecoveryStop() from inside that loop).
+  if self.recoverywindow then
     self.recoverywindow.OPEN = false
     self.recoverywindow.OVER = true
-    self:DeleteRecoveryWindow( self.recoverywindow )
+    self:DeleteRecoveryWindow( self.recoverywindow, 1 )
   end
 
   -- Check recovery windows. This sets self.recoverywindow to the next window.
@@ -4396,7 +4470,7 @@ function AIRBOSS:onafterRecoveryPause( From, Event, To, duration )
     local text = string.format( "aircraft recovery is paused until further notice." )
 
     -- Marshal call: "99, aircraft recovery paused until further notice."
-    self:_MarshalCallRecoveryPausedNotice()
+    self:_MarshalCallRecoveryPausedUntilFurtherNotice()
 
   end
 
@@ -5475,7 +5549,7 @@ function AIRBOSS:_GetAircraftAoA( playerData )
   local goshawk = playerData.actype == AIRBOSS.AircraftCarrier.T45C
   local skyhawk = playerData.actype == AIRBOSS.AircraftCarrier.A4EC
   local harrier = playerData.actype == AIRBOSS.AircraftCarrier.AV8B
-  local tomcat  = playerData.actype == AIRBOSS.AircraftCarrier.F14A or playerData.actype == AIRBOSS.AircraftCarrier.F14B or playerData.actype == AIRBOSS.AircraftCarrier.F14A_Early
+  local tomcat  = self:_IsTomcat( playerData.actype )
   local corsair = playerData.actype == AIRBOSS.AircraftCarrier.CORSAIR or playerData.actype == AIRBOSS.AircraftCarrier.CORSAIR_CW
 
   -- Table with AoA values.
@@ -5538,6 +5612,18 @@ function AIRBOSS:_GetAircraftAoA( playerData )
     aoa.OnSpeedMin =  9.5
     aoa.Fast       =  8.0
     aoa.FAST       =  7.5
+  else
+    -- Unknown carrier-capable type: _IsCarrierAircraft() is enum-driven, so a type can
+    -- reach here with no AoA branch. Returning an empty table nil-propagates into
+    -- _GetAircraftParameters() and the AoA waveoff check. Fall back to Hornet values.
+    self:E( self.lid .. string.format( "ERROR: No AoA parameters defined for aircraft type %s! Falling back to F/A-18C values.", tostring( playerData.actype ) ) )
+    aoa.SLOW       = 9.8
+    aoa.Slow       = 9.3
+    aoa.OnSpeedMax = 8.8
+    aoa.OnSpeed    = 8.1
+    aoa.OnSpeedMin = 7.4
+    aoa.Fast       = 6.9
+    aoa.FAST       = 6.3
   end
 
   return aoa
@@ -5554,7 +5640,7 @@ function AIRBOSS:_AoAUnit2Deg( playerData, aoaunits )
   local degrees = aoaunits
 
   -- Check aircraft type of player.
-  if playerData.actype == AIRBOSS.AircraftCarrier.F14A or playerData.actype == AIRBOSS.AircraftCarrier.F14B or playerData.actype == AIRBOSS.AircraftCarrier.F14A_Early then
+  if self:_IsTomcat( playerData.actype ) then
 
     -------------
     -- F-14A/B --
@@ -5597,7 +5683,7 @@ function AIRBOSS:_AoADeg2Units( playerData, degrees )
   local aoaunits = degrees
 
   -- Check aircraft type of player.
-  if playerData.actype == AIRBOSS.AircraftCarrier.F14A or playerData.actype == AIRBOSS.AircraftCarrier.F14B or playerData.actype == AIRBOSS.AircraftCarrier.F14A_Early then
+  if self:_IsTomcat( playerData.actype ) then
 
     -------------
     -- F-14A/B --
@@ -5647,7 +5733,7 @@ function AIRBOSS:_GetAircraftParameters( playerData, step )
                  or playerData.actype == AIRBOSS.AircraftCarrier.RHINOF
                  or playerData.actype == AIRBOSS.AircraftCarrier.GROWLER
   local skyhawk = playerData.actype == AIRBOSS.AircraftCarrier.A4EC
-  local tomcat = playerData.actype == AIRBOSS.AircraftCarrier.F14A or playerData.actype == AIRBOSS.AircraftCarrier.F14B
+  local tomcat = self:_IsTomcat( playerData.actype )
   local harrier = playerData.actype == AIRBOSS.AircraftCarrier.AV8B
   local goshawk = playerData.actype == AIRBOSS.AircraftCarrier.T45C
   local corsair = playerData.actype == AIRBOSS.AircraftCarrier.CORSAIR or playerData.actype == AIRBOSS.AircraftCarrier.CORSAIR_CW
@@ -6580,9 +6666,7 @@ function AIRBOSS:_RefuelAI( flight )
   local refuelac=false
   local actype=flight.group:GetTypeName()
   if actype==AIRBOSS.AircraftCarrier.AV8B      or
-     actype==AIRBOSS.AircraftCarrier.F14A      or
-     actype==AIRBOSS.AircraftCarrier.F14B      or
-     actype==AIRBOSS.AircraftCarrier.F14A_AI   or
+     self:_IsTomcat( actype, true )            or
      actype==AIRBOSS.AircraftCarrier.HORNET    or
      actype==AIRBOSS.AircraftCarrier.RHINOE    or
      actype==AIRBOSS.AircraftCarrier.RHINOF    or
@@ -6692,7 +6776,7 @@ function AIRBOSS:_LandAI( flight )
     Speed = UTILS.KnotsToKmph( 200 )
   elseif flight.actype == AIRBOSS.AircraftCarrier.E2D or flight.actype == AIRBOSS.AircraftCarrier.C2A then
     Speed = UTILS.KnotsToKmph( 150 )
-  elseif flight.actype == AIRBOSS.AircraftCarrier.F14A_AI or flight.actype == AIRBOSS.AircraftCarrier.F14A or flight.actype == AIRBOSS.AircraftCarrier.F14B then
+  elseif self:_IsTomcat( flight.actype, true ) then
     Speed = UTILS.KnotsToKmph( 175 )
   elseif flight.actype == AIRBOSS.AircraftCarrier.S3B or flight.actype == AIRBOSS.AircraftCarrier.S3BTANKER then
     Speed = UTILS.KnotsToKmph( 140 )
@@ -6734,7 +6818,7 @@ end
 --- Get marshal altitude and two positions of a counter-clockwise race track pattern.
 -- @param #AIRBOSS self
 -- @param #number stack Assigned stack number. Counting starts at one, i.e. stack=1 is the first stack.
--- @param #number case Recovery case. Default is self.case.
+-- @param #number case (Optional) Recovery case. Default is self.case.
 -- @return #number Holding altitude in meters.
 -- @return Core.Point#COORDINATE First race track coordinate.
 -- @return Core.Point#COORDINATE Second race track coordinate.
@@ -7095,8 +7179,8 @@ end
 --- Get next free Marshal stack. Depending on AI/human and recovery case.
 -- @param #AIRBOSS self
 -- @param #boolean ai If true, get a free stack for an AI flight group.
--- @param #number case Recovery case. Default current (self) case in progress.
--- @param #boolean empty Return lowest stack that is completely empty.
+-- @param #number case (Optional) Recovery case. Default current (self) case in progress.
+-- @param #boolean empty (Optional) Return lowest stack that is completely empty.
 -- @return #number Lowest free stack available for the given case or nil if all Case I stacks are taken.
 function AIRBOSS:_GetFreeStack( ai, case, empty )
 
@@ -7185,7 +7269,7 @@ end
 --- Get next free Marshal stack. Depending on AI/human and recovery case.
 -- @param #AIRBOSS self
 -- @param #boolean ai If true, get a free stack for an AI flight group.
--- @param #number case Recovery case. Default current (self) case in progress.
+-- @param #number case (Optional) Recovery case. Default current (self) case in progress.
 -- @param #boolean empty Return lowest stack that is completely empty.
 -- @return #number Lowest free stack available for the given case or nil if all Case I stacks are taken.
 function AIRBOSS:_GetFreeStack_Old( ai, case, empty )
@@ -7253,7 +7337,7 @@ end
 --- Get number of (airborne) units in a flight.
 -- @param #AIRBOSS self
 -- @param #AIRBOSS.FlightGroup flight The flight group.
--- @param #boolean onground If true, include units on the ground. By default only airborne units are counted.
+-- @param #boolean onground (Optional) If true, include units on the ground. By default only airborne units are counted.
 -- @return #number Number of units in flight including section members.
 -- @return #number Number of units in flight excluding section members.
 -- @return #number Number of section members.
@@ -8167,7 +8251,7 @@ function AIRBOSS:_CheckPlayerStatus()
                     or playerData.actype == AIRBOSS.AircraftCarrier.RHINOE
                     or playerData.actype == AIRBOSS.AircraftCarrier.RHINOF
                     or playerData.actype == AIRBOSS.AircraftCarrier.GROWLER
-          local tomcat  = playerData.actype == AIRBOSS.AircraftCarrier.F14A or playerData.actype == AIRBOSS.AircraftCarrier.F14B
+          local tomcat  = self:_IsTomcat( playerData.actype )
 
           -- VNAO Edit - Added wrapped up call to LSO grading Hornet
           if playerData.step==AIRBOSS.PatternStep.WAKE and hornet then-- VNAO Edit - Added
@@ -9422,7 +9506,7 @@ function AIRBOSS:_Initial( playerData )
 
       -- Hook down for students.
       if playerData.difficulty == AIRBOSS.Difficulty.EASY and playerData.actype ~= AIRBOSS.AircraftCarrier.AV8B then
-        if playerData.actype == AIRBOSS.AircraftCarrier.F14A or playerData.actype == AIRBOSS.AircraftCarrier.F14B then
+        if self:_IsTomcat( playerData.actype ) then
           hint = hint .. " - Hook down, SAS on, Wing Sweep 68°!"
         else
           hint = hint .. " - Hook down!"
@@ -9587,8 +9671,7 @@ function AIRBOSS:_DirtyUp( playerData )
 
     -- Radio call "Say/Fly needles". Delayed by 10/15 seconds.
     if   playerData.actype == AIRBOSS.AircraftCarrier.HORNET
-      or playerData.actype == AIRBOSS.AircraftCarrier.F14A
-      or playerData.actype == AIRBOSS.AircraftCarrier.F14B
+      or self:_IsTomcat( playerData.actype )
       or playerData.actype == AIRBOSS.AircraftCarrier.RHINOE
       or playerData.actype == AIRBOSS.AircraftCarrier.RHINOF
       or playerData.actype == AIRBOSS.AircraftCarrier.GROWLER
@@ -10366,7 +10449,7 @@ function AIRBOSS:_Groove( playerData )
 
     -- Wait until player passed the 0.75 NM distance.
     local _advice = true
-    if playerData.TIG0 == nil and playerData.difficulty ~= AIRBOSS.Difficulty.EASY then -- rho>RXX
+    if (playerData.TIG0 == nil or playerData.TIG0 == 0) and playerData.difficulty ~= AIRBOSS.Difficulty.EASY then -- rho>RXX
       _advice = false
     end
 
@@ -10782,7 +10865,7 @@ function AIRBOSS:_Trapped( playerData )
       or playerData.actype == AIRBOSS.AircraftCarrier.RHINOF
       or playerData.actype == AIRBOSS.AircraftCarrier.GROWLER then
       dcorr = 100
-    elseif playerData.actype == AIRBOSS.AircraftCarrier.F14A or playerData.actype == AIRBOSS.AircraftCarrier.F14B then
+    elseif self:_IsTomcat( playerData.actype ) then
       -- TODO: Check Tomcat.
       dcorr = 100
     elseif playerData.actype == AIRBOSS.AircraftCarrier.A4EC then
@@ -10958,9 +11041,9 @@ end
 
 --- Get groove zone.
 -- @param #AIRBOSS self
--- @param #number l Length of the groove in NM. Default 1.5 NM.
--- @param #number w Width of the groove in NM. Default 0.25 NM.
--- @param #number b Width of the beginning in NM. Default 0.10 NM.
+-- @param #number l (Optional) Length of the groove in NM. Default 1.5 NM.
+-- @param #number w (Optional) Width of the groove in NM. Default 0.25 NM.
+-- @param #number b (Optional) Width of the beginning in NM. Default 0.10 NM.
 -- @return Core.Zone#ZONE_POLYGON_BASE Groove zone.
 function AIRBOSS:_GetZoneGroove( l, w, b )
 
@@ -11131,7 +11214,7 @@ end
 --- Get approach corridor zone. Shape depends on recovery case.
 -- @param #AIRBOSS self
 -- @param #number case Recovery case.
--- @param #number l Length of the zone in NM. Default 31 (=21+10) NM.
+-- @param #number l (Optional) Length of the zone in NM. Default 31 (=21+10) NM.
 -- @return Core.Zone#ZONE_POLYGON_BASE Box zone.
 function AIRBOSS:_GetZoneCorridor( case, l )
 
@@ -11595,7 +11678,7 @@ function AIRBOSS:_AttitudeMonitor( playerData )
 
   local unitClient = Unit.getByName(unit:GetName()) -- VNAO Edit - Added
   local hornet = playerData.actype == AIRBOSS.AircraftCarrier.HORNET -- VNAO Edit - Added
-  local tomcat = playerData.actype == AIRBOSS.AircraftCarrier.F14A or playerData.actype == AIRBOSS.AircraftCarrier.F14B or playerData.actype == AIRBOSS.AircraftCarrier.F14A_Early -- VNAO Edit - Added
+  local tomcat = self:_IsTomcat( playerData.actype ) -- VNAO Edit - Added
 
   if hornet then -- VNAO Edit - Added
     local nozzlePosL = 0  -- VNAO Edit - Added
@@ -11828,7 +11911,7 @@ function AIRBOSS:_NozzleArgumentLeft( unit ) -- VNAO Edit - Added
     else -- VNAO Edit - Added
       nozzlePosL = 0 -- VNAO Edit - Added
     end -- VNAO Edit - Added
-  elseif typeName == "F-14A-135-GR" or typeName == "F-14B" or typeName == "F-14A-135-GR-Early" then -- VNAO Edit - Added
+  elseif self:_IsTomcat( typeName ) then -- VNAO Edit - Added
     nozzlePosL = unitClient:getDrawArgumentValue(434) -- VNAO Edit - Added
   end -- VNAO Edit - Added
   
@@ -11853,7 +11936,7 @@ function AIRBOSS:_NozzleArgumentRight( unit ) -- VNAO Edit - Added
     else -- VNAO Edit - Added
       nozzlePosR = 0 -- VNAO Edit - Added
     end -- VNAO Edit - Added
-  elseif typeName == "F-14A-135-GR" or typeName == "F-14B" or typeName == "F-14A-135-GR-Early" then -- VNAO Edit - Added
+  elseif self:_IsTomcat( typeName ) then -- VNAO Edit - Added
     nozzlePosR = unitClient:getDrawArgumentValue(433) -- VNAO Edit - Added
   end -- VNAO Edit - Added
   return nozzlePosR -- VNAO Edit - Added
@@ -11977,7 +12060,7 @@ end
 
 --- Get true (or magnetic) heading of carrier.
 -- @param #AIRBOSS self
--- @param #boolean magnetic If true, calculate magnetic heading. By default true heading is returned.
+-- @param #boolean magnetic (Optional) If true, calculate magnetic heading. By default true heading is returned.
 -- @return #number Carrier heading in degrees.
 function AIRBOSS:GetHeading( magnetic )
   self:F3( { magnetic = magnetic } )
@@ -12010,8 +12093,8 @@ end
 
 --- Get wind direction and speed at carrier position.
 -- @param #AIRBOSS self
--- @param #number alt Altitude ASL in meters. Default 18 m.
--- @param #boolean magnetic Direction including magnetic declination.
+-- @param #number alt (Optional) Altitude ASL in meters. Default 18 m.
+-- @param #boolean magnetic (Optional) Direction including magnetic declination.
 -- @param Core.Point#COORDINATE coord (Optional) Coordinate at which to get the wind. Default is current carrier position.
 -- @return #number Direction the wind is blowing **from** in degrees.
 -- @return #number Wind speed in m/s.
@@ -12037,7 +12120,7 @@ end
 
 --- Get wind speed on carrier deck parallel and perpendicular to runway.
 -- @param #AIRBOSS self
--- @param #number alt Altitude in meters. Default 18 m.
+-- @param #number alt (Optional) Altitude in meters. Default 18 m.
 -- @return #number Wind component parallel to runway im m/s.
 -- @return #number Wind component perpendicular to runway in m/s.
 -- @return #number Total wind strength in m/s.
@@ -12083,7 +12166,7 @@ end
 --- Get true (or magnetic) heading of carrier into the wind. This accounts for the angled runway.
 -- @param #AIRBOSS self
 -- @param #number vdeck Desired wind velocity over deck in knots.
--- @param #boolean magnetic If true, calculate magnetic heading. By default true heading is returned.
+-- @param #boolean magnetic (Optional) If true, calculate magnetic heading. By default true heading is returned.
 -- @param Core.Point#COORDINATE coord (Optional) Coordinate from which heading is calculated. Default is current carrier position.
 -- @return #number Carrier heading in degrees.
 -- @return #number Carrier speed in knots to reach desired wind speed on deck.
@@ -12103,7 +12186,7 @@ end
 --- Get true (or magnetic) heading of carrier into the wind. This accounts for the angled runway.
 -- @param #AIRBOSS self
 -- @param #number vdeck Desired wind velocity over deck in knots.
--- @param #boolean magnetic If true, calculate magnetic heading. By default true heading is returned.
+-- @param #boolean magnetic (Optional) If true, calculate magnetic heading. By default true heading is returned.
 -- @param Core.Point#COORDINATE coord (Optional) Coordinate from which heading is calculated. Default is current carrier position.
 -- @return #number Carrier heading in degrees.
 function AIRBOSS:GetHeadingIntoWind_old( vdeck, magnetic, coord )
@@ -12176,7 +12259,7 @@ end
 -- Implementation based on [Mags & Bambi](https://magwo.github.io/carrier-cruise/).
 -- @param #AIRBOSS self
 -- @param #number vdeck Desired wind velocity over deck in knots.
--- @param #boolean magnetic If true, calculate magnetic heading. By default true heading is returned.
+-- @param #boolean magnetic (Optional) If true, calculate magnetic heading. By default true heading is returned.
 -- @param Core.Point#COORDINATE coord (Optional) Coordinate from which heading is calculated. Default is current carrier position.
 -- @return #number Carrier heading in degrees.
 -- @return #number Carrier speed in knots to reach desired wind speed on deck.
@@ -12307,9 +12390,9 @@ end
 --
 -- @param #AIRBOSS self
 -- @param #number case Recovery case.
--- @param #boolean magnetic If true, magnetic radial is returned. Default is true radial.
--- @param #boolean offset If true, inlcude holding offset.
--- @param #boolean inverse Return inverse, i.e. radial-180 degrees.
+-- @param #boolean magnetic (Optional) If true, magnetic radial is returned. Default is true radial.
+-- @param #boolean offset (Optional) If true, inlcude holding offset.
+-- @param #boolean inverse (Optional) Return inverse, i.e. radial-180 degrees.
 -- @return #number Radial in degrees.
 function AIRBOSS:GetRadial( case, magnetic, offset, inverse )
 
@@ -12730,8 +12813,7 @@ function AIRBOSS:_LSOgrade( playerData )
       grade = "_OK_"
       points = 5.0
       G = "Unicorn"
-    end -- VNAO Edit - Added
-    if N==0 and TgrooveUnicorn then  -- VNAO Edit - Added
+    elseif N==0 and TgrooveUnicorn then
       -- No deviations, should be REALLY RARE! -- VNAO Edit - Added
       if playerData.wire == 3 then -- VNAO Edit - Added
         grade="_OK_" -- VNAO Edit - Added
@@ -12900,6 +12982,14 @@ function AIRBOSS:_LSOgrade( playerData )
     -- Circuit edit only take points awary from a 1 wire if there are more than 4 other deviations
   if playerData.wire == 1 and points >= 3 and N > 4 then
     points = points -1
+    -- We also need to change the grade based on the new points.
+    if points == 4 then
+      grade = "OK"
+    elseif points == 3 then
+      grade = "(OK)"
+    elseif points == 2 then 
+      grade = "--"
+    end
   end
 
   env.info("Returning: " .. grade .. "  " .. points .. "  " .. G)
@@ -13108,7 +13198,7 @@ function AIRBOSS:_Flightdata2Text( playerData, groovestep )
 
 
     local hornet =   playerData.actype == AIRBOSS.AircraftCarrier.HORNET-- VNAO Edit - Added 
-    local tomcat = playerData.actype == AIRBOSS.AircraftCarrier.F14A or playerData.actype == AIRBOSS.AircraftCarrier.F14B-- VNAO Edit - Added 
+    local tomcat = self:_IsTomcat( playerData.actype )-- VNAO Edit - Added 
 
     if hornet then-- VNAO Edit - Added 
       if Lnoz > 0.6 and Rnoz > 0.6 then -- VNAO Edit - Added check them both, it's possilbe there could be a single engine landing and one is in idle perhaps?
@@ -13255,7 +13345,7 @@ end
 --- Get short name of the grove step.
 -- @param #AIRBOSS self
 -- @param #string step Player step.
--- @param #number n Use -1 for previous or +1 for next. Default 0.
+-- @param #number n (Optional) Use -1 for previous or +1 for next. Default 0.
 -- @return #string Shortcut name "X", "RB", "IM", "AR", "IW".
 function AIRBOSS:_GS( step, n )
   local gp
@@ -13454,7 +13544,7 @@ end
 --- Display hint to player.
 -- @param #AIRBOSS self
 -- @param #AIRBOSS.PlayerData playerData Player data table.
--- @param #number delay Delay before playing sound messages. Default 0 sec.
+-- @param #number delay (Optional) Delay before playing sound messages. Default 0 sec.
 -- @param #boolean soundoff If true, don't play and sound hint.
 function AIRBOSS:_PlayerHint( playerData, delay, soundoff )
 
@@ -13624,7 +13714,7 @@ function AIRBOSS:_StepHint( playerData, step )
 
     -- Late break.
     if step == AIRBOSS.PatternStep.LATEBREAK then
-      if playerData.actype == AIRBOSS.AircraftCarrier.F14A or playerData.actype == AIRBOSS.AircraftCarrier.F14B then
+      if self:_IsTomcat( playerData.actype ) then
         hint = hint .. "\nWing Sweep 20°, Gear DOWN < 280 KIAS."
       end
     end
@@ -13633,7 +13723,7 @@ function AIRBOSS:_StepHint( playerData, step )
     if step == AIRBOSS.PatternStep.ABEAM then
       if playerData.actype == AIRBOSS.AircraftCarrier.AV8B then
         hint = hint .. "\nNozzles 50°-60°. Antiskid OFF. Lights OFF."
-      elseif playerData.actype == AIRBOSS.AircraftCarrier.F14A or playerData.actype == AIRBOSS.AircraftCarrier.F14B then
+      elseif self:_IsTomcat( playerData.actype ) then
         hint = hint .. "\nSlats/Flaps EXTENDED < 225 KIAS. DLC SELECTED. Auto Throttle IF DESIRED."
       else
         hint = hint .. "\nDirty up! Gear DOWN, flaps DOWN. Check hook down."
@@ -14276,7 +14366,7 @@ end
 
 --- Check Collision.
 -- @param #AIRBOSS self
--- @param Core.Point#COORDINATE fromcoord Coordinate from which the path to the next WP is calculated. Default current carrier position.
+-- @param Core.Point#COORDINATE fromcoord (Optional) Coordinate from which the path to the next WP is calculated. Default current carrier position.
 -- @return #boolean If true, surface type ahead is not deep water.
 function AIRBOSS:_CheckFreePathToNextWP( fromcoord )
 
@@ -14354,9 +14444,9 @@ end
 --- Let the carrier make a detour to a given point. When it reaches the point, it will resume its normal route.
 -- @param #AIRBOSS self
 -- @param Core.Point#COORDINATE coord Coordinate of the detour.
--- @param #number speed Speed in knots. Default is current carrier velocity.
+-- @param #number speed (Optional) Speed in knots. Default is current carrier velocity.
 -- @param #boolean uturn (Optional) If true, carrier will go back to where it came from before it resumes its route to the next waypoint.
--- @param #number uspeed Speed in knots after U-turn. Default is same as before.
+-- @param #number uspeed (Optional) Speed in knots after U-turn. Default is same as before.
 -- @param Core.Point#COORDINATE tcoord Additional coordinate to make turn smoother.
 -- @return #AIRBOSS self
 function AIRBOSS:CarrierDetour( coord, speed, uturn, uspeed, tcoord )
@@ -15068,7 +15158,7 @@ function AIRBOSS:_GetACNickname( actype )
     nickname = "Hawkeye"
   elseif actype == AIRBOSS.AircraftCarrier.C2A then
     nickname = "Greyhound"
-  elseif actype == AIRBOSS.AircraftCarrier.F14A_AI or actype == AIRBOSS.AircraftCarrier.F14A or actype == AIRBOSS.AircraftCarrier.F14B or actype == AIRBOSS.AircraftCarrier.F14A_Early then
+  elseif self:_IsTomcat( actype, true ) then
     nickname = "Tomcat"
   elseif actype == AIRBOSS.AircraftCarrier.FA18C or actype == AIRBOSS.AircraftCarrier.HORNET then
     nickname = "Hornet"
@@ -15203,6 +15293,29 @@ function AIRBOSS:_GetGoodBadScore( playerData )
   end
 
   return lowscore, badscore
+end
+
+--- Check whether an aircraft type name is any F-14 Tomcat variant.
+-- Central predicate so that adding a new Tomcat variant only requires editing
+-- this function and the AIRBOSS.AircraftCarrier enum.
+-- @param #AIRBOSS self
+-- @param #string actype Aircraft type name, e.g. from `unit:GetTypeName()` or `playerData.actype`.
+-- @param #boolean IncludeAI If true, also match the AI-only F-14A (AIRBOSS.AircraftCarrier.F14A_AI).
+-- @return #boolean If true, actype is an F-14 variant.
+function AIRBOSS:_IsTomcat( actype, IncludeAI )
+
+  if actype == AIRBOSS.AircraftCarrier.F14A
+    or actype == AIRBOSS.AircraftCarrier.F14B
+    or actype == AIRBOSS.AircraftCarrier.F14BU
+    or actype == AIRBOSS.AircraftCarrier.F14A_Early then
+    return true
+  end
+
+  if IncludeAI and actype == AIRBOSS.AircraftCarrier.F14A_AI then
+    return true
+  end
+
+  return false
 end
 
 --- Check if aircraft is capable of landing on this aircraft carrier.
@@ -16090,11 +16203,11 @@ end
 -- @param #AIRBOSS self
 -- @param #AIRBOSS.PlayerData playerData Player data.
 -- @param #string message The message to send.
--- @param #string sender The person who sends the message or nil.
--- @param #string receiver The person who receives the message. Default player's onboard number. Set to "" for no receiver.
--- @param #number duration Display message duration. Default 10 seconds.
--- @param #boolean clear If true, clear screen from previous messages.
--- @param #number delay Delay in seconds, before the message is displayed.
+-- @param #string sender (Optional) The person who sends the message or nil. Defaults to nil.
+-- @param #string receiver (Optional) The person who receives the message. Default player's onboard number. Set to "" for no receiver.
+-- @param #number duration (Optional) Display message duration. Default 10 seconds.
+-- @param #boolean clear I(Optional) f true, clear screen from previous messages. Defaults to false.
+-- @param #number delay (Optional) Delay in seconds, before the message is displayed.
 function AIRBOSS:MessageToPlayer( playerData, message, sender, receiver, duration, clear, delay )
   self:T({sender,receiver,message})
   if playerData and message and message ~= "" then
@@ -16218,11 +16331,11 @@ end
 -- Message format will be "SENDER: RECCEIVER, MESSAGE".
 -- @param #AIRBOSS self
 -- @param #string message The message to send.
--- @param #string sender The person who sends the message or nil.
--- @param #string receiver The person who receives the message. Default player's onboard number. Set to "" for no receiver.
--- @param #number duration Display message duration. Default 10 seconds.
--- @param #boolean clear If true, clear screen from previous messages.
--- @param #number delay Delay in seconds, before the message is displayed.
+-- @param #string sender (Optional) The person who sends the message or nil. Defaults to "LSO".
+-- @param #string receiver (Optional) The person who receives the message. Default player's onboard number. Set to "" for no receiver.
+-- @param #number duration (Optional) Display message duration. Default 10 seconds.
+-- @param #boolean clear (Optional) If true, clear screen from previous messages.
+-- @param #number delay (Optional) Delay in seconds, before the message is displayed.
 function AIRBOSS:MessageToPattern( message, sender, receiver, duration, clear, delay )
 
   -- Create new (fake) radio call to show the subtitile.
@@ -16237,11 +16350,11 @@ end
 -- Message format will be "SENDER: RECCEIVER, MESSAGE".
 -- @param #AIRBOSS self
 -- @param #string message The message to send.
--- @param #string sender The person who sends the message or nil.
--- @param #string receiver The person who receives the message. Default player's onboard number. Set to "" for no receiver.
--- @param #number duration Display message duration. Default 10 seconds.
--- @param #boolean clear If true, clear screen from previous messages.
--- @param #number delay Delay in seconds, before the message is displayed.
+-- @param #string sender (Optional) The person who sends the message or nil. Defaults to "Marshal".
+-- @param #string receiver (Optional) The person who receives the message. Default player's onboard number. Set to "" for no receiver.
+-- @param #number duration (Optional) Display message duration. Default 10 seconds.
+-- @param #boolean clear (Optional) If true, clear screen from previous messages.
+-- @param #number delay (Optional) Delay in seconds, before the message is displayed.
 function AIRBOSS:MessageToMarshal( message, sender, receiver, duration, clear, delay )
 
   -- Create new (fake) radio call to show the subtitile.
@@ -16255,11 +16368,11 @@ end
 --- Generate a new radio call (deepcopy) from an existing default call.
 -- @param #AIRBOSS self
 -- @param #AIRBOSS.RadioCall call Radio call to be enhanced.
--- @param #string sender Sender of the message. Default is the radio alias.
--- @param #string subtitle Subtitle of the message. Default from original radio call. Use "" for no subtitle.
--- @param #number subduration Time in seconds the subtitle is displayed. Default 10 seconds.
--- @param #string modexreceiver Onboard number of the receiver or nil.
--- @param #string modexsender Onboard number of the sender or nil.
+-- @param #string sender (Optional) Sender of the message. Default is the radio alias.
+-- @param #string subtitle (Optional) Subtitle of the message. Default from original radio call. Use "" for no subtitle.
+-- @param #number subduration (Optional) Time in seconds the subtitle is displayed. Default 10 seconds.
+-- @param #string modexreceiver (Optional) Onboard number of the receiver or nil.
+-- @param #string modexsender (Optional) Onboard number of the sender or nil.
 function AIRBOSS:_NewRadioCall( call, sender, subtitle, subduration, modexreceiver, modexsender )
 
   -- Create a new call
@@ -16832,8 +16945,9 @@ end
 -- @param #AIRBOSS self
 function AIRBOSS:_MarshalCallRecoveryStart( case )
 
-  -- Marshal radial.
-  local radial = self:GetRadial( case, true, true, false )
+  -- Current magnetic navigation data. Normalize after rounding for radio output.
+  local radial = math.floor( self:GetRadial( case, true, true, false ) + 0.5 ) % 360
+  local finalbearing = math.floor( self:GetFinalBearing( true ) + 0.5 ) % 360
 
   -- Debug output.
   local text = string.format( "Starting aircraft recovery Case %d ops.", case )
@@ -16842,7 +16956,7 @@ function AIRBOSS:_MarshalCallRecoveryStart( case )
   elseif case == 2 then
     text = text .. string.format( " Marshal radial %03d°. BRC %03d°.", radial, self:GetBRC() )
   elseif case == 3 then
-    text = text .. string.format( " Marshal radial %03d°. Final heading %03d°.", radial, self:GetFinalBearing( false ) )
+    text = text .. string.format( " Marshal radial %03d°. New final bearing %03d°.", radial, finalbearing )
   end
   self:T( self.lid .. text )
 
@@ -16863,6 +16977,13 @@ function AIRBOSS:_MarshalCallRecoveryStart( case )
     -- XYZ..
     self:_Number2Radio( self.MarshalRadio, string.format( "%03d", radial ), nil, 0.2 )
     -- Degrees.
+    self:RadioTransmission( self.MarshalRadio, self.MarshalCall.DEGREES, nil, nil, nil, case ~= 3 )
+  end
+
+  if case == 3 then
+    -- Reuse the existing "New final bearing" recording.
+    self:RadioTransmission( self.MarshalRadio, self.MarshalCall.NEWFB, nil, nil, 0.5 )
+    self:_Number2Radio( self.MarshalRadio, string.format( "%03d", finalbearing ), nil, 0.2 )
     self:RadioTransmission( self.MarshalRadio, self.MarshalCall.DEGREES, nil, nil, nil, true )
   end
 
@@ -16886,8 +17007,28 @@ function AIRBOSS:_MarshalCallArrived( modex, case, brc, altitude, charlie, qfe )
   local clock = UTILS.Split( charlie, "+" )
   local CT = UTILS.Split( clock[1], ":" )
 
+  -- Use current magnetic navigation data, matching the active holding zone.
+  -- The supplied expected BRC remains in use for CASE I/II only.
+  local radial
+  local finalbearing
+  if case > 1 then
+    radial = math.floor( self:GetRadial( case, true, true, false ) + 0.5 ) % 360
+  end
+  if case == 3 then
+    finalbearing = math.floor( self:GetFinalBearing( true ) + 0.5 ) % 360
+  end
+
   -- Subtitle text.
-  local text = string.format( "Case %d, expected BRC %03d°, hold at angels %d. Expected Charlie Time %s. Altimeter %.2f. Report see me.", case, brc, angels, charlie, qfe )
+  local text = string.format( "Case %d.", case )
+  if case == 3 then
+    text = text .. string.format( " New final bearing %03d°.", finalbearing )
+  else
+    text = text .. string.format( " Expected BRC %03d°.", brc )
+  end
+  if radial then
+    text = text .. string.format( " Marshal radial %03d°.", radial )
+  end
+  text = text .. string.format( " Hold at angels %d. Expected Charlie Time %s. Altimeter %.2f. Report see me.", angels, charlie, qfe )
 
   -- Debug message.
   self:T( self.lid .. text )
@@ -16900,14 +17041,23 @@ function AIRBOSS:_MarshalCallArrived( modex, case, brc, altitude, charlie, qfe )
   -- X.
   self:_Number2Radio( self.MarshalRadio, tostring( case ) )
 
-  -- Expected..
-  self:RadioTransmission( self.MarshalRadio, self.MarshalCall.EXPECTED, nil, nil, 0.5 )
-  -- BRC..
-  self:RadioTransmission( self.MarshalRadio, self.MarshalCall.BRC )
-  -- XYZ...
-  self:_Number2Radio( self.MarshalRadio, string.format( "%03d", brc ) )
+  if case == 3 then
+    -- Existing recording: "New final bearing" (without an "Expected" prefix).
+    self:RadioTransmission( self.MarshalRadio, self.MarshalCall.NEWFB, nil, nil, 0.5 )
+    self:_Number2Radio( self.MarshalRadio, string.format( "%03d", finalbearing ) )
+  else
+    self:RadioTransmission( self.MarshalRadio, self.MarshalCall.EXPECTED, nil, nil, 0.5 )
+    self:RadioTransmission( self.MarshalRadio, self.MarshalCall.BRC )
+    self:_Number2Radio( self.MarshalRadio, string.format( "%03d", brc ) )
+  end
   -- Degrees.
   self:RadioTransmission( self.MarshalRadio, self.MarshalCall.DEGREES )
+
+  if radial then
+    self:RadioTransmission( self.MarshalRadio, self.MarshalCall.MARSHALRADIAL, nil, nil, 0.5 )
+    self:_Number2Radio( self.MarshalRadio, string.format( "%03d", radial ) )
+    self:RadioTransmission( self.MarshalRadio, self.MarshalCall.DEGREES )
+  end
 
   -- Hold at..
   self:RadioTransmission( self.MarshalRadio, self.MarshalCall.HOLDATANGELS, nil, nil, 0.5 )
@@ -19201,7 +19351,7 @@ end
 -- @param #string From From state.
 -- @param #string Event Event.
 -- @param #string To To state.
--- @param #string path Path where the file is loaded from. Default is the DCS root installation folder or your "Saved Games\\DCS" folder if lfs was desanizied.
+-- @param #string path (Optional) Path where the file is loaded from. Default is the DCS root installation folder or your "Saved Games\\DCS" folder if lfs was desanizied.
 -- @param #string filename (Optional) File name for saving the player grades. Default is "AIRBOSS-<ALIAS>_LSOgrades.csv".
 function AIRBOSS:onafterLoad( From, Event, To, path, filename )
 
