@@ -1204,9 +1204,23 @@ do -- Event Creation
   
 end
 
+--- Read static metadata without losing cleanup identity when DCS expires it.
+-- @param #EVENT self
+-- @param DCS#StaticObject Object Static event initiator.
+function EVENT:_GetStaticEventData(Object)
+  local named, name=pcall(function() return Object:getName() end)
+  if not named or not name then return nil end
+  local ok, coalition, category, typename=pcall(function()
+    return Object:getCoalition(), Object:getDesc().category, Object:getTypeName()
+  end)
+  -- DCS sometimes reports a static birth/death whose metadata has already
+  -- expired. Retain its identity so death/cleanup listeners still receive it.
+  return name, ok and coalition or nil, ok and category or nil, ok and typename or nil
+end
+
 --- Main event function.
 -- @param #EVENT self
--- @param #EVENTDATA Event Event data table.
+-- @param #EVENTDATA Event Event Event data table.
 function EVENT:onEvent( Event )
 
   --- Function to handle errors.
@@ -1259,12 +1273,10 @@ function EVENT:onEvent( Event )
             Event.IniTypeName = "Ejection Seat"
           else
             Event.IniDCSUnit = Event.initiator
-            Event.IniDCSUnitName = Event.IniDCSUnit:getName()
+            Event.IniDCSUnitName, Event.IniCoalition, Event.IniCategory, Event.IniTypeName = self:_GetStaticEventData(Event.IniDCSUnit)
+            if not Event.IniDCSUnitName then return end
             Event.IniUnitName = Event.IniDCSUnitName
             Event.IniUnit = STATIC:FindByName( Event.IniDCSUnitName, false )
-            Event.IniCoalition = Event.IniDCSUnit:getCoalition()
-            Event.IniCategory = Event.IniDCSUnit:getDesc().category
-            Event.IniTypeName = Event.IniDCSUnit:getTypeName()
           end
           
           -- Dead events of units can be delayed and the initiator changed to a static.
